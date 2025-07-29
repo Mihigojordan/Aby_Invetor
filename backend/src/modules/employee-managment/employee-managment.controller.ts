@@ -27,4 +27,16 @@ export class EmployeeManagmentController {
       throw new Error(error.message);
     }
   }
+
+
+  @Post('assign-task')
+  @UseGuards(AdminJwtAuthGuard)
+  async assignTakToEmployee(@Body() data){
+    try {
+        return await this.employeeServices.assignTasks(data)
+    } catch (error) {
+        console.error('error assigning task   employees', error);
+      throw new Error(error.message);
+    }
+  }
 }
