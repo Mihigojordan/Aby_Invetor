@@ -46,7 +46,7 @@ export class ProductManagmentController {
   }
 
 
-   @Put('update:id')
+  @Put('update/:id')
   @UseInterceptors(FileFieldsInterceptor(productFileFields, productUploadConfig))
   async update(
     @Param('id') id: string,

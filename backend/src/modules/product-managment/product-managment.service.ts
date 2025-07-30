@@ -28,9 +28,13 @@ export class ProductManagmentService {
         data: {
           productName,
           brand,
-          categoryId,
           description,
           imageUrls,
+          category: {
+            connect: {
+              id: categoryId
+            }
+          }
         },
       });
 
@@ -70,19 +74,37 @@ export class ProductManagmentService {
       brand?: string;
       categoryId?: string;
       description?: any;
+      keepImages?:string[];
       imageurls?: Express.Multer.File[];
     },
   ) {
     const existing = await this.getProductById(id);
 
-    // Prepare new imageUrls array (keep old + add new images)
-    let imageUrls = existing.imageUrls || [];
-
-    if (data.imageurls && data.imageurls.length > 0) {
-      const newImages = data.imageurls.map((file) => `/uploads/product_images/${file.filename}`);
-
-    //   imageUrls = [...imageUrls, ...newImages];
+     // ✅ Validate categoryId if provided
+  if (data.categoryId?.trim()) {
+    const categoryExists = await this.prisma.category.findUnique({
+      where: { id: data.categoryId },
+    });
+    if (!categoryExists) {
+      throw new BadRequestException('Invalid categoryId: category does not exist');
     }
+  }
+
+  // ✅ Prepare kept images from user
+  const keepImages = data.keepImages ?? [];
+
+  // ✅ Prepare new uploaded images
+  const newImages = data.imageurls?.map(
+    (file) => `/uploads/product_images/${file.filename}`,
+  ) ?? [];
+
+  // ✅ Validate max 4 images
+  const totalImages = keepImages.length + newImages.length;
+  if (totalImages > 4) {
+    throw new BadRequestException('Maximum 4 images allowed (existing + new)');
+  }
+
+  const imageUrls = [...keepImages, ...newImages];
 
     const updated = await this.prisma.product.update({
       where: { id },
