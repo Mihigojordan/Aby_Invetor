@@ -57,7 +57,7 @@ const EmployeeManagement = () => {
         throw new Error(validation.errors.join(', '));
       }
       const newEmployee = await employeeService.registerEmployee(employeeData);
-      setEmployees(prev => [...prev, newEmployee]);
+      setEmployees(prev => [...prev, newEmployee.createEmployee]);
       setIsAddModalOpen(false);
       showNotification('Employee added successfully!');
     } catch (error) {
