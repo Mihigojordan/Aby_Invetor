@@ -78,8 +78,14 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
     {
       key: 'Category',
       label: 'Category',
-      icon: TagIcon,
+      icon: Layers,
       path:'/admin/dashboard/category'
+    },
+    {
+      key: 'Products',
+      label: 'Products',
+      icon: TagIcon,
+      path:'/admin/dashboard/product'
     },
     {
       key: 'suppliers',

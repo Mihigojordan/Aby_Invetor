@@ -74,7 +74,7 @@ const TaskManagement = () => {
             const updatedTask = await taskService.updateTask(selectedTask.id, taskData);
             setTasks(prev =>
                 prev.map(task =>
-                    task.id === selectedTask.id ? updatedTask : task
+                    task.id === selectedTask.id ? updatedTask.updatedTask : task
                 )
             );
             setIsEditModalOpen(false);

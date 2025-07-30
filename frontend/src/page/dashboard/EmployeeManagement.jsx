@@ -77,7 +77,7 @@ const EmployeeManagement = () => {
       const updatedEmployee = await employeeService.updateEmployee(selectedEmployee.id, employeeData);
       setEmployees(prev =>
         prev.map(emp =>
-          emp.id === selectedEmployee.id ? updatedEmployee : emp
+          emp.id === selectedEmployee.id ? updatedEmployee.employee : emp
         )
       );
       setIsEditModalOpen(false);

@@ -10,7 +10,8 @@ import {
   ArrowRight,
   Warehouse,
   UserCheck,
-  Settings
+  Settings,
+  Download
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

@@ -30,7 +30,7 @@ export class ProductManagmentController {
   ) {
     return this.productService.createProduct({
       ...body,
-      description: body.description ? JSON.parse(body.description) : null,
+      description: body.description,
       imageurls: files.imageurls,
     });
   }
@@ -40,7 +40,7 @@ export class ProductManagmentController {
     return this.productService.getAllProducts();
   }
 
-  @Get('getone:id')
+  @Get('getone/:id')
   async findOne(@Param('id') id: string) {
     return this.productService.getProductById(id);
   }
@@ -55,7 +55,7 @@ export class ProductManagmentController {
   ) {
     return this.productService.updateProduct(id, {
       ...body,
-      description: body.description ? JSON.parse(body.description) : null,
+      description: body.description ,
       imageurls: files.imageurls,
     });
   }

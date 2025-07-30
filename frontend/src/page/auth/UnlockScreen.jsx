@@ -22,13 +22,7 @@ const UnlockScreen = () => {
   const location = useLocation();
 
 
-  useEffect(()=>{
 
-    if(user && !user?.isLocked){
-        navigate(-1,{replace:true})
-    }
-
-  },[user])
 
   const handleSubmit = async (e) => {
     e.preventDefault();
