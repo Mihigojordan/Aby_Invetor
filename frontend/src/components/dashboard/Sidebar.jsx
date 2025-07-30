@@ -37,7 +37,8 @@ import {
   Tag,
   User2,
   PresentationIcon,
-  ClipboardList
+  ClipboardList,
+  TagIcon
 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
@@ -63,16 +64,22 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
       path: '/admin/dashboard'
     },
     {
-      key: 'employee',
-      label: 'Employee',
+      key: 'employees',
+      label: 'Employees',
       icon: User2,
      path:'/admin/dashboard/employee'
     },
     {
       key: 'postions',
-      label: 'Position',
+      label: 'Positions',
       icon: ClipboardList,
       path:'/admin/dashboard/position'
+    },
+    {
+      key: 'Category',
+      label: 'Category',
+      icon: TagIcon,
+      path:'/admin/dashboard/category'
     },
     {
       key: 'suppliers',

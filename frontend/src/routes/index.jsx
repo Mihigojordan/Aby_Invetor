@@ -10,6 +10,9 @@ import TaskManagement from "../page/dashboard/TaskManagement";
 import MainLayout from "../context/MainLayout";
 import ProtectPrivateAdmin from "../components/protectors/admin/ProtectPrivateAdmin";
 import UnlockScreen from "../page/auth/UnlockScreen";
+import NotFoundPage from "../page/landing/NotFound";
+import LandingPage from "../page/landing/Home";
+import CategoryManagement from "../page/dashboard/CategoryManagement";
 
 const SuspenseWrapper = ({ children }) => {
     return <Suspense fallback={'loading...'}>{children}</Suspense>
@@ -20,6 +23,10 @@ const routes = createBrowserRouter([
         path: '/',
         element: <MainLayout />,
         children: [
+            {
+                index:true,
+                element: <LandingPage /> 
+            },
             {
                 path: "admin",
                 element: <ProtectPrivateAdmin> <MainLayout /> </ProtectPrivateAdmin>,
@@ -56,6 +63,15 @@ const routes = createBrowserRouter([
                                     </SuspenseWrapper>
                                 )
 
+                            },
+                            {
+                                path: "category",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <CategoryManagement />
+                                    </SuspenseWrapper>
+                                )
+
                             }
                         ]
                     }
@@ -84,7 +100,12 @@ const routes = createBrowserRouter([
                     </SuspenseWrapper>
                 )
             }
-        ]
+        ],
+        
+    },
+    {
+        path:'*',
+        element: <NotFoundPage />
     }
 ]
 )
