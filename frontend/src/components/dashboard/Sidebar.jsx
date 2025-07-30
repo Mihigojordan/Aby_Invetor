@@ -38,7 +38,8 @@ import {
   User2,
   PresentationIcon,
   ClipboardList,
-  TagIcon
+  TagIcon,
+  StoreIcon
 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
@@ -88,16 +89,12 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
       path:'/admin/dashboard/product'
     },
     {
-      key: 'suppliers',
-      label: 'Suppliers',
-      icon: Truck,
-      hasSubmenu: true,
-      submenu: [
-        { key: 'all-suppliers', label: 'All Suppliers', path: '/admin/dashboard/suppliers' },
-        { key: 'add-supplier', label: 'Add Supplier', path: '/admin/dashboard/suppliers/add' },
-        { key: 'supplier-orders', label: 'Purchase Orders', path: '/admin/dashboard/suppliers/orders' }
-      ]
+      key: 'Stockin',
+      label: 'Stock In',
+      icon: StoreIcon,
+      path:'/admin/dashboard/stockin'
     },
+   
  
   ];
 
