@@ -50,4 +50,15 @@ model Category{
   name String?
   description String?
   createdAt DateTime @default(now())
+  product Product[] @relation("CategoryToProduct")
+}
+
+model Product{
+  id String @id @default(uuid())
+  productName String?
+  brand String?
+  categoryId String?
+  description String?
+  imageUrls Json?
+  category Category? @relation("CategoryToProduct",fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }

@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { EmployeeManagmentService } from './employee-managment.service';
 import { AdminJwtAuthGuard } from 'src/guards/adminGuard.guard';
 
@@ -21,21 +30,30 @@ export class EmployeeManagmentController {
   @UseGuards(AdminJwtAuthGuard)
   async getAllEmployee() {
     try {
-        return await this.employeeServices.getAllEmployee();
+      return await this.employeeServices.getAllEmployee();
     } catch (error) {
       console.error('error getting   employees', error);
       throw new Error(error.message);
     }
   }
 
+  @Put('update:id')
+  update(@Param('id') id: string, @Body() data) {
+    return this.employeeServices.updateEmployee(id, data);
+  }
+
+  @Delete('delete:id')
+  remove(@Param('id') id: string) {
+    return this.employeeServices.deleteEmployee(id);
+  }
 
   @Post('assign-task')
   @UseGuards(AdminJwtAuthGuard)
-  async assignTakToEmployee(@Body() data){
+  async assignTakToEmployee(@Body() data) {
     try {
-        return await this.employeeServices.assignTasks(data)
+      return await this.employeeServices.assignTasks(data);
     } catch (error) {
-        console.error('error assigning task   employees', error);
+      console.error('error assigning task   employees', error);
       throw new Error(error.message);
     }
   }

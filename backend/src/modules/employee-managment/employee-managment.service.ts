@@ -88,12 +88,80 @@ export class EmployeeManagmentService {
     try {
       const employees = await this.prismaService.employee.findMany({
         include: {
-            tasks: true
-        }
+          tasks: true,
+        },
       });
       return employees;
     } catch (error) {
       console.error('error getting   employees', error);
+      throw new Error(error.message);
+    }
+  }
+
+  async updateEmployee(
+    id: string,
+    data: {
+      firstname?: string;
+      lastname?: string;
+      email?: string;
+      phoneNumber?: string;
+      address?: string;
+    },
+  ) {
+    try {
+      if (!id) {
+        throw new BadRequestException('Employee ID is required');
+      }
+
+      const existingEmployee = await this.findEmployeeById(id);
+      if (!existingEmployee) {
+        throw new BadRequestException('Employee not found');
+      }
+
+      // Optional: Validate email/phone if being updated
+      if (data.email && !isValidEmail(data.email)) {
+        throw new BadRequestException('Invalid email format');
+      }
+
+      if (data.phoneNumber && !isPhoneValid(data.phoneNumber)) {
+        throw new BadRequestException('Invalid phone number format');
+      }
+
+      const updatedEmployee = await this.prismaService.employee.update({
+        where: { id },
+        data,
+      });
+
+      return {
+        message: 'Employee updated successfully',
+        employee: updatedEmployee,
+      };
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      throw new Error(error.message);
+    }
+  }
+
+  async deleteEmployee(id: string) {
+    try {
+      if (!id) {
+        throw new BadRequestException('Employee ID is required');
+      }
+
+      const employee = await this.findEmployeeById(id);
+      if (!employee) {
+        throw new BadRequestException('Employee not found');
+      }
+
+      await this.prismaService.employee.delete({
+        where: { id },
+      });
+
+      return {
+        message: 'Employee deleted successfully',
+      };
+    } catch (error) {
+      console.error('Error deleting employee:', error);
       throw new Error(error.message);
     }
   }
