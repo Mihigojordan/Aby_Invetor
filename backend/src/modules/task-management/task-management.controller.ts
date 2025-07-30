@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { TaskManagementService } from './task-management.service';
 import { AdminJwtAuthGuard } from 'src/guards/adminGuard.guard';
 
@@ -24,5 +24,23 @@ export class TaskManagementController {
       console.error('error getting tasks', error);
       throw new Error(error.message);
     }
+  }
+
+   @Get(':id')
+  async findById(@Param('id') id: string) {
+    return this.taskServices.findTaskById(id);
+  }
+
+  @Put('update:id')
+  async updateTask(
+    @Param('id') id: string,
+    @Body() data: { taskname?: string; description?: string },
+  ) {
+    return this.taskServices.updateTask(id, data);
+  }
+
+  @Delete('delete:id')
+  async deleteTask(@Param('id') id: string) {
+    return this.taskServices.deleteTask(id);
   }
 }

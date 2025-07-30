@@ -1,30 +1,34 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
+import React, { useState } from 'react';
+import { 
+  Package, 
+  Users, 
+  TrendingUp, 
+  AlertTriangle, 
+  Search, 
+  Bell, 
+  Settings, 
+  LogOut, 
+  Plus, 
+  Filter,
+  Download,
+  Eye,
+  Edit,
+  Trash2,
+  BarChart3,
+  ShoppingCart,
+  Truck,
+  User
+} from 'lucide-react';
+import { RouterProvider } from 'react-router-dom';
+import routes from './routes';
 
-function App() {
-  const [count, setCount] = useState(0)
 
-  return (
-    <>
-      <div>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
 
-export default App
+
+// Main App Component
+const App = () => {
+
+  return( <RouterProvider router={routes}></RouterProvider>)
+};
+
+export default App;
