@@ -6,27 +6,59 @@ export default defineConfig({
     plugins: [
         react(),
         VitePWA({
+            registerType: 'autoUpdate',
+            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
             manifest: {
-                name: 'Inventory Management App',
-                short_name: 'Inventory',
-                description: 'An inventory management PWA with offline support',
-                start_url: '/',
-                display: 'standalone',
+                name: 'ABY Inventory',
+                short_name: 'ABYinventory',
+                description: 'managing inventory',
+                theme_color: '#ffffff',
                 background_color: '#ffffff',
-                theme_color: '#007bff',
+                display: 'standalone',
+                start_url: '/',
                 icons: [{
-                        src: 'icons/icon-192x192.png',
+                        src: '/icons/192.png',
                         sizes: '192x192',
-                        type: 'image/png',
+                        type: 'image/png'
                     },
                     {
-                        src: 'icons/icon-512x512.png',
+                        src: '/icons/512.png',
                         sizes: '512x512',
                         type: 'image/png',
+                        purpose: 'any maskable'
                     }
-                ],
+                ]
             },
-            registerType: 'autoUpdate',
-        }),
-    ],
+            workbox: {
+                cleanupOutdatedCaches: true,
+                runtimeCaching: [{
+                        urlPattern: ({ url }) => url.pathname.startsWith('/api'),
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'api-cache',
+                            cacheableResponse: {
+                                statuses: [0, 200]
+                            },
+                            networkTimeoutSeconds: 3,
+                            expiration: {
+
+                                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+                            }
+                        }
+                    },
+                    {
+                        urlPattern: ({ request }) => request.destination === 'image',
+                        handler: 'CacheFirst',
+                        options: {
+                            cacheName: 'images-cache',
+                            expiration: {
+
+                                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+                            }
+                        }
+                    }
+                ]
+            }
+        })
+    ]
 })

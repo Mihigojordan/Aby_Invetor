@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -14,8 +15,50 @@ datasource db {
 }
 
 
-model User {
-  id    Int    @id @default(autoincrement())
-  name  String
-  email String @unique
+model Admin {
+  id String @id @default(uuid())
+  adminName String?
+  adminEmail String? @unique
+  password String?
+  isLocked Boolean? @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Employee{
+  id String @id @default(uuid())
+  firstname String?
+  lastname String?
+  email String? @unique
+  phoneNumber String? @unique
+  address String?
+  createdAt DateTime @default(now())
+  tasks  Task[] @relation("EmployeeTasks")
+}
+
+
+model Task{
+  id String @id @default(uuid())
+  taskname String?
+  description String?
+  createdAt DateTime @default(now())
+  employees Employee[]  @relation("EmployeeTasks")
+}
+model Category{
+  id String @id @default(uuid())
+  name String?
+  description String?
+  createdAt DateTime @default(now())
+  product Product[] @relation("CategoryToProduct")
+}
+
+model Product{
+  id String @id @default(uuid())
+  productName String?
+  brand String?
+  categoryId String?
+  description String?
+  imageUrls Json?
+  category Category? @relation("CategoryToProduct",fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
