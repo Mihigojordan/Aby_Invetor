@@ -32,9 +32,9 @@ export class ProductManagmentService {
           imageUrls,
           category: {
             connect: {
-              id: categoryId
-            }
-          }
+              id: categoryId,
+            },
+          },
         },
       });
 
@@ -74,37 +74,49 @@ export class ProductManagmentService {
       brand?: string;
       categoryId?: string;
       description?: any;
-      keepImages?:string[];
+      keepImages?: string[];
       imageurls?: Express.Multer.File[];
     },
   ) {
     const existing = await this.getProductById(id);
 
-     // ✅ Validate categoryId if provided
-  if (data.categoryId?.trim()) {
-    const categoryExists = await this.prisma.category.findUnique({
-      where: { id: data.categoryId },
-    });
-    if (!categoryExists) {
-      throw new BadRequestException('Invalid categoryId: category does not exist');
+    // ✅ Validate categoryId if provided
+    if (data.categoryId?.trim()) {
+      const categoryExists = await this.prisma.category.findUnique({
+        where: { id: data.categoryId },
+      });
+      if (!categoryExists) {
+        throw new BadRequestException(
+          'Invalid categoryId: category does not exist',
+        );
+      }
     }
-  }
 
-  // ✅ Prepare kept images from user
-  const keepImages = data.keepImages ?? [];
+    const keepImages = data.keepImages ?? [];
+    console.log('keepimages', keepImages)
+    const newImages =
+      data.imageurls?.map(
+        (file) => `/uploads/product_images/${file.filename}`,
+      ) ?? [];
 
-  // ✅ Prepare new uploaded images
-  const newImages = data.imageurls?.map(
-    (file) => `/uploads/product_images/${file.filename}`,
-  ) ?? [];
+    // ✅ Ensure max 4 images
+    const totalImages = keepImages.length + newImages.length;
+    if (totalImages > 4) {
+      throw new BadRequestException(
+        'Maximum 4 images allowed (existing + new)',
+      );
+    }
 
-  // ✅ Validate max 4 images
-  const totalImages = keepImages.length + newImages.length;
-  if (totalImages > 4) {
-    throw new BadRequestException('Maximum 4 images allowed (existing + new)');
-  }
+    // ✅ Delete images not in keepImages
+    const removedImages = (existing.imageUrls as string[] || []).filter(
+      (url) => !keepImages.includes(url),
+    );
 
-  const imageUrls = [...keepImages, ...newImages];
+    for (const url of removedImages) {
+      deleteFile(String(url))
+    }
+
+    const imageUrls = [...keepImages, ...newImages];
 
     const updated = await this.prisma.product.update({
       where: { id },
