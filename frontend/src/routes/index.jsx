@@ -1,12 +1,15 @@
 import { Suspense } from "react";
-import { createBrowserRouter, Outlet } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import Dashboard from "../page/dashboard/Dashboard";
-import LoginPage from "../page/Login";
+import LoginPage from "../page/auth/Login";
 import AdminDashboardLayout from "../layout/AdminDashboardLayout";
 import AuthLayout from "../layout/AuthLayout";
 import EmployeeManagement from "../page/dashboard/EmployeeManagement";
 
 import TaskManagement from "../page/dashboard/TaskManagement";
+import MainLayout from "../context/MainLayout";
+import ProtectPrivateAdmin from "../components/protectors/admin/ProtectPrivateAdmin";
+import UnlockScreen from "../page/auth/UnlockScreen";
 
 const SuspenseWrapper = ({ children }) => {
     return <Suspense fallback={'loading...'}>{children}</Suspense>
@@ -14,39 +17,50 @@ const SuspenseWrapper = ({ children }) => {
 
 const routes = createBrowserRouter([
     {
-        path: '/dashboard',
-        element: <Outlet />,
+        path: '/',
+        element: <MainLayout />,
         children: [
             {
                 path: "admin",
-                element: <AdminDashboardLayout />,
+                element: <ProtectPrivateAdmin> <MainLayout /> </ProtectPrivateAdmin>,
                 children: [
                     {
-                        index: true,
-                        element: (
-                            <SuspenseWrapper>
-                                <Dashboard />
-                            </SuspenseWrapper>
-                        )
+                        index:true,
+                        element:<Navigate to={'/admin/dashboard'} replace />
                     },
                     {
-                        path:'employee',
-                        element: (
-                            <SuspenseWrapper>
-                                <EmployeeManagement />
-                            </SuspenseWrapper>
-                        )
-                    },
-                    {
-                        path:"position",
-                        element:(
-                            <SuspenseWrapper>
-                                <TaskManagement />
-                            </SuspenseWrapper>
-                        )
+                        path: "dashboard",
+                        element: <AdminDashboardLayout />,
+                        children: [
+                            {
+                                index: true,
+                                element: (
+                                    <SuspenseWrapper>
+                                        <Dashboard />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path: 'employee',
+                                element: (
+                                    <SuspenseWrapper>
+                                        <EmployeeManagement />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path: "position",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <TaskManagement />
+                                    </SuspenseWrapper>
+                                )
 
+                            }
+                        ]
                     }
                 ]
+
             }
         ]
     },
@@ -55,10 +69,18 @@ const routes = createBrowserRouter([
         element: <AuthLayout />,
         children: [
             {
-                path: 'login',
+                path: 'admin/login',
                 element: (
                     <SuspenseWrapper>
                         <LoginPage />
+                    </SuspenseWrapper>
+                )
+            },
+            {
+                path:'admin/unlock',
+                element:(
+                    <SuspenseWrapper>
+                        <UnlockScreen />
                     </SuspenseWrapper>
                 )
             }

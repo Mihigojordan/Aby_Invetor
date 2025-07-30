@@ -41,10 +41,12 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
+import useAdminAuth from '../../context/AdminAuthContext';
 
 // Sidebar Component with NavLink
 const Sidebar = ({ isOpen =true , onToggle }) => {
   const [expandedMenus, setExpandedMenus] = useState({});
+  const {user} = useAdminAuth()
 
   const toggleSubmenu = (menuKey) => {
     setExpandedMenus(prev => ({
@@ -58,19 +60,19 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
       key: 'dashboard',
       label: 'Dashboard',
       icon: Home,
-      path: '/dashboard/admin'
+      path: '/admin/dashboard'
     },
     {
       key: 'employee',
       label: 'Employee',
       icon: User2,
-     path:'/dashboard/admin/employee'
+     path:'/admin/dashboard/employee'
     },
     {
       key: 'postions',
       label: 'Position',
       icon: ClipboardList,
-      path:'/dashboard/admin/position'
+      path:'/admin/dashboard/position'
     },
     {
       key: 'suppliers',
@@ -78,9 +80,9 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
       icon: Truck,
       hasSubmenu: true,
       submenu: [
-        { key: 'all-suppliers', label: 'All Suppliers', path: '/dashboard/admin/suppliers' },
-        { key: 'add-supplier', label: 'Add Supplier', path: '/dashboard/admin/suppliers/add' },
-        { key: 'supplier-orders', label: 'Purchase Orders', path: '/dashboard/admin/suppliers/orders' }
+        { key: 'all-suppliers', label: 'All Suppliers', path: '/admin/dashboard/suppliers' },
+        { key: 'add-supplier', label: 'Add Supplier', path: '/admin/dashboard/suppliers/add' },
+        { key: 'supplier-orders', label: 'Purchase Orders', path: '/admin/dashboard/suppliers/orders' }
       ]
     },
  
@@ -208,7 +210,7 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
               <Package className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">InventoryPro</h1>
+              <h1 className="text-xl font-bold text-gray-900">ABY Inventory</h1>
               <p className="text-xs text-gray-500">Admin Dashboard</p>
             </div>
           </div>
@@ -234,8 +236,8 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
               <User className="w-5 h-5 text-primary-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">Admin User</p>
-              <p className="text-xs text-gray-500 truncate">admin@inventorypro.com</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{user?.adminName}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.adminEmail}</p>
             </div>
           </div>
           
