@@ -45,3 +45,9 @@ model Task{
   createdAt DateTime @default(now())
   employees Employee[]  @relation("EmployeeTasks")
 }
+model Category{
+  id String @id @default(uuid())
+  name String?
+  description String?
+  createdAt DateTime @default(now())
+}
