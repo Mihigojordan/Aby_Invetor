@@ -37,12 +37,12 @@ export class EmployeeManagmentController {
     }
   }
 
-  @Put('update:id')
+  @Put('update/:id')
   update(@Param('id') id: string, @Body() data) {
     return this.employeeServices.updateEmployee(id, data);
   }
 
-  @Delete('delete:id')
+  @Delete('delete/:id')
   remove(@Param('id') id: string) {
     return this.employeeServices.deleteEmployee(id);
   }

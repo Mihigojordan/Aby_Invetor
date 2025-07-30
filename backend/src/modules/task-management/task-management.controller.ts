@@ -31,7 +31,7 @@ export class TaskManagementController {
     return this.taskServices.findTaskById(id);
   }
 
-  @Put('update:id')
+  @Put('update/:id')
   async updateTask(
     @Param('id') id: string,
     @Body() data: { taskname?: string; description?: string },
@@ -39,7 +39,7 @@ export class TaskManagementController {
     return this.taskServices.updateTask(id, data);
   }
 
-  @Delete('delete:id')
+  @Delete('delete/:id')
   async deleteTask(@Param('id') id: string) {
     return this.taskServices.deleteTask(id);
   }

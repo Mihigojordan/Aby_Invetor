@@ -7,12 +7,14 @@ import AuthLayout from "../layout/AuthLayout";
 import EmployeeManagement from "../page/dashboard/EmployeeManagement";
 
 import TaskManagement from "../page/dashboard/TaskManagement";
-import MainLayout from "../context/MainLayout";
+import MainLayout from "../layout/MainLayout";
 import ProtectPrivateAdmin from "../components/protectors/admin/ProtectPrivateAdmin";
 import UnlockScreen from "../page/auth/UnlockScreen";
 import NotFoundPage from "../page/landing/NotFound";
 import LandingPage from "../page/landing/Home";
 import CategoryManagement from "../page/dashboard/CategoryManagement";
+import ProductManagement from "../page/dashboard/ProductManagement";
+import StockInManagement from "../page/dashboard/StockInManagement";
 
 const SuspenseWrapper = ({ children }) => {
     return <Suspense fallback={'loading...'}>{children}</Suspense>
@@ -69,6 +71,24 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <CategoryManagement />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "product",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ProductManagement />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "stockin",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <StockInManagement />
                                     </SuspenseWrapper>
                                 )
 
