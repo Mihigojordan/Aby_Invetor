@@ -38,6 +38,9 @@ export class EmployeeManagmentService {
           lastname: lastname,
           address: address,
         },
+        include:{
+           tasks: true
+        }
       });
       return {
         message: 'employee registered succefully',
@@ -168,9 +171,9 @@ export class EmployeeManagmentService {
 
   async assignTasks(data: { employeeId: string; assignedTasks: string[] }) {
     try {
-      if (!data.assignedTasks || data.assignedTasks.length === 0) {
-        throw new Error('No tasks provided for assignment');
-      }
+      // if (!data.assignedTasks || data.assignedTasks.length === 0) {
+      //   throw new Error('No tasks provided for assignment');
+      // }
 
       const updatedEmployee = await this.prismaService.employee.update({
         where: { id: data.employeeId },
