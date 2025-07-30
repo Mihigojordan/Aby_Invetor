@@ -14,7 +14,7 @@ export class ProductManagmentService {
     productName?: string;
     brand?: string;
     categoryId?: string;
-    description?: any;
+    description?: string; // HTML string from frontend
     imageurls?: Express.Multer.File[];
   }) {
     try {
@@ -24,11 +24,16 @@ export class ProductManagmentService {
         imageurls?.map((file) => `/uploads/product_images/${file.filename}`) ||
         [];
 
+      // Convert description HTML string to JSON object
+      const descriptionJson = description ? { details: description } : {details: ''};
+      console.log(descriptionJson);
+      
+
       const product = await this.prisma.product.create({
         data: {
           productName,
           brand,
-          description,
+          description: descriptionJson, // Store as JSON object
           imageUrls,
           category: {
             connect: {
@@ -73,8 +78,8 @@ export class ProductManagmentService {
       productName?: string;
       brand?: string;
       categoryId?: string;
-      description?: any;
-      keepImages?: string[];
+      description?: any; // HTML string from frontend
+      keepImages?: any;
       imageurls?: Express.Multer.File[];
     },
   ) {
@@ -92,12 +97,15 @@ export class ProductManagmentService {
       }
     }
 
-    const keepImages = data.keepImages ?? [];
-    console.log('keepimages', keepImages)
-    const newImages =
-      data.imageurls?.map(
+    const keepImages = JSON.parse(data?.keepImages) ;
+    console.log('keepimages', keepImages);
+    const newImages = data.imageurls?.map(
         (file) => `/uploads/product_images/${file.filename}`,
       ) ?? [];
+
+      console.log('keeping images',keepImages.length );
+      console.log('new images',newImages );
+      
 
     // ✅ Ensure max 4 images
     const totalImages = keepImages.length + newImages.length;
@@ -113,10 +121,18 @@ export class ProductManagmentService {
     );
 
     for (const url of removedImages) {
-      deleteFile(String(url))
+      deleteFile(String(url));
     }
 
     const imageUrls = [...keepImages, ...newImages];
+
+    // Convert description HTML string to JSON object if provided
+    const descriptionJson = data.description 
+      ? { details: data.description } 
+      : undefined;
+
+      console.log('sss ssf :',descriptionJson);
+      
 
     const updated = await this.prisma.product.update({
       where: { id },
@@ -124,7 +140,7 @@ export class ProductManagmentService {
         productName: data.productName,
         brand: data.brand,
         categoryId: data.categoryId,
-        description: data.description,
+        description: descriptionJson, // Store as JSON object
         imageUrls,
       },
     });

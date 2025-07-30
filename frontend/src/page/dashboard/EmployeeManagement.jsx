@@ -57,7 +57,7 @@ const EmployeeManagement = () => {
         throw new Error(validation.errors.join(', '));
       }
       const newEmployee = await employeeService.registerEmployee(employeeData);
-      setEmployees(prev => [...prev, newEmployee]);
+      setEmployees(prev => [...prev, newEmployee.createEmployee]);
       setIsAddModalOpen(false);
       showNotification('Employee added successfully!');
     } catch (error) {
@@ -77,7 +77,7 @@ const EmployeeManagement = () => {
       const updatedEmployee = await employeeService.updateEmployee(selectedEmployee.id, employeeData);
       setEmployees(prev =>
         prev.map(emp =>
-          emp.id === selectedEmployee.id ? updatedEmployee : emp
+          emp.id === selectedEmployee.id ? updatedEmployee.employee : emp
         )
       );
       setIsEditModalOpen(false);

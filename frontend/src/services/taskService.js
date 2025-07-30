@@ -69,7 +69,7 @@ class TaskService {
 
     async updateTask(id, taskData) {
         try {
-            const response = await api.put(`/task/${id}`, taskData);
+            const response = await api.put(`/task/update/${id}`, taskData);
             return response.data;
         } catch (error) {
             console.error('Error updating task:', error);
@@ -84,7 +84,7 @@ class TaskService {
 
     async deleteTask(id) {
         try {
-            const response = await api.delete(`/task/${id}`);
+            const response = await api.delete(`/task/delete/${id}`);
             return response.data;
         } catch (error) {
             console.error('Error deleting task:', error);
