@@ -21,6 +21,7 @@ class TaskService {
         ...taskData,
         synced: false,
         local: true,
+        createdAt: timestamp,
         updatedAt: timestamp
       };
 
@@ -57,23 +58,38 @@ class TaskService {
 
   // Get all tasks (sync local DB with server data if online)
 // Get all tasks (fetch backend if online, else local DB)
+// Get all tasks (sync local offline data to server, then refresh with server data)
 async getAllTasks() {
   try {
     if (this.isOnline()) {
       try {
-        const response = await api.get('/task/all');
-        // Sync server data to local DB (optional for offline use later)
-        await this.syncLocalWithServer(response.data);
+        // Step 1: Sync local unsynced data to backend
+        await this.syncWithServer();
 
-        // Return only server data directly (no local DB here)
+        // Step 2: Clear all local tasks and deletedTasks from IndexedDB
+        await db.tasks.clear();
+        await db.deletedTasks.clear();
+
+        // Step 3: Fetch all fresh tasks from server
+        const response = await api.get('/task/all');
+
+        // Step 4: Save server tasks to local IndexedDB
+        for (const task of response.data) {
+          await db.tasks.put({
+            ...task,
+            synced: true,
+            local: false
+          });
+        }
+
+        // Step 5: Return backend data
         return response.data;
       } catch (apiError) {
         console.warn('API failed, falling back to local data', apiError);
-        // If API call fails, fallback to local DB
         return await db.tasks.toArray();
       }
     } else {
-      // Offline: return local DB tasks only
+      // Offline mode — just read from local IndexedDB
       return await db.tasks.toArray();
     }
   } catch (error) {
