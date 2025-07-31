@@ -23,6 +23,7 @@ model Admin {
   isLocked Boolean? @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  stockout StockOut[]
 }
 
 
@@ -35,6 +36,7 @@ model Employee{
   address String?
   createdAt DateTime @default(now())
   tasks  Task[] @relation("EmployeeTasks")
+  stockout StockOut[]
 }
 
 
@@ -77,4 +79,24 @@ model StockIn{
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   product Product? @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  stockout StockOut[]
+}
+
+
+model StockOut{
+  id String @id @default(uuid())
+  stockinId String?
+  adminId String?
+  employeeId String?
+  sku String?
+  quantity Int?
+  soldPrice Int?
+  clientName String?
+  clientEmail String?
+  clientPhone String?
+  stockin StockIn? @relation(fields: [stockinId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  admin Admin? @relation(fields: [adminId], references: [id], onDelete: Cascade,onUpdate: Cascade)
+  employee Employee? @relation(fields: [employeeId],references: [id],onDelete: Cascade,onUpdate: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
