@@ -102,6 +102,9 @@ export class EmployeeManagmentService {
         where: {
           id: id,
         },
+        include:{
+          tasks: true
+        }
       });
 
       return employee;
