@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { generateSixDigitNumber } from 'src/common/utils/generate-sku.util';
 import { isPhoneValid, isValidEmail } from 'src/common/utils/validation.util';
 import { PrismaService } from 'src/prisma/prisma.service';
+import * as bcyrpt from 'bcryptjs';
 
 @Injectable()
 export class EmployeeManagmentService {
@@ -12,9 +14,17 @@ export class EmployeeManagmentService {
     email: string;
     phoneNumber: string;
     address: string;
+    profileImg?: Express.Multer.File[];
+    identityCard?: Express.Multer.File[];
+    cv?: Express.Multer.File[];
   }) {
     try {
       const { firstname, lastname, email, phoneNumber, address } = data;
+
+      const profileImageFile = data.profileImg?.[0];
+      const identityCardFile = data.identityCard?.[0];
+      const cvFile = data.cv?.[0];
+
       if (!email || !phoneNumber) {
         throw new BadRequestException('email and phone number are required');
       }
@@ -30,6 +40,16 @@ export class EmployeeManagmentService {
         throw new BadRequestException('employee already exists');
       }
 
+      const password = generateSixDigitNumber();
+      console.log('password generated:', password)
+
+      const hashedPassword = await bcyrpt.hash(String(password), 10);
+
+      // generate file paths
+      const profileImageUrl = `/uploads/profile_images/${profileImageFile?.filename}`;
+      const identityCardUrl = `/uploads/identity_files_image/${identityCardFile?.filename}`;
+      const cvUrl = `/uploads/cv_files/${cvFile?.filename}`;
+
       const createEmployee = await this.prismaService.employee.create({
         data: {
           email: email,
@@ -37,10 +57,14 @@ export class EmployeeManagmentService {
           firstname: firstname,
           lastname: lastname,
           address: address,
+          password:hashedPassword,
+          profileImg: profileImageUrl,
+          cv: cvUrl,
+          identityCard: identityCardUrl
         },
-        include:{
-           tasks: true
-        }
+        include: {
+          tasks: true,
+        },
       });
       return {
         message: 'employee registered succefully',
@@ -109,9 +133,17 @@ export class EmployeeManagmentService {
       email?: string;
       phoneNumber?: string;
       address?: string;
+      password?: string;
+      newPassword?: string;
+      profileImg?: Express.Multer.File[];
+      identityCard?: Express.Multer.File[];
+      cv?: Express.Multer.File[];
     },
   ) {
     try {
+      const profileImageFile = data.profileImg?.[0];
+      const identityCardFile = data.identityCard?.[0];
+      const cvFile = data.cv?.[0];
       if (!id) {
         throw new BadRequestException('Employee ID is required');
       }
@@ -130,9 +162,28 @@ export class EmployeeManagmentService {
         throw new BadRequestException('Invalid phone number format');
       }
 
+      let hashedPass;
+      if (data.password && data.newPassword) {
+        if (typeof existingEmployee.password !== 'string') {
+          throw new BadRequestException('Employee password is not set');
+        }
+        const verifyPass = bcyrpt.compare(data.password, existingEmployee.password);
+        if (!verifyPass) {
+          throw new BadRequestException('password mismatch')
+        }
+        hashedPass = await bcyrpt.hash(data.newPassword, 10)
+      }
+      // generate file paths
+      const profileImageUrl = `/uploads/profile_images/${profileImageFile?.filename}`;
+      const identityCardUrl = `/uploads/identity_files_image/${identityCardFile?.filename}`;
+      const cvUrl = `/uploads/cv_files/${cvFile?.filename}`;
+
       const updatedEmployee = await this.prismaService.employee.update({
         where: { id },
-        data,
+        data: {
+          password: hashedPass,
+          profileImg: profileImageUrl
+        },
       });
 
       return {
