@@ -15,6 +15,51 @@ const TaskManagement = () => {
     const [selectedTask, setSelectedTask] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+
+    useEffect(() => {
+  const onOnline = async () => {
+    console.log('Network back online, syncing...');
+    try {
+      await taskService.syncWithServer();
+      const freshTasks = await taskService.getAllTasks();
+      setTasks(freshTasks);
+      setFilteredTasks(freshTasks);
+      showNotification('Data synced with server!');
+    } catch (error) {
+      showNotification(`Sync failed: ${error.message}`, 'error');
+    }
+  };
+
+  window.addEventListener('online', onOnline);
+
+  // Optionally sync once on mount if online
+  if (navigator.onLine) {
+    onOnline();
+  }
+
+  return () => {
+    window.removeEventListener('online', onOnline);
+  };
+}, []);
+
+
+
+
 
     useEffect(() => {
         const fetchTasks = async () => {
@@ -24,7 +69,7 @@ const TaskManagement = () => {
                 setTasks(data);
                 setFilteredTasks(data);
             } catch (error) {
-                showNotification(`Failed to fetch positions: ${error.message}`, 'error');
+                showNotification(`Failed to fetch tasks: ${error.message}`, 'error');
             } finally {
                 setIsLoading(false);
             }
@@ -49,16 +94,12 @@ const TaskManagement = () => {
     const handleAddTask = async (taskData) => {
         setIsLoading(true);
         try {
-            const validation = taskService.validateTaskData(taskData);
-            if (!validation.isValid) {
-                throw new Error(validation.errors.join(', '));
-            }
             const response = await taskService.createTask(taskData);
-            setTasks(prev => [...prev, response.createTask]);
+            setTasks(prev => [...prev, response]);
             setIsAddModalOpen(false);
-            showNotification('Postion added successfully!');
+            showNotification('Task added successfully!');
         } catch (error) {
-            showNotification(`Failed to add Postion: ${error.message}`, 'error');
+            showNotification(`Failed to add task: ${error.message}`, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -67,19 +108,15 @@ const TaskManagement = () => {
     const handleEditTask = async (taskData) => {
         setIsLoading(true);
         try {
-            const validation = taskService.validateTaskData(taskData);
-            if (!validation.isValid) {
-                throw new Error(validation.errors.join(', '));
-            }
             const updatedTask = await taskService.updateTask(selectedTask.id, taskData);
             setTasks(prev =>
                 prev.map(task =>
-                    task.id === selectedTask.id ? updatedTask.updatedTask : task
+                    task.id === selectedTask.id ? updatedTask : task
                 )
             );
             setIsEditModalOpen(false);
             setSelectedTask(null);
-            showNotification('Position updated successfully!');
+            showNotification('Task updated successfully!');
         } catch (error) {
             showNotification(`Failed to update task: ${error.message}`, 'error');
         } finally {
@@ -94,9 +131,9 @@ const TaskManagement = () => {
             setTasks(prev => prev.filter(task => task.id !== selectedTask.id));
             setIsDeleteModalOpen(false);
             setSelectedTask(null);
-            showNotification('Position deleted successfully!');
+            showNotification('Task deleted successfully!');
         } catch (error) {
-            showNotification(`Failed to delete postion: ${error.message}`, 'error');
+            showNotification(`Failed to delete task: ${error.message}`, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -137,9 +174,9 @@ const TaskManagement = () => {
                         <div className="p-2 bg-primary-600 rounded-lg">
                             <ClipboardList className="w-6 h-6 text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold text-gray-900">Postion Management</h1>
+                        <h1 className="text-3xl font-bold text-gray-900">Position Management</h1>
                     </div>
-                    <p className="text-gray-600">Manage your Postions and their details</p>
+                    <p className="text-gray-600">Manage your Positions and their details</p>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
@@ -184,7 +221,9 @@ const TaskManagement = () => {
                             >
                                 <Plus size={20} />
                                 Add Postion
+                                
                             </button>
+                            
                         )}
                     </div>
                 ) : (
