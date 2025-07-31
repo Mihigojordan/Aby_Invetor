@@ -16,6 +16,7 @@ import CategoryManagement from "../page/dashboard/CategoryManagement";
 import ProductManagement from "../page/dashboard/ProductManagement";
 import StockInManagement from "../page/dashboard/StockInManagement";
 
+// eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
     return <Suspense fallback={'loading...'}>{children}</Suspense>
 }

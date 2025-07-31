@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
-import { AdminModule } from './modules/admin/admin.module';
-import { EmployeeManagmentModule } from './modules/employee-managment/employee-managment.module';
-import { TaskManagementModule } from './modules/task-management/task-management.module';
-import { CategoryManagementModule } from './modules/category-management/category-management.module';
-import { ProductManagmentModule } from './modules/product-managment/product-managment.module';
-import { StockinManagmentModule } from './modules/stockin-managment/stockin-managment.module';
-import { StockoutModule } from './modules/stockout-management/stockout.module';
+import { AdminModule } from './Modules/admin/admin.module';
+import { EmployeeManagmentModule } from './Modules/employee-managment/employee-managment.module';
+import { TaskManagementModule } from './Modules/task-management/task-management.module';
+import { CategoryManagementModule } from './Modules/category-management/category-management.module';
+import { ProductManagmentModule } from './Modules/product-managment/product-managment.module';
+import { StockinManagmentModule } from './Modules/stockin-managment/stockin-managment.module';
+import { StockoutModule } from './Modules/stockout-management/stockout.module';
+
 
 @Module({
   imports: [
