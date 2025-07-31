@@ -7,9 +7,20 @@ import { TaskManagementModule } from './Modules/task-management/task-management.
 import { CategoryManagementModule } from './Modules/category-management/category-management.module';
 import { ProductManagmentModule } from './Modules/product-managment/product-managment.module';
 import { StockinManagmentModule } from './Modules/stockin-managment/stockin-managment.module';
+import { StockoutModule } from './Modules/stockout-management/stockout.module';
+
 
 @Module({
-  imports: [PrismaModule, AdminModule, EmployeeManagmentModule, TaskManagementModule, CategoryManagementModule, ProductManagmentModule, StockinManagmentModule],
+  imports: [
+    PrismaModule,
+    AdminModule,
+    EmployeeManagmentModule,
+    TaskManagementModule,
+    CategoryManagementModule,
+    ProductManagmentModule,
+    StockinManagmentModule,
+    StockoutModule
+  ],
   controllers: [AppController],
   providers: [],
 })
