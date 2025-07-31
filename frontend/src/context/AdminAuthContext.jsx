@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import adminAuthService from "../services/adminAuthService";
-import { AuthSessionService, AdminService } from "../db";
 
 export const AdminAuthContext = createContext({
     user: null,
@@ -13,82 +12,71 @@ export const AdminAuthContext = createContext({
     isLoading: true
 })
 
+// localStorage keys
+const AUTH_STORAGE_KEYS = {
+    USER: 'admin_user',
+    IS_AUTHENTICATED: 'admin_is_authenticated',
+    IS_LOCKED: 'admin_is_locked'
+}
+
+// Helper functions for localStorage operations
+const getStoredValue = (key, defaultValue = null) => {
+    try {
+        const item = localStorage.getItem(key)
+        return item ? JSON.parse(item) : defaultValue
+    } catch (error) {
+        console.error(`Error reading from localStorage for key ${key}:`, error)
+        return defaultValue
+    }
+}
+
+const setStoredValue = (key, value) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(value))
+    } catch (error) {
+        console.error(`Error writing to localStorage for key ${key}:`, error)
+    }
+}
+
+const removeStoredValue = (key) => {
+    try {
+        localStorage.removeItem(key)
+    } catch (error) {
+        console.error(`Error removing from localStorage for key ${key}:`, error)
+    }
+}
+
+const clearAuthStorage = () => {
+    Object.values(AUTH_STORAGE_KEYS).forEach(key => {
+        removeStoredValue(key)
+    })
+}
+
 export const AdminAuthContextProvider = ({ children }) => {
-    const [user, setUser] = useState(null)
-    const [isAuthenticated, setIsAuthenticated] = useState(false)
-    const [isLocked, setIsLocked] = useState(false)
+    // Initialize state from localStorage
+    const [user, setUser] = useState(() => getStoredValue(AUTH_STORAGE_KEYS.USER))
+    const [isAuthenticated, setIsAuthenticated] = useState(() => getStoredValue(AUTH_STORAGE_KEYS.IS_AUTHENTICATED, false))
+    const [isLocked, setIsLocked] = useState(() => getStoredValue(AUTH_STORAGE_KEYS.IS_LOCKED, false))
     const [isLoading, setIsLoading] = useState(true)
 
-    // Helper function to update state and IndexedDB
-    const updateAuthState = async (authData) => {
+    // Helper function to update state and localStorage
+    const updateAuthState = (authData) => {
         const { user: userData, isAuthenticated: authStatus, isLocked: lockStatus } = authData
 
-        try {
-            // Update state
-            setUser(userData)
-            setIsAuthenticated(authStatus)
-            setIsLocked(lockStatus)
+        // Update state
+        setUser(userData)
+        setIsAuthenticated(authStatus)
+        setIsLocked(lockStatus)
 
-            // Update IndexedDB
-            await AuthSessionService.setAuthData(AuthSessionService.KEYS.CURRENT_USER, userData)
-            await AuthSessionService.setAuthData(AuthSessionService.KEYS.IS_AUTHENTICATED, authStatus)
-            await AuthSessionService.setAuthData(AuthSessionService.KEYS.IS_LOCKED, lockStatus)
-            
-            // Update last activity
-            if (authStatus) {
-                await AuthSessionService.updateLastActivity()
-            }
-
-            // If we have user data, also store/update in admins table
-            if (userData && userData.id) {
-                try {
-                    const existingAdmin = await AdminService.getAdminById(userData.id)
-                    if (existingAdmin) {
-                        // Update existing admin data
-                        await AdminService.updateAdmin(userData.id, {
-                            adminName: userData.adminName,
-                            adminEmail: userData.adminEmail,
-                            isLocked: lockStatus
-                        })
-                    } else {
-                        // Create new admin record (sync from server)
-                        await AdminService.createAdmin({
-                            id: userData.id,
-                            adminName: userData.adminName,
-                            adminEmail: userData.adminEmail,
-                            isLocked: lockStatus
-                        })
-                    }
-                } catch (dbError) {
-                    console.log('Error updating admin in IndexedDB:', dbError)
-                }
-            }
-
-        } catch (error) {
-            console.error('Error updating auth state in IndexedDB:', error)
+        // Update localStorage
+        if (userData) {
+            setStoredValue(AUTH_STORAGE_KEYS.USER, userData)
+        } else {
+            removeStoredValue(AUTH_STORAGE_KEYS.USER)
         }
-    }
-
-    // Helper function to load auth state from IndexedDB
-    const loadAuthStateFromDB = async () => {
-        try {
-            const storedUser = await AuthSessionService.getAuthData(AuthSessionService.KEYS.CURRENT_USER)
-            const storedAuth = await AuthSessionService.getAuthData(AuthSessionService.KEYS.IS_AUTHENTICATED) || false
-            const storedLocked = await AuthSessionService.getAuthData(AuthSessionService.KEYS.IS_LOCKED) || false
-
-            return {
-                user: storedUser,
-                isAuthenticated: storedAuth,
-                isLocked: storedLocked
-            }
-        } catch (error) {
-            console.error('Error loading auth state from IndexedDB:', error)
-            return {
-                user: null,
-                isAuthenticated: false,
-                isLocked: false
-            }
-        }
+        
+        setStoredValue(AUTH_STORAGE_KEYS.IS_AUTHENTICATED, authStatus)
+        setStoredValue(AUTH_STORAGE_KEYS.IS_LOCKED, lockStatus)
     }
 
     const login = async (data) => {
@@ -101,7 +89,7 @@ export const AdminAuthContextProvider = ({ children }) => {
                 try {
                     const userProfile = await adminAuthService.getAdminProfile()
                     
-                    await updateAuthState({
+                    updateAuthState({
                         user: userProfile,
                         isAuthenticated: true,
                         isLocked: false
@@ -110,7 +98,7 @@ export const AdminAuthContextProvider = ({ children }) => {
                     console.log('Error fetching user profile after login:', profileError)
                     
                     // Still update auth status even if profile fetch fails
-                    await updateAuthState({
+                    updateAuthState({
                         user: null,
                         isAuthenticated: true,
                         isLocked: false
@@ -129,27 +117,22 @@ export const AdminAuthContextProvider = ({ children }) => {
         try {
             const response = await adminAuthService.logout()
             
-            // Clear auth state and IndexedDB
-            await updateAuthState({
+            // Clear auth state and localStorage
+            updateAuthState({
                 user: null,
                 isAuthenticated: false,
                 isLocked: false
             })
-
-            // Clear all auth session data
-            await AuthSessionService.clearAuthSession()
 
             return response
 
         } catch (error) {
             // Still clear local state even if logout request fails
-            await updateAuthState({
+            updateAuthState({
                 user: null,
                 isAuthenticated: false,
                 isLocked: false
             })
-            
-            await AuthSessionService.clearAuthSession()
             throw new Error(error.message);
         }
     }
@@ -158,16 +141,11 @@ export const AdminAuthContextProvider = ({ children }) => {
         try {
             const response = await adminAuthService.lockAdmin()
             
-            await updateAuthState({
+            updateAuthState({
                 user,
                 isAuthenticated,
                 isLocked: true
             })
-            
-            // Also update the admin record in IndexedDB
-            if (user && user.id) {
-                await AdminService.lockAdmin(user.id)
-            }
             
             return response
         } catch (error) {
@@ -179,16 +157,11 @@ export const AdminAuthContextProvider = ({ children }) => {
         try {
             const response = await adminAuthService.unlockAdmin({ password })
             
-            await updateAuthState({
+            updateAuthState({
                 user,
                 isAuthenticated,
                 isLocked: false
             })
-            
-            // Also update the admin record in IndexedDB
-            if (user && user.id) {
-                await AdminService.unlockAdmin(user.id)
-            }
             
             return response
         } catch (error) {
@@ -199,57 +172,33 @@ export const AdminAuthContextProvider = ({ children }) => {
     const checkAuthStatus = async () => {
         setIsLoading(true)
         
+        // If we have stored auth data, try to validate it with the server
+        const storedAuth = getStoredValue(AUTH_STORAGE_KEYS.IS_AUTHENTICATED, false)
+        const storedUser = getStoredValue(AUTH_STORAGE_KEYS.USER)
+        
         try {
-            // Load stored auth data from IndexedDB
-            const storedAuthData = await loadAuthStateFromDB()
-            
-            // Check if session is expired (optional)
-            // const isExpired = await AuthSessionService.isSessionExpired()
-            
-            // If we have stored auth data, try to validate it with the server
-            if (storedAuthData.isAuthenticated) {
-                try {
-                    const response = await adminAuthService.getAdminProfile()
+            // Always try to fetch fresh profile data if we think we're authenticated
+            if (storedAuth) {
+                const response = await adminAuthService.getAdminProfile()
 
-                    if (response) {
-                        await updateAuthState({
-                            user: response,
-                            isAuthenticated: true,
-                            isLocked: response.isLocked || false
-                        })
-                    } else {
-                        // Server says we're not authenticated, clear stored data
-                        await AuthSessionService.clearAuthSession()
-                        await updateAuthState({
-                            user: null,
-                            isAuthenticated: false,
-                            isLocked: false
-                        })
-                    }
-                } catch (serverError) {
-                    console.log('Error validating auth with server:', serverError)
-
-                    const status = serverError?.response?.status
-                    
-                    // If we get auth-related errors, clear stored data
-                    if (status === 409 || status === 401 || status === 403 || status === 400) {
-                        await AuthSessionService.clearAuthSession()
-                        await updateAuthState({
-                            user: null,
-                            isAuthenticated: false,
-                            isLocked: false
-                        })
-                    } else {
-                        // For network errors, keep stored data for offline functionality
-                        console.log('Network error - maintaining stored auth state')
-                        setUser(storedAuthData.user)
-                        setIsAuthenticated(storedAuthData.isAuthenticated)
-                        setIsLocked(storedAuthData.isLocked)
-                    }
+                if (response) {
+                    updateAuthState({
+                        user: response,
+                        isAuthenticated: true,
+                        isLocked: response.isLocked || false
+                    })
+                } else {
+                    // Server says we're not authenticated, clear stored data
+                    clearAuthStorage()
+                    updateAuthState({
+                        user: null,
+                        isAuthenticated: false,
+                        isLocked: false
+                    })
                 }
             } else {
                 // No stored auth, ensure everything is cleared
-                await updateAuthState({
+                updateAuthState({
                     user: null,
                     isAuthenticated: false,
                     isLocked: false
@@ -257,13 +206,37 @@ export const AdminAuthContextProvider = ({ children }) => {
             }
 
         } catch (error) {
-            console.error('Error in checkAuthStatus:', error)
-            // Fallback to cleared state
-            await updateAuthState({
-                user: null,
-                isAuthenticated: false,
-                isLocked: false
-            })
+            console.log('Error from checkAuthStatus:', error)
+
+            const status = error?.response?.status
+            
+            // If we get auth-related errors, clear stored data
+            if (status === 409 || status === 401 || status === 403 || status === 400) {
+                clearAuthStorage()
+                updateAuthState({
+                    user: null,
+                    isAuthenticated: false,
+                    isLocked: false
+                })
+            } else {
+                // For network errors, keep stored data but don't update state
+                // This allows offline functionality
+                console.log('Network error - maintaining stored auth state')
+                
+                // If we have stored data, use it
+                if (storedAuth && storedUser) {
+                    setUser(storedUser)
+                    setIsAuthenticated(storedAuth)
+                    setIsLocked(getStoredValue(AUTH_STORAGE_KEYS.IS_LOCKED, false))
+                } else {
+                    updateAuthState({
+                        user: null,
+                        isAuthenticated: false,
+                        isLocked: false
+                    })
+                }
+            }
+
         } finally {
             setIsLoading(false)
         }
@@ -273,7 +246,7 @@ export const AdminAuthContextProvider = ({ children }) => {
         checkAuthStatus()
     }, [])
 
-    // Listen for online/offline events to sync when connection is restored
+    // Optional: Listen for online/offline events to sync when connection is restored
     useEffect(() => {
         const handleOnline = () => {
             console.log('Connection restored - checking auth status')
@@ -283,7 +256,7 @@ export const AdminAuthContextProvider = ({ children }) => {
         }
 
         const handleOffline = () => {
-            console.log('Gone offline - auth state preserved in IndexedDB')
+            console.log('Gone offline - auth state preserved in localStorage')
         }
 
         window.addEventListener('online', handleOnline)
@@ -295,16 +268,18 @@ export const AdminAuthContextProvider = ({ children }) => {
         }
     }, [isAuthenticated])
 
-    // Optional: Periodically update last activity when authenticated
+    // Optional: Listen for storage changes from other tabs
     useEffect(() => {
-        if (isAuthenticated) {
-            const activityInterval = setInterval(async () => {
-                await AuthSessionService.updateLastActivity()
-            }, 5 * 60 * 1000) // Update every 5 minutes
-
-            return () => clearInterval(activityInterval)
+        const handleStorageChange = (e) => {
+            if (Object.values(AUTH_STORAGE_KEYS).includes(e.key)) {
+                console.log('Auth state changed in another tab')
+                checkAuthStatus()
+            }
         }
-    }, [isAuthenticated])
+
+        window.addEventListener('storage', handleStorageChange)
+        return () => window.removeEventListener('storage', handleStorageChange)
+    }, [])
 
     const values = {
         login,
