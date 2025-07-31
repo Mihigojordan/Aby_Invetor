@@ -77,18 +77,52 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
         setErrors({});
     }, [product, isOpen]);
 
-    const parseDescription = (description) => {
-        if (!description) return '';
+  const parseDescription = (description) => {
+    if (!description) return '';
+    
+    // Add debugging to see what we're receiving
+    console.log('Description received:', description, 'Type:', typeof description);
+    
+    // If it's already a string and not JSON, return as is
+    if (typeof description === 'string') {
         try {
-            const parsed = typeof description === 'string' ? JSON.parse(description) : description;
-            // Fixed: Check for details property first, then return the parsed content
-            if (parsed && parsed.details) return parsed.details;
-            if (typeof parsed === 'string') return parsed;
+            const parsed = JSON.parse(description);
+            console.log('Parsed JSON:', parsed);
+            
+            // If it's a JSON object with details property, return the details
+            if (parsed && typeof parsed === 'object' && parsed.details) {
+                console.log('Returning details:', parsed.details);
+                return parsed.details;
+            }
+            // If it's a JSON string, return the parsed string
+            if (typeof parsed === 'string') {
+                console.log('Returning parsed string:', parsed);
+                return parsed;
+            }
+            // If it's some other object, stringify it
+            console.log('Returning stringified object:', JSON.stringify(parsed));
             return JSON.stringify(parsed);
-        } catch {
+        } catch (error) {
+            // If JSON.parse fails, it's probably just a plain string/HTML
+            console.log('Not JSON, returning as-is:', description);
             return description;
         }
-    };
+    }
+    
+    // If it's already an object
+    if (typeof description === 'object' && description !== null) {
+        if (description.details) {
+            console.log('Object with details:', description.details);
+            return description.details;
+        }
+        console.log('Object without details, stringifying:', JSON.stringify(description));
+        return JSON.stringify(description);
+    }
+    
+    // Fallback
+    console.log('Fallback, converting to string:', String(description));
+    return String(description);
+};
 
     const validateForm = () => {
         const newErrors = {};

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Outlet } from 'react-router-dom'
 
-const AdminAuthLayout = () => {
+const EmployeeAuthLayout = () => {
   return (
     <>
       <Outlet />
@@ -9,4 +9,4 @@ const AdminAuthLayout = () => {
   )
 }
 
-export default AdminAuthLayout
+export default EmployeeAuthLayout

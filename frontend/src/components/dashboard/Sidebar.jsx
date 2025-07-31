@@ -44,11 +44,13 @@ import {
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import useAdminAuth from '../../context/AdminAuthContext';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
 
 // Sidebar Component with NavLink
-const Sidebar = ({ isOpen =true , onToggle }) => {
+const Sidebar = ({ isOpen =true , onToggle, role }) => {
   const [expandedMenus, setExpandedMenus] = useState({});
-  const {user} = useAdminAuth()
+  const {user:adminData} = useAdminAuth()
+  const {user:employeeData} = useEmployeeAuth()
 
   const toggleSubmenu = (menuKey) => {
     setExpandedMenus(prev => ({
@@ -221,7 +223,7 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">ABY Inventory</h1>
-              <p className="text-xs text-gray-500">Admin Dashboard</p>
+              <p className="text-xs text-gray-500 capitalize">{role} Dashboard</p>
             </div>
           </div>
           <button
@@ -245,10 +247,18 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
             <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
               <User className="w-5 h-5 text-primary-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.adminName}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.adminEmail}</p>
+           {
+            role == 'admin' ?
+             <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{adminData?.adminName}</p>
+              <p className="text-xs text-gray-500 truncate">{adminData?.adminEmail}</p>
             </div>
+            :
+             <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{employeeData?.firstname} {employeeData?.lastname}</p>
+              <p className="text-xs text-gray-500 truncate">{employeeData?.email}</p>
+            </div>
+           }
           </div>
           
         
