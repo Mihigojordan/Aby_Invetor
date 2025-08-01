@@ -12,6 +12,7 @@ export class StockinManagmentController {
       productId: string;
       quantity: number;
       price: number;
+      sellingPrice:number;
       supplier?: string;
     },
   ) {

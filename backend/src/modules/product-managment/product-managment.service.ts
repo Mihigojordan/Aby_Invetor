@@ -13,8 +13,10 @@ export class ProductManagmentService {
   async createProduct(data: {
     productName?: string;
     brand?: string;
-    categoryId?: string;
+    categoryId: string;
     description?: string; // HTML string from frontend
+    adminId?: string;
+    employeeId?: string;
     imageurls?: Express.Multer.File[];
   }) {
     try {
@@ -25,21 +27,20 @@ export class ProductManagmentService {
         [];
 
       // Convert description HTML string to JSON object
-      const descriptionJson = description ? { details: description } : {details: ''};
+      const descriptionJson = description
+        ? { details: description }
+        : { details: '' };
       console.log(descriptionJson);
-      
 
       const product = await this.prisma.product.create({
         data: {
           productName,
           brand,
+          adminId: String(data.adminId),
           description: descriptionJson, // Store as JSON object
           imageUrls,
-          category: {
-            connect: {
-              id: categoryId,
-            },
-          },
+          employeeId: String(data.employeeId),
+          categoryId: categoryId,
         },
       });
 
@@ -97,15 +98,15 @@ export class ProductManagmentService {
       }
     }
 
-    const keepImages = JSON.parse(data?.keepImages) ;
+    const keepImages = JSON.parse(data?.keepImages);
     console.log('keepimages', keepImages);
-    const newImages = data.imageurls?.map(
+    const newImages =
+      data.imageurls?.map(
         (file) => `/uploads/product_images/${file.filename}`,
       ) ?? [];
 
-      console.log('keeping images',keepImages.length );
-      console.log('new images',newImages );
-      
+    console.log('keeping images', keepImages.length);
+    console.log('new images', newImages);
 
     // ✅ Ensure max 4 images
     const totalImages = keepImages.length + newImages.length;
@@ -116,7 +117,7 @@ export class ProductManagmentService {
     }
 
     // ✅ Delete images not in keepImages
-    const removedImages = (existing.imageUrls as string[] || []).filter(
+    const removedImages = ((existing.imageUrls as string[]) || []).filter(
       (url) => !keepImages.includes(url),
     );
 
@@ -127,12 +128,11 @@ export class ProductManagmentService {
     const imageUrls = [...keepImages, ...newImages];
 
     // Convert description HTML string to JSON object if provided
-    const descriptionJson = data.description 
-      ? { details: data.description } 
+    const descriptionJson = data.description
+      ? { details: data.description }
       : undefined;
 
-      console.log('sss ssf :',descriptionJson);
-      
+    console.log('sss ssf :', descriptionJson);
 
     const updated = await this.prisma.product.update({
       where: { id },

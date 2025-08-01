@@ -15,9 +15,12 @@ export class StockinManagmentService {
     productId: string;
     quantity: number;
     price: number;
+    adminId?: string;
+    employeeId?: string;
+    sellingPrice: number;
     supplier?: string;
   }) {
-    const { productId, quantity, price, supplier } = data;
+    const { productId, quantity, price, supplier , sellingPrice } = data;
 
     if (!productId || !quantity || !price) {
       throw new BadRequestException('Missing required fields');
@@ -40,8 +43,11 @@ export class StockinManagmentService {
         price,
         totalPrice: Number(totalPrice),
         supplier,
+        sellingPrice: Number(sellingPrice),
         sku,
         barcodeUrl,
+        adminId: data.adminId,
+        employeeId: data.employeeId
       },
     });
   }

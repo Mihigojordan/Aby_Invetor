@@ -23,6 +23,8 @@ model Admin {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   stockout   StockOut[]
+  stockin    StockIn[]
+  product    Product[]
 }
 
 model Employee {
@@ -37,10 +39,12 @@ model Employee {
   cv           String?
   identityCard String?
   password     String?
-  isLocked  Boolean? @default(false)
+  isLocked     Boolean?   @default(false)
   createdAt    DateTime   @default(now())
   tasks        Task[]     @relation("EmployeeTasks")
   stockout     StockOut[]
+  stockin      StockIn[]
+  product      Product[]
 }
 
 enum Status {
@@ -67,27 +71,36 @@ model Category {
 model Product {
   id          String    @id @default(uuid())
   productName String?
+  adminId     String?
+  employeeId  String?
   brand       String?
-  categoryId  String?
+  categoryId  String
   description Json?
   imageUrls   Json?
+  admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   category    Category? @relation("CategoryToProduct", fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   stockIn     StockIn[]
 }
 
 model StockIn {
-  id         String     @id @default(uuid())
-  productId  String?
-  quantity   Int?
-  price      Int?
-  totalPrice Int?
-  supplier   String?
-  sku        String?
-  barcodeUrl String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  product    Product?   @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  stockout   StockOut[]
+  id           String     @id @default(uuid())
+  productId    String?
+  adminId      String?
+  employeeId   String?
+  quantity     Int?
+  price        Int?
+  sellingPrice Int?
+  totalPrice   Int?
+  supplier     String?
+  sku          String?
+  barcodeUrl   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  product      Product?   @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  admin        Admin?     @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  employee     Employee?  @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  stockout     StockOut[]
 }
 
 model StockOut {
