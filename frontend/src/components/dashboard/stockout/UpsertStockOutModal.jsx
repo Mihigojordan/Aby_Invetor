@@ -10,6 +10,12 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     clientPhone: ''
   });
 
+  const [validationErrors, setValidationErrors] = useState({
+    stockinId: '',
+    quantity: '',
+    clientEmail: ''
+  });
+
   useEffect(() => {
     if (stockOut) {
       setFormData({
@@ -28,10 +34,115 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         clientPhone: '' 
       });
     }
-  }, [stockOut]);
+    
+    // Clear validation errors when modal opens/closes
+    setValidationErrors({
+      stockinId: '',
+      quantity: '',
+      clientEmail: ''
+    });
+  }, [stockOut, isOpen]);
+
+  const validateStockInId = (stockinId) => {
+    if (!stockinId) {
+      return 'Please select a stock-in entry';
+    }
+    return '';
+  };
+
+  const validateQuantity = (quantity, stockinId) => {
+    if (!quantity) {
+      return 'Quantity is required';
+    }
+    
+    const numQuantity = Number(quantity);
+    
+    if (isNaN(numQuantity) || numQuantity <= 0) {
+      return 'Quantity must be a positive number';
+    }
+    
+    if (!Number.isInteger(numQuantity)) {
+      return 'Quantity must be a whole number';
+    }
+    
+    // Check if quantity exceeds available stock
+    if (stockinId && stockIns) {
+      const selectedStockIn = stockIns.find(stock => stock.id === stockinId);
+      if (selectedStockIn && numQuantity > selectedStockIn.quantity) {
+        return `Quantity cannot exceed available stock (${selectedStockIn.quantity})`;
+      }
+    }
+    
+    return '';
+  };
+
+  const validateEmail = (email) => {
+    if (!email) return ''; // Email is optional
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) ? '' : 'Please enter a valid email address';
+  };
+
+  const handleStockInChange = (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, stockinId: value });
+    
+    // Validate stock-in selection
+    const stockinError = validateStockInId(value);
+    
+    // Re-validate quantity if it exists (in case stock availability changed)
+    const quantityError = formData.quantity ? validateQuantity(formData.quantity, value) : '';
+    
+    setValidationErrors(prev => ({
+      ...prev,
+      stockinId: stockinError,
+      quantity: quantityError
+    }));
+  };
+
+  const handleQuantityChange = (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, quantity: value });
+    
+    // Validate quantity
+    const quantityError = validateQuantity(value, formData.stockinId);
+    
+    setValidationErrors(prev => ({
+      ...prev,
+      quantity: quantityError
+    }));
+  };
+
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, clientEmail: value });
+    
+    // Validate email
+    const emailError = validateEmail(value);
+    
+    setValidationErrors(prev => ({
+      ...prev,
+      clientEmail: emailError
+    }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Final validation before submit
+    const stockinError = validateStockInId(formData.stockinId);
+    const quantityError = validateQuantity(formData.quantity, formData.stockinId);
+    const emailError = validateEmail(formData.clientEmail);
+    
+    setValidationErrors({
+      stockinId: stockinError,
+      quantity: quantityError,
+      clientEmail: emailError
+    });
+    
+    // Don't submit if there are validation errors
+    if (stockinError || quantityError || emailError) {
+      return;
+    }
     
     // Prepare data, converting numbers and excluding empty strings
     const submitData = {};
@@ -44,6 +155,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     if (formData.clientPhone.trim()) submitData.clientPhone = formData.clientPhone.trim();
 
     onSubmit(submitData);
+    onClose();
 
     // Reset form after submission
     setFormData({ 
@@ -53,40 +165,44 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       clientEmail: '', 
       clientPhone: '' 
     });
-  };
-
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    
+    setValidationErrors({
+      stockinId: '',
+      quantity: '',
+      clientEmail: ''
+    });
   };
 
   const isFormValid = () => {
-    // At least one field should be filled
-    return formData.stockinId || 
-           formData.quantity || 
-           formData.soldPrice || 
-           formData.clientName.trim() || 
-           formData.clientEmail.trim() || 
-           formData.clientPhone.trim();
+    // Check if required fields are filled and have no validation errors
+    return formData.stockinId && 
+           formData.quantity && 
+           !validationErrors.stockinId && 
+           !validationErrors.quantity && 
+           !validationErrors.clientEmail;
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">{title}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           
           {/* Stock-In Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Stock-In Entry (Optional)
+              Stock-In Entry <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.stockinId}
-              onChange={(e) => setFormData({ ...formData, stockinId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              onChange={handleStockInChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                validationErrors.stockinId 
+                  ? 'border-red-300 focus:ring-red-500' 
+                  : 'border-gray-300 focus:ring-primary-500'
+              }`}
             >
               <option value="">Select a stock-in entry</option>
               {stockIns?.map(stockIn => (
@@ -97,38 +213,38 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                 </option>
               ))}
             </select>
+            {validationErrors.stockinId && (
+              <p className="text-red-500 text-xs mt-1">{validationErrors.stockinId}</p>
+            )}
           </div>
 
           {/* Quantity */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quantity Sold
+              Quantity Sold <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
               value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              onChange={handleQuantityChange}
               min="1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                validationErrors.quantity 
+                  ? 'border-red-300 focus:ring-red-500' 
+                  : 'border-gray-300 focus:ring-primary-500'
+              }`}
               placeholder="Enter quantity sold"
             />
+            {validationErrors.quantity && (
+              <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
+            )}
+            {/* Show available stock info */}
+            {formData.stockinId && stockIns && (
+              <p className="text-gray-500 text-xs mt-1">
+                Available stock: {stockIns.find(stock => stock.id === formData.stockinId)?.quantity || 0}
+              </p>
+            )}
           </div>
-
-          {/* Sold Price */}
-          {/* <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sold Price per Unit (Optional)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.soldPrice}
-              onChange={(e) => setFormData({ ...formData, soldPrice: e.target.value })}
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              placeholder="Enter sold price per unit"
-            />
-          </div> */}
 
           {/* Client Information Section */}
           <div className="border-t pt-4">
@@ -156,16 +272,16 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
               <input
                 type="email"
                 value={formData.clientEmail}
-                onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
-                  formData.clientEmail && !validateEmail(formData.clientEmail) 
+                onChange={handleEmailChange}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                  validationErrors.clientEmail 
                     ? 'border-red-300 focus:ring-red-500' 
-                    : 'border-gray-300'
+                    : 'border-gray-300 focus:ring-primary-500'
                 }`}
                 placeholder="Enter client email"
               />
-              {formData.clientEmail && !validateEmail(formData.clientEmail) && (
-                <p className="text-red-500 text-xs mt-1">Please enter a valid email address</p>
+              {validationErrors.clientEmail && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.clientEmail}</p>
               )}
             </div>
 
@@ -195,7 +311,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
             </button>
             <button
               type="submit"
-              disabled={isLoading || !isFormValid() || (formData.clientEmail && !validateEmail(formData.clientEmail))}
+              disabled={isLoading || !isFormValid()}
               className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? 'Processing...' : stockOut ? 'Update' : 'Create'}
@@ -204,10 +320,11 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         </form>
 
         {/* Help Text */}
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-600">
-            <strong>Note:</strong>
-            The SKU will be generated automatically.
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+          <p className="text-xs text-blue-700">
+            <strong>Required fields:</strong> Stock-In Entry and Quantity Sold are required.
+            <br />
+            <strong>Note:</strong> The SKU will be generated automatically.
           </p>
         </div>
       </div>

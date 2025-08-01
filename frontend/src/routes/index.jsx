@@ -62,7 +62,7 @@ const routes = createBrowserRouter([
                                 path: 'employee',
                                 element: (
                                     <SuspenseWrapper>
-                                        <EmployeeManagement />
+                                        <EmployeeManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
@@ -70,7 +70,7 @@ const routes = createBrowserRouter([
                                 path: "position",
                                 element: (
                                     <SuspenseWrapper>
-                                        <TaskManagement />
+                                        <TaskManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -173,7 +173,7 @@ const routes = createBrowserRouter([
                                 path: "stockout",
                                 element: (
                                     <SuspenseWrapper>
-                                        <StockOutManagment />
+                                        <StockOutManagment role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 
