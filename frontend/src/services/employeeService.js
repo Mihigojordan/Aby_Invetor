@@ -78,6 +78,25 @@ class EmployeeService {
     }
   }
 
+    /**
+   * Get activities for a specific employee
+   * @param {string} id - Employee's ID
+   * @returns {Promise<Array>} Array of activities for the employee
+   */
+  async getActivityByEmployeeIdWithOutGuard(id) {
+    try {
+      const response = await api.get(`/employee/activity/${id}`);
+      return response.data || [];
+    } catch (error) {
+      console.error('Error fetching employee activities:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to fetch employee activities';
+      throw new Error(errorMessage);
+    }
+  }
 
   /**
    * Update an employee with optional file uploads

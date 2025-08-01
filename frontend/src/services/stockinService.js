@@ -16,21 +16,77 @@ class StockInService {
    * @param {number} stockInData.sellingPrice 
    * @returns {Promise<Object>} Created stock-in entry with success message
    */
-  async createStockIn(stockInData) {
-    
-    try {
-
-      if (!stockInData.productId || !stockInData.quantity || !stockInData.price || !stockInData.sellingPrice ) {
-        throw new Error('Product ID, quantity, selling price and price are required');
-      }
-
-      const response = await api.post('/stockin/create', stockInData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating stock-in:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to create stock-in');
+  
+// Updated service function to match backend API structure
+async createStockIn(stockInData) {
+  try {
+    // Validate required fields
+    if (!stockInData.productId || !stockInData.quantity || !stockInData.price || !stockInData.sellingPrice) {
+      throw new Error('Product ID, quantity, price, and selling price are required');
     }
+
+    // Transform single stock data to match backend expected format
+    const requestData = {
+      purchases: [
+        {
+          productId: stockInData.productId,
+          quantity: Number(stockInData.quantity),
+          price: Number(stockInData.price),
+          sellingPrice: Number(stockInData.sellingPrice),
+          supplier: stockInData.supplier || undefined
+        }
+      ],
+      adminId: stockInData.adminId || undefined,
+      employeeId: stockInData.employeeId || undefined
+    };
+
+    const response = await api.post('/stockin/create', requestData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating stock-in:', error);
+    throw new Error(error.response?.data?.message || error.message || 'Failed to create stock-in');
   }
+}
+
+// Additional function for creating multiple stock purchases at once
+async createMultipleStockIn(purchasesArray, userInfo = {}) {
+  try {
+    // Validate purchases array
+    if (!Array.isArray(purchasesArray) || purchasesArray.length === 0) {
+      throw new Error('At least one purchase is required');
+    }
+
+    // Validate each purchase item
+    for (const purchase of purchasesArray) {
+      console.log('purhcasess :',purchase);
+      
+      if (!purchase.productId || !purchase.quantity || !purchase.price || !purchase.sellingPrice) {
+        throw new Error('Each purchase must have productId, quantity, price, and sellingPrice');
+      }
+    }
+
+    // Format purchases data
+    const formattedPurchases = purchasesArray.map(purchase => ({
+      productId: purchase.productId,
+      quantity: Number(purchase.quantity),
+      price: Number(purchase.price),
+      sellingPrice: Number(purchase.sellingPrice),
+      supplier: purchase.supplier || undefined
+    }));
+
+    const requestData = {
+      purchases: formattedPurchases,
+      adminId: userInfo.adminId || undefined,
+      employeeId: userInfo.employeeId || undefined
+    };
+
+    const response = await api.post('/stockin/create', requestData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating multiple stock-in:', error);
+    throw new Error(error.response?.data?.message || error.message || 'Failed to create multiple stock-in');
+  }
+}
 
   /**
    * Get all stock-in entries

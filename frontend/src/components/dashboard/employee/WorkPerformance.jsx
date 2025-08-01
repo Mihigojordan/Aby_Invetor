@@ -3,7 +3,7 @@ import { Search, Activity, Calendar, Clock, ChevronLeft, ChevronRight, RefreshCw
 import employeeService from '../../../services/employeeService';
 import useEmployeeAuth from '../../../context/EmployeeAuthContext';
 
-const WorkPerformance = () => {
+const WorkPerformance = ({employee,notAsEmployee=false}) => {
     const [activities, setActivities] = useState([]);
     const [filteredActivities, setFilteredActivities] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -17,7 +17,7 @@ const WorkPerformance = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
 
-    const { user: employeeData } = useEmployeeAuth();
+   
 
     // Fetch employee activities
     const fetchActivities = async (showRefreshLoader = false) => {
@@ -28,7 +28,7 @@ const WorkPerformance = () => {
         }
 
         try {
-            const data = await employeeService.getActivityByEmployeeId(employeeData.id);
+            const data = notAsEmployee ? await employeeService.getActivityByEmployeeIdWithOutGuard(employee.id) :  await employeeService.getActivityByEmployeeId() ;
             console.log('activty data :', data);
 
             // Sort activities by doneAt date (newest first)
