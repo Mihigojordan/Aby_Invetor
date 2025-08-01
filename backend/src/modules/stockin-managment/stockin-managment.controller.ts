@@ -7,14 +7,7 @@ export class StockinManagmentController {
 
   @Post('create')
   async createStockIn(
-    @Body()
-    data: {
-      productId: string;
-      quantity: number;
-      price: number;
-      sellingPrice:number;
-      supplier?: string;
-    },
+    @Body() data
   ) {
     const stockIn = await this.stockInService.register(data);
     return {
