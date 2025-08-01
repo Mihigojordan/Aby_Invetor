@@ -7,43 +7,48 @@ const ProtectPrivateEmployee = ({ children }) => {
   const { isAuthenticated, isLocked, isLoading, user } = useEmployeeAuth();
   const location = useLocation();
 
-  // Route to task mapping
-  const routeTaskMapping = {
-    // saling
-    '/employee/dashboard/stockout': 'saling',
-    // returning
-    '/employee/dashboard/returning': 'returning',
-    // receiving
-    '/employee/dashboard/stockin': 'receiving',
-    '/employee/dashboard/category': 'receiving',
-    '/employee/dashboard/product': 'receiving',
-    // Add more route mappings as needed
-  };
 
-  // Check if the current route requires a specific task
-  const checkTaskPermission = () => {
-    const currentPath = location.pathname;
-   
-    // Find if current path matches any protected route
-    const matchedRoute = Object.keys(routeTaskMapping).find(route =>
-      currentPath.includes(route) || currentPath === route
-    );
-   
-    if (!matchedRoute) {
-      // Route doesn't require task permission, allow access
-      return true;
-    }
+// Route to task mapping (matches your ProtectPrivateEmployee logic)
+const routeTaskMapping = {
+  // saling
+  '/employee/dashboard/stockout': ['saling'],
+  // returning and receiving (both can access these routes)
+  '/employee/dashboard/returning': ['returning'],
+  '/employee/dashboard/category': ['returning', 'receiving'],
+  '/employee/dashboard/product': ['returning', 'receiving'],
+  // receiving
+  '/employee/dashboard/stockin': ['receiving'],
+};
 
-    const requiredTask = routeTaskMapping[matchedRoute];
-   
-    // Check if user has the required task
-    if (!user || !user.tasks || !Array.isArray(user.tasks)) {
-      return false;
-    }
 
-    const userTaskNames = user.tasks.map(task => task.taskname);
-    return userTaskNames.includes(requiredTask);
-  };
+// Check if the current route requires a specific task
+const checkTaskPermission = () => {
+  const currentPath = location.pathname;
+ 
+  // Find if current path matches any protected route
+  const matchedRoute = Object.keys(routeTaskMapping).find(route =>
+    currentPath.includes(route) || currentPath === route
+  );
+ 
+  if (!matchedRoute) {
+    // Route doesn't require task permission, allow access
+    return true;
+  }
+
+  const requiredTasks = routeTaskMapping[matchedRoute]; // Now this is an array
+ 
+  // Check if user has the required task
+  if (!user || !user.tasks || !Array.isArray(user.tasks)) {
+    return false;
+  }
+
+  const userTaskNames = user.tasks.map(task => task.taskname);
+  
+  // Check if user has ANY of the required tasks for this route
+  return requiredTasks?.some(requiredTask => 
+    userTaskNames.includes(requiredTask)
+  );
+};
 
   // Show loading state
   if (isLoading) {

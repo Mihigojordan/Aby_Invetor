@@ -100,6 +100,7 @@ const StockOutManagement = ({ role }) => {
       if (role == 'employee') {
         stockOutData.employeeId = employeeData.id
       }
+      
       await stockOutService.createStockOut(stockOutData);
       const updatedStockOuts = await stockOutService.getAllStockOuts();
       setStockOuts(updatedStockOuts);

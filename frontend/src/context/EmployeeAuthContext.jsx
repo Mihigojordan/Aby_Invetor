@@ -285,6 +285,7 @@ export const EmployeeAuthContextProvider = ({ children }) => {
         login,
         logout,
         lockEmployee,
+       
         unlockEmployee,
         user,
         isLoading,

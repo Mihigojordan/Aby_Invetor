@@ -51,12 +51,12 @@ const EmployeeProfile = () => {
   const sidebarItems = [
     {
       id: 'general',
-      label: 'General Information',
+      label: 'Profile',
       icon: User,
     },
     {
       id: 'password',
-      label: 'Change Password',
+      label: 'Security',
       icon: Lock,
     },
     {
@@ -67,12 +67,12 @@ const EmployeeProfile = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className=" mt-5 bg-gray-50">
       <div className="flex">
         {/* Sidebar */}
-        <div className=" lg:w-72  bg-white shadow-sm border-r border-gray-200 min-h-screen">
+        <div className="  w-64  bg-white shadow-sm border-r border-gray-200 ">
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Employee Profile</h2>
+            <h2 className="text-lg font-semibold text-gray-900  mb-6">Employee Profile</h2>
             <nav className="space-y-2">
               {sidebarItems.map((item) => {
                 const Icon = item.icon;
@@ -80,14 +80,14 @@ const EmployeeProfile = () => {
                   <button
                     key={item.id}
                     onClick={() => handleTabChange(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-colors duration-200 ${
+                    className={`w-full xl:flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-colors duration-200 ${
                       activeTab === item.id
                         ? 'bg-primary-50 text-primary-700 border border-primary-200'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
                     <Icon size={20} />
-                    <span className="font-medium hidden lg:block">{item.label}</span>
+                    <span className="font-medium ">{item.label}</span>
                   </button>
                 );
               })}
@@ -96,7 +96,7 @@ const EmployeeProfile = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-4 ">
           {activeTab === 'general' && <GeneralInformation employee={employee} formatDate={formatDate} getStatusBadge={getStatusBadge} />}
           {activeTab === 'password' && <ChangePassword employee={employee} />}
           {activeTab === 'performance' && <WorkPerformance />}

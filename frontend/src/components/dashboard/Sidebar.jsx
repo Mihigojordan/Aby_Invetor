@@ -100,7 +100,6 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     {
       key: 'stockout',
       label: 'Stock Out',
-      taskname: 'saling',
       icon: StoreIcon,
       path: '/admin/dashboard/stockout'
     },
@@ -114,45 +113,43 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: '/employee/dashboard',
       alwaysShow: true // Always show dashboard for employees
     },
-
-
-
+    {
+      key: 'category_receiving_returning',
+      label: 'Category',
+      taskname:[ 'receiving','returning'],
+      icon: Layers,
+      path: '/employee/dashboard/category'
+    },
 
     {
-      key: 'product_receiving',
+      key: 'product_receiving_returning',
       label: 'Product',
-      taskname: 'receiving',
+      taskname:[ 'receiving','returning'],
       icon: TagIcon,
       path: '/employee/dashboard/product'
     },
     {
-      key: 'category_receiving',
-      label: 'Category',
-      taskname: 'receiving',
-      icon: Layers,
-      path: '/employee/dashboard/category'
-    },
-    {
       key: 'stockin_receiving',
-      label: 'Stock In (Receiving)',
-      taskname: 'receiving',
+      label: 'Stock In (Purchase)',
+      taskname: ['receiving'],
       icon: StoreIcon,
       path: '/employee/dashboard/stockin'
     },
-    {
-      key: 'returning',
-      label: 'Stock In (Returns)',
-      taskname: 'returning',
-      icon: StoreIcon,
-      path: '/employee/dashboard/returning'
-    },
-    {
+     {
       key: 'stockout',
-      label: 'Stock Out',
-      taskname: 'saling',
+      label: 'Stock Out (Sale)',
+      taskname: ['saling'],
       icon: StoreIcon,
       path: '/employee/dashboard/stockout'
     },
+    {
+      key: 'returning',
+      label: 'Sales Returns',
+      taskname: ['returning'],
+      icon: StoreIcon,
+      path: '/employee/dashboard/returning'
+    },
+   
 
   ];
 
@@ -166,20 +163,32 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       navigate(route, { replace: true })
     }
   }
+// Filter employee items based on their tasks
+const getFilteredEmployeeItems = () => {
+  if (!employeeData || !employeeData.tasks) {
+    // If no tasks data, still show dashboard
+    return employeeItems.filter(item => item.alwaysShow);
+  }
 
-  // Filter employee items based on their tasks
-  const getFilteredEmployeeItems = () => {
-    if (!employeeData || !employeeData.tasks) {
-      // If no tasks data, still show dashboard
-      return employeeItems.filter(item => item.alwaysShow);
+  const employeeTaskNames = employeeData.tasks.map(task => task.taskname);
+
+  return employeeItems.filter(item => {
+    // Always show items marked as alwaysShow (like dashboard)
+    if (item.alwaysShow) {
+      return true;
     }
-
-    const employeeTaskNames = employeeData.tasks.map(task => task.taskname);
-
-    return employeeItems.filter(item =>
-      item.alwaysShow || employeeTaskNames.includes(item.taskname)
+    
+    // If item doesn't have taskname array, don't show it
+    if (!item.taskname || !Array.isArray(item.taskname)) {
+      return false;
+    }
+    
+    // Check if employee has any task that matches the item's required tasks
+    return item.taskname.some(requiredTask => 
+      employeeTaskNames.includes(requiredTask)
     );
-  };
+  });
+};
 
   // Get current menu items based on role
   const getCurrentMenuItems = () => {
