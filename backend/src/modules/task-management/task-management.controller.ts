@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards,Request } from '@nestjs/common';
 import { TaskManagementService } from './task-management.service';
 import { AdminJwtAuthGuard } from 'src/guards/adminGuard.guard';
 
@@ -6,10 +6,12 @@ import { AdminJwtAuthGuard } from 'src/guards/adminGuard.guard';
 @UseGuards(AdminJwtAuthGuard)
 export class TaskManagementController {
   constructor(private readonly taskServices: TaskManagementService) {}
+
   @Post('create')
-  async registerTask(@Body() data) {
+  async registerTask(@Body() data,@Request() req) {
     try {
-      return await this.taskServices.registerTask(data);
+  // Attach user ID from request (assuming guard sets req.user)
+    return await this.taskServices.registerTask({ ...data, userId: req.user.id })
     } catch (error) {
       console.error('error registering a task', error);
       throw new Error(error.message);

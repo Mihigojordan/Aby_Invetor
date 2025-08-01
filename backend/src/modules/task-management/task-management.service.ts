@@ -1,36 +1,53 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ActivityService } from 'src/Global/Activity/activity.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class TaskManagementService {
-  constructor(private readonly prismaService: PrismaService) {}
-  async registerTask(data: { taskname?: string; description?: string }) {
-    try {
-      const { taskname, description } = data;
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly activityService: ActivityService
+  ) {}
 
-      // Basic validation - at least one field should be provided
-      if (!taskname && !description) {
-        throw new BadRequestException(
-          'At least task name or description is required',
-        );
-      }
+async registerTask(
+  data: { taskname?: string; description?: string; ActivityAt?: Date },
+  admin: { id: string }, // passed from controller
+) {
+  try {
+    const { taskname, description, ActivityAt } = data;
 
-      const createTask = await this.prismaService.task.create({
-        data: {
-          taskname: taskname,
-          description: description,
-        },
-      });
-
-      return {
-        message: 'task registered successfully',
-        createTask,
-      };
-    } catch (error) {
-      console.error('error registering a task', error);
-      throw new Error(error.message);
+    if (!taskname && !description) {
+      throw new BadRequestException('Task name or description is required');
     }
+
+    const createTask = await this.prismaService.task.create({
+      data: {
+        taskname,
+        description,
+      },
+    });
+
+    await this.prismaService.activity.create({
+      data: {
+        activityName: `Created task "${taskname}"`,
+        activityAt: ActivityAt || new Date(),
+        adminId: admin.id,
+      },
+    });
+
+    return {
+      message: 'Task registered and activity logged successfully',
+      createTask,
+    };
+  } catch (error) {
+    console.error('Error registering a task:', error);
+    throw new Error(error.message);
   }
+}
+
+
+
+
 
   async findTaskByName(taskname: string) {
     try {
