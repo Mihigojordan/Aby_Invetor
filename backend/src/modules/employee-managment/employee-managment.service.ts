@@ -267,8 +267,15 @@ export class EmployeeManagmentService {
       const updatedEmployee = await this.prismaService.employee.update({
         where: { id },
         data: {
-          password: hashedPass,
-          profileImg: profileImageUrl
+          password: hashedPass ?? existingEmployee.password,
+          profileImg: profileImageFile?.filename ? profileImageUrl  : existingEmployee.profileImg,
+          firstname: data.firstname ?? existingEmployee.firstname,
+          lastname: data.lastname ?? existingEmployee.lastname,
+          email: data.email ?? existingEmployee.email,
+          phoneNumber: data.phoneNumber ?? existingEmployee.phoneNumber,
+          cv: cvFile?.filename ? cvUrl : existingEmployee.cv,
+          identityCard: identityCardFile?.filename ? identityCardUrl : existingEmployee.identityCard,
+          address: data.address ?? existingEmployee.address
         },
       });
 
