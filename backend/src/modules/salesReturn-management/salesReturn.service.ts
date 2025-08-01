@@ -4,58 +4,87 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
 export class SalesReturnService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService , private readonly activityService:ActivityManagementService ) {}
 
   // Create a new sales return
-  async create(data: { sku: string; reason?: string; createdAt?: Date }) {
-    try {
-      const { sku, reason, createdAt } = data;
+  async create(data: {
+    returns: { transactionId: string; reason?: string; createdAt?: Date }[];
+    adminId?: string;
+    employeeId?: string;
+  }) {
+    const result: {
+      success: { transactionId: string; returnId: string }[];
+      errors: { transactionId: string; error: string }[];
+    } = {
+      success: [],
+      errors: [],
+    };
 
-      if (!sku) throw new BadRequestException('SKU is required');
-    //   if (!createdAt) throw new BadRequestException('createdAt is required');
+    const { returns, adminId, employeeId } = data;
 
-      // Step 1: Find StockOut by SKU
-      const stockout = await this.prisma.stockOut.findFirst({
-        where: { sku },
-      });
+    const activityUser =
+      (adminId && (await this.prisma.admin.findUnique({ where: { id: adminId } }))) ||
+      (employeeId && (await this.prisma.employee.findUnique({ where: { id: employeeId } })));
 
-      if (!stockout)
-        throw new BadRequestException('StockOut with this SKU not found');
-
-      // Step 2: Find related StockIn using stockout.stockinId
-      const stockin = await this.prisma.stockIn.findUnique({
-        where: { id: String(stockout.stockinId) },
-      });
-
-      if (!stockin) throw new BadRequestException('Related StockIn not found');
-
-      // Step 3: Update StockIn quantity by adding back the StockOut quantity
-      await this.prisma.stockIn.update({
-        where: { id: stockin.id },
-        data: {
-          quantity: (stockin.quantity ?? 0) + (stockout.quantity ?? 0),
-        },
-      });
-
-      // Step 4: Create SalesReturn
-      const newReturn = await this.prisma.salesReturn.create({
-        data: {
-          stockoutId: stockout.id,
-          reason,
-          createdAt: createdAt ? createdAt : new Date().toISOString(),
-        },
-      });
-
-      return {
-        message: 'Sales return processed successfully',
-        data: newReturn,
-      };
-    } catch (error) {
-      throw new BadRequestException(error.message);
+    if (!activityUser) {
+      throw new NotFoundException('Admin or Employee not found');
     }
+
+    for (const item of returns) {
+      const { transactionId, reason, createdAt } = item;
+
+      try {
+        if (!transactionId) throw new Error('transactionId is required');
+
+        const stockout = await this.prisma.stockOut.findFirst({
+          where: { transactionId },
+        });
+
+        if (!stockout)
+          throw new Error(`StockOut not found for ${transactionId}`);
+
+        const stockin = await this.prisma.stockIn.findUnique({
+          where: { id: String(stockout.stockinId) },
+        });
+
+        if (!stockin) throw new Error(`StockIn not found for ${transactionId}`);
+
+        await this.prisma.stockIn.update({
+          where: { id: stockin.id },
+          data: {
+            quantity: (stockin.quantity ?? 0) + (stockout.quantity ?? 0),
+          },
+        });
+
+        const newReturn = await this.prisma.salesReturn.create({
+          data: {
+            stockoutId: stockout.id,
+            reason,
+            createdAt: createdAt ?? new Date(),
+          },
+        });
+
+        result.success.push({ transactionId, returnId: newReturn.id });
+      } catch (error) {
+        result.errors.push({ transactionId, error: error.message });
+      }
+    }
+
+    await this.activityService.createActivity({
+      activityName: 'Sales Return',
+      description: `${'adminName' in activityUser ? activityUser.adminName : activityUser.firstname} processed ${returns.length} sales return(s)`,
+      adminId,
+      employeeId,
+    });
+
+    return {
+      message: 'Bulk sales return processing completed',
+      ...result,
+    };
   }
 
   // Get all sales returns
