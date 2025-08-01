@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Users, Mail, Phone, MapPin, Check, AlertTriangle, ClipboardList } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Users, Mail, Phone, MapPin, Check, AlertTriangle, ClipboardList, User, FileText, Download } from 'lucide-react';
+// Import your existing components
 import UpsertEmployeeModal from '../../components/dashboard/employee/UpsertEmployeeModal';
 import DeleteModal from '../../components/dashboard/employee/DeleteModal';
 import AssignModal from '../../components/dashboard/employee/AssignModal';
-import employeeService from '../../services/employeeService'; // Adjust the import path
-import taskService from '../../services/taskService'; // Adjust the import path
+import employeeService from '../../services/employeeService';
+import taskService from '../../services/taskService';
 
 const EmployeeManagement = () => {
   const [employees, setEmployees] = useState([]);
@@ -19,19 +20,6 @@ const EmployeeManagement = () => {
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    const fetchEmployees = async () => {
-      setIsLoading(true);
-      try {
-        const data = await employeeService.getAllEmployees();
-        setEmployees(data);
-        setFilteredEmployees(data);
-      } catch (error) {
-        showNotification(`Failed to fetch employees: ${error.message}`, 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchEmployees();
   }, []);
 
@@ -44,22 +32,40 @@ const EmployeeManagement = () => {
     setFilteredEmployees(filtered);
   }, [searchTerm, employees]);
 
+  const fetchEmployees = async () => {
+    setIsLoading(true);
+    try {
+      const data = await employeeService.getAllEmployees();
+      setEmployees(data);
+      setFilteredEmployees(data);
+    } catch (error) {
+      showNotification(`Failed to fetch employees: ${error.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleAddEmployee = async (employeeData) => {
+  const handleAddEmployee = async (employeeFormData) => {
     setIsLoading(true);
     try {
-      const validation = employeeService.validateEmployeeData(employeeData);
+      // Validate data before sending
+      const validation = employeeService.validateEmployeeData(employeeFormData);
       if (!validation.isValid) {
         throw new Error(validation.errors.join(', '));
       }
-      const newEmployee = await employeeService.registerEmployee(employeeData);
-      setEmployees(prev => [...prev, newEmployee.createEmployee]);
+
+      const response = await employeeService.registerEmployee(employeeFormData);
+      
+      // Refresh the employees list to get the latest data
+      await fetchEmployees();
+      
       setIsAddModalOpen(false);
-      showNotification('Employee added successfully!');
+      showNotification(response.message || 'Employee added successfully!');
     } catch (error) {
       showNotification(`Failed to add employee: ${error.message}`, 'error');
     } finally {
@@ -67,22 +73,27 @@ const EmployeeManagement = () => {
     }
   };
 
-  const handleEditEmployee = async (employeeData) => {
+  const handleEditEmployee = async (employeeFormData) => {
     setIsLoading(true);
     try {
-      const validation = employeeService.validateEmployeeData(employeeData);
+      if (!selectedEmployee) {
+        throw new Error('No employee selected for editing');
+      }
+
+      // Validate data before sending
+      const validation = employeeService.validateEmployeeData(employeeFormData);
       if (!validation.isValid) {
         throw new Error(validation.errors.join(', '));
       }
-      const updatedEmployee = await employeeService.updateEmployee(selectedEmployee.id, employeeData);
-      setEmployees(prev =>
-        prev.map(emp =>
-          emp.id === selectedEmployee.id ? updatedEmployee.employee : emp
-        )
-      );
+
+      const response = await employeeService.updateEmployee(selectedEmployee.id, employeeFormData);
+      
+      // Refresh the employees list to get the latest data
+      await fetchEmployees();
+      
       setIsEditModalOpen(false);
       setSelectedEmployee(null);
-      showNotification('Employee updated successfully!');
+      showNotification(response.message || 'Employee updated successfully!');
     } catch (error) {
       showNotification(`Failed to update employee: ${error.message}`, 'error');
     } finally {
@@ -93,11 +104,19 @@ const EmployeeManagement = () => {
   const handleDeleteEmployee = async () => {
     setIsLoading(true);
     try {
-      await employeeService.deleteEmployee(selectedEmployee.id);
+      if (!selectedEmployee) {
+        throw new Error('No employee selected for deletion');
+      }
+
+      const response = await employeeService.deleteEmployee(selectedEmployee.id);
+      
+      // Remove employee from local state
       setEmployees(prev => prev.filter(emp => emp.id !== selectedEmployee.id));
+      setFilteredEmployees(prev => prev.filter(emp => emp.id !== selectedEmployee.id));
+      
       setIsDeleteModalOpen(false);
       setSelectedEmployee(null);
-      showNotification('Employee deleted successfully!');
+      showNotification(response.message || 'Employee deleted successfully!');
     } catch (error) {
       showNotification(`Failed to delete employee: ${error.message}`, 'error');
     } finally {
@@ -108,20 +127,29 @@ const EmployeeManagement = () => {
   const handleAssignTasks = async (taskIds) => {
     setIsLoading(true);
     try {
+      if (!selectedEmployee) {
+        throw new Error('No employee selected for task assignment');
+      }
+
       const assignmentData = {
         employeeId: selectedEmployee.id,
-        assignedTasks:taskIds
+        assignedTasks: taskIds
       };
-    const updatedEmployee =  await employeeService.assignTasksToEmployee(assignmentData);
       
+      const response = await employeeService.assignTasksToEmployee(assignmentData);
+      
+      // Update the local state with the updated employee data
       setEmployees(prev =>
         prev.map(emp =>
-          emp.id === selectedEmployee.id ? updatedEmployee.employee : emp
+          emp.id === selectedEmployee.id 
+            ? { ...emp, tasks: response.employee?.tasks || taskIds.map(id => ({ id, taskname: `Task ${id}` })) }
+            : emp
         )
       );
+      
       setIsAssignModalOpen(false);
       setSelectedEmployee(null);
-      showNotification('Tasks assigned successfully!');
+      showNotification(response.message || 'Tasks assigned successfully!');
     } catch (error) {
       showNotification(`Failed to assign tasks: ${error.message}`, 'error');
     } finally {
@@ -150,6 +178,18 @@ const EmployeeManagement = () => {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const handleDownloadFile = async (filePath, fileName) => {
+    try {
+      await employeeService.downloadFile(filePath, fileName);
+    } catch (error) {
+      showNotification(`Failed to download file: ${error.message}`, 'error');
+    }
+  };
+
+  const getDisplayFileUrl = (filePath) => {
+    return employeeService.getFileUrl(filePath);
   };
 
   return (
@@ -188,7 +228,8 @@ const EmployeeManagement = () => {
             </div>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+              disabled={isLoading}
+              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
             >
               <Plus size={20} />
               Add Employee
@@ -198,6 +239,7 @@ const EmployeeManagement = () => {
 
         {isLoading ? (
           <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading employees...</p>
           </div>
         ) : filteredEmployees.length === 0 ? (
@@ -224,17 +266,34 @@ const EmployeeManagement = () => {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                        {employee.firstname?.[0]}{employee.lastname?.[0]}
+                      <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg overflow-hidden">
+                        {employee.profileImg ? (
+                          <img 
+                            src={getDisplayFileUrl(employee.profileImg)} 
+                            alt="Profile" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextElementSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        
+                        <div className={employee.profileImg ? 'hidden' : 'flex'}>
+                          {`${employee.firstname?.[0] || ''}${employee.lastname?.[0] || ''}`}
+                        </div>
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900">
                           {employee.firstname} {employee.lastname}
                         </h3>
                         <div className="flex items-center gap-1 mt-1">
-                          <div className={`w-2 h-2 rounded-full ${employee.tasks?.length > 0 ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                          <div className={`w-2 h-2 rounded-full ${
+                            employee.status === 'ACTIVE' ? 'bg-green-500' : 
+                            employee.status === 'INACTIVE' ? 'bg-red-500' : 'bg-gray-400'
+                          }`}></div>
                           <span className="text-xs text-gray-500">
-                            {employee.tasks?.length > 0 ? 'Active' : 'Available'}
+                            {employee.status || 'Unknown'}
                           </span>
                         </div>
                       </div>
@@ -242,24 +301,28 @@ const EmployeeManagement = () => {
                     <div className="flex gap-1">
                       <button
                         onClick={() => openEditModal(employee)}
-                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        disabled={isLoading}
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
                       >
                         <Edit3 size={16} />
                       </button>
                       <button
                         onClick={() => openAssignModal(employee)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        disabled={isLoading}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
                       >
                         <ClipboardList size={16} />
                       </button>
                       <button
                         onClick={() => openDeleteModal(employee)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        disabled={isLoading}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
                       >
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
+                  
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Mail size={14} />
@@ -274,6 +337,37 @@ const EmployeeManagement = () => {
                       <span className="truncate">{employee.address}</span>
                     </div>
                   </div>
+
+                  {/* File attachments section */}
+                  <div className="mb-4">
+                    <div className="text-sm font-medium text-gray-700 mb-2">
+                      Documents
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {employee.identityCard && (
+                        <button
+                          onClick={() => window.open(getDisplayFileUrl(employee.identityCard), '_blank')}
+                          className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full hover:bg-blue-200 transition-colors"
+                        >
+                          <User size={12} />
+                          ID Card
+                        </button>
+                      )}
+                      {employee.cv && (
+                        <button
+                          onClick={() => handleDownloadFile(employee.cv, `${employee.firstname}_${employee.lastname}_CV.pdf`)}
+                          className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full hover:bg-green-200 transition-colors"
+                        >
+                          <FileText size={12} />
+                          CV
+                        </button>
+                      )}
+                      {!employee.identityCard && !employee.cv && (
+                        <span className="text-xs text-gray-500">No documents uploaded</span>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="mb-4">
                     <div className="text-sm font-medium text-gray-700 mb-2">
                       Tasks ({employee.tasks?.length || 0})
@@ -282,7 +376,7 @@ const EmployeeManagement = () => {
                       <div className="flex flex-wrap gap-1">
                         {employee.tasks.slice(0, 2).map((task) => (
                           <span key={task.id} className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full">
-                            {task.taskname || 'Unnamed Task'}
+                            {task.taskname || task.name || 'Unnamed Task'}
                           </span>
                         ))}
                         {employee.tasks.length > 2 && (
@@ -295,6 +389,7 @@ const EmployeeManagement = () => {
                       <span className="text-xs text-gray-500">No tasks assigned</span>
                     )}
                   </div>
+                  
                   <div className="pt-4 border-t border-gray-100">
                     <span className="text-xs text-gray-500">
                       Joined {formatDate(employee.createdAt)}
@@ -306,6 +401,7 @@ const EmployeeManagement = () => {
           </div>
         )}
 
+        {/* Modal Components */}
         <UpsertEmployeeModal
           isOpen={isAddModalOpen || isEditModalOpen}
           onClose={() => {

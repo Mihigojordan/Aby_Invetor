@@ -11,6 +11,12 @@ export const createUnifiedUploadConfig = (): MulterOptions => ({
 
       if (file.fieldname === 'imageurls') {
         subFolder = 'product_images';
+      }else if (file.fieldname === 'profileImg') {
+        subFolder = 'profile_images'; 
+      }else if(file.fieldname === 'identityCard') {
+        subFolder = 'identity_files_image'
+      }else if(file.fieldname ===  'cv'){
+        subFolder = 'cv_files'
       }
 
       console.log('Received file.fieldname:', file.fieldname);
@@ -37,7 +43,7 @@ export const createUnifiedUploadConfig = (): MulterOptions => ({
     },
   }),
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|webp/;
+    const allowedTypes = /jpeg|jpg|png|webp|pdf/;
     const isValidExt = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const isValidMime = allowedTypes.test(file.mimetype);
 
@@ -73,4 +79,11 @@ export const productFileFields = [
   { name: 'imageurls', maxCount: 4 },
 ];
 
+export const EmployeeFileFields = [
+  { name: 'profileImg', maxCount:1 },
+  { name: 'identityCard', maxCount:1 },
+  { name: 'cv', maxCount:1 },
+]
+
 export const productUploadConfig = createUnifiedUploadConfig()
+export const EmployeeUploadConfig = createUnifiedUploadConfig()
