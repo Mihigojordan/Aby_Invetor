@@ -6,8 +6,10 @@ import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockIn
 // import DeleteModal from '../../components/dashboard/stockin/DeleteStockInModel';
 import ViewStockInModal from '../../components/dashboard/stockin/ViewStockInModal';
 import { API_URL } from '../../api/api';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import useAdminAuth from '../../context/AdminAuthContext';
 
-const StockInManagement = () => {
+const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
   const [products, setProducts] = useState([]);
   const [filteredStockIns, setFilteredStockIns] = useState([]);
@@ -19,6 +21,10 @@ const StockInManagement = () => {
   const [selectedStockIn, setSelectedStockIn] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
+
+
+  const { user: employeeData } = useEmployeeAuth()
+  const { user: adminData } = useAdminAuth()
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,12 +73,12 @@ const StockInManagement = () => {
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    
+
     // Adjust start page if we're near the end
     if (endPage - startPage < maxVisiblePages - 1) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-    
+
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
@@ -87,6 +93,13 @@ const StockInManagement = () => {
   const handleAddStockIn = async (stockInData) => {
     setIsLoading(true);
     try {
+      if (role == 'admin') {
+        stockInData.adminId = adminData.id
+      }
+      if (role == 'employee') {
+        stockInData.employeeId = employeeData.id
+      }
+
       const newStockIn = await stockInService.createStockIn(stockInData);
       const updatedStockIns = await stockInService.getAllStockIns();
       setStockIns(updatedStockIns);
@@ -102,6 +115,12 @@ const StockInManagement = () => {
   const handleEditStockIn = async (stockInData) => {
     setIsLoading(true);
     try {
+      if (role == 'admin') {
+        stockInData.adminId = adminData.id
+      }
+      if (role == 'employee') {
+        stockInData.employeeId = employeeData.id
+      }
       await stockInService.updateStockIn(selectedStockIn.id, stockInData);
       const updatedStockIns = await stockInService.getAllStockIns();
       setStockIns(updatedStockIns);
@@ -209,46 +228,43 @@ const StockInManagement = () => {
           </div>
         )} */}
       </div>
-      
+
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
-              currentPage === 1
-                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-            }`}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
           >
             <ChevronLeft size={16} />
             Previous
           </button>
-          
+
           <div className="flex items-center gap-1 mx-2">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${
-                  currentPage === page
-                    ? 'bg-primary-600 text-white'
-                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
-                }`}
+                className={`px-3 py-2 text-sm rounded-md transition-colors ${currentPage === page
+                  ? 'bg-primary-600 text-white'
+                  : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                  }`}
               >
                 {page}
               </button>
             ))}
           </div>
-          
+
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
-              currentPage === totalPages
-                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-            }`}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
           >
             Next
             <ChevronRight size={16} />
@@ -332,9 +348,9 @@ const StockInManagement = () => {
                   </div>
                 )}
                 {stockIn.barcodeUrl && (
-                  <img 
-                    src={`${API_URL}${stockIn.barcodeUrl}`} 
-                    alt="Barcode" 
+                  <img
+                    src={`${API_URL}${stockIn.barcodeUrl}`}
+                    alt="Barcode"
                     className="h-8 object-contain"
                   />
                 )}
@@ -350,7 +366,7 @@ const StockInManagement = () => {
           </div>
         ))}
       </div>
-      
+
       {/* Pagination for Cards */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <PaginationComponent showItemsPerPage={true} />
@@ -383,7 +399,7 @@ const StockInManagement = () => {
                     {startIndex + index + 1}
                   </span>
                 </td>
-              
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white">
@@ -420,7 +436,7 @@ const StockInManagement = () => {
                     {formatPrice(stockIn.sellingPrice || 0)}
                   </span>
                 </td>
-               
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Calendar size={14} className="text-gray-400" />
@@ -461,9 +477,8 @@ const StockInManagement = () => {
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        } animate-in slide-in-from-top-2 duration-300`}>
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          } animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>

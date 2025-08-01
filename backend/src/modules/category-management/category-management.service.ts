@@ -123,7 +123,10 @@ export class CategoryManagementService {
 
       const updated = await this.prismaService.category.update({
         where: { id },
-        data,
+        data: {
+          name: data.name ?? existing.name,
+          description: data.name ?? existing.description
+        }
       });
 
       if (data?.adminId) {

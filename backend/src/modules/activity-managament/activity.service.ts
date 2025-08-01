@@ -63,4 +63,12 @@ export class ActivityManagementService {
     if (!activity) throw new HttpException('Activity not found', HttpStatus.NOT_FOUND);
     return activity;
   }
+  async getActivityByEmployeeId(id: string) {
+    const activities = await this.prisma.activity.findMany({
+      where: { employeeId: id },
+    });
+
+    if (!activities || activities.length === 0) throw new HttpException('Activity not found', HttpStatus.NOT_FOUND);
+    return activities;
+  }
 }

@@ -54,6 +54,7 @@ export class ProductManagmentService {
 
       // 🔍 Log activity
       if (data.adminId) {
+        console.log('adminID:', data.adminId)
         const admin = await this.prisma.admin.findUnique({
           where: { id: data.adminId },
         });
@@ -67,6 +68,7 @@ export class ProductManagmentService {
         });
       }
       if (data.employeeId) {
+        console.log('employeeiD:', data.employeeId)
         const employee = await this.prisma.employee.findUnique({
           where: { id: data.employeeId },
         });

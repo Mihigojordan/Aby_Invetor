@@ -108,7 +108,7 @@ export class StockinManagmentService {
       employeeId: string;
     }>,
   ) {
-    const stock = await this.prisma.stockIn.findUnique({ where: { id } });
+    const stock = await this.prisma.stockIn.findUnique({ where: { id } , include:{ product:true } });
     if (!stock) throw new NotFoundException('Stock not found');
 
     const totalPrice =
@@ -137,7 +137,7 @@ export class StockinManagmentService {
 
       await this.activityService.createActivity({
         activityName: 'Stock Updated',
-        description: `${admin.adminName} updated stock for product ID: ${stock.productId}`,
+        description: `${admin.adminName} updated stock for product called ${stock.product?.productName}`,
         adminId: admin.id,
       });
     }
@@ -151,7 +151,7 @@ export class StockinManagmentService {
 
       await this.activityService.createActivity({
         activityName: 'Stock Updated',
-        description: `${employee.firstname} updated stock for product ID: ${stock.productId}`,
+        description: `${employee.firstname} updated stock for product called ${stock.product?.productName}`,
         employeeId: employee.id,
       });
     }
@@ -166,7 +166,7 @@ export class StockinManagmentService {
   }
 
   async delete(id: string, data?: { adminId?: string; employeeId?: string }) {
-    const stock = await this.prisma.stockIn.findUnique({ where: { id } });
+    const stock = await this.prisma.stockIn.findUnique({ where: { id } , include:{ product:true } });
     if (!stock) throw new NotFoundException('Stock not found');
 
     const deletedStock = await this.prisma.stockIn.delete({ where: { id } });
@@ -174,14 +174,14 @@ export class StockinManagmentService {
     // Activity tracking
     if (data?.adminId) {
       const admin = await this.prisma.admin.findUnique({
-        where: { id: data.adminId },
+        where: { id: data.adminId }
       });
       if (!admin)
         throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
 
       await this.activityService.createActivity({
         activityName: 'Stock Deleted',
-        description: `${admin.adminName} deleted stock for product ID: ${stock.productId}`,
+        description: `${admin.adminName} deleted stock for product called ${stock.product?.productName}`,
         adminId: admin.id,
       });
     }
@@ -195,7 +195,7 @@ export class StockinManagmentService {
 
       await this.activityService.createActivity({
         activityName: 'Stock Deleted',
-        description: `${employee.firstname} deleted stock for product ID: ${stock.productId}`,
+        description: `${employee.firstname} deleted stock for product called ${stock.product?.productName}`,
         employeeId: employee.id,
       });
     }
