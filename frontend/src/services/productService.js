@@ -40,6 +40,13 @@ class ProductService {
         });
       }
 
+      if (productData.adminId) {
+        formData.append('adminId', productData.adminId)
+      }
+      if (productData.employeeId) {
+        formData.append('employeeId', productData.employeeId)
+      }
+
       const response = await api.post(`${this.apiPath}/create`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -137,6 +144,13 @@ class ProductService {
       if (productData.description) {
         console.log('description data : ',productData.description)
         formData.append('description', productData.description);
+      }
+
+      if (productData.adminId) {
+        formData.append('adminId', productData.adminId)
+      }
+      if (productData.employeeId) {
+        formData.append('employeeId', productData.employeeId)
       }
 
       // Add images to keep

@@ -64,7 +64,7 @@ const Header = ({ onToggle, role }) => {
 
   // Get profile route based on role
   const getProfileRoute = () => {
-    return role === 'admin' ? '/admin/profile' : '/employee/profile'
+    return role === 'admin' ? '/admin/profile' : '/employee/dashboard/profile'
   }
 
   // Get role display text

@@ -53,19 +53,10 @@ const ViewStockInModal = ({ isOpen, onClose, stockIn }) => {
 
         {/* Content */}
         <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1  lg:grid-cols-2  gap-8">
             {/* Left Column - Basic Information */}
             <div className="space-y-6">
-              {/* Stock Entry ID */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Hash className="w-5 h-5 text-gray-500" />
-                  <h3 className="font-semibold text-gray-900">Stock Entry ID</h3>
-                </div>
-                <p className="font-mono text-sm text-gray-600 bg-white p-2 rounded border break-all">
-                  {truncateId(stockIn.id)}
-                </p>
-              </div>
+             
 
               {/* Product Information */}
               <div className="bg-blue-50 rounded-lg p-4">
@@ -95,7 +86,7 @@ const ViewStockInModal = ({ isOpen, onClose, stockIn }) => {
                   {stockIn.product?.description && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <div className="text-gray-600 text-sm" 
+                      <div className="text-gray-600 text-sm line-clamp-1" 
                       dangerouslySetInnerHTML={{__html : productService.parseDescription(stockIn.product.description)}} />
                     
                      
@@ -133,6 +124,12 @@ const ViewStockInModal = ({ isOpen, onClose, stockIn }) => {
                       {formatPrice(stockIn.totalPrice)}
                     </p>
                   </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Selling Price</label>
+                    <p className="text-3xl font-bold text-green-600">
+                      {formatPrice(stockIn.sellingPrice)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -146,14 +143,7 @@ const ViewStockInModal = ({ isOpen, onClose, stockIn }) => {
                   <h3 className="font-semibold text-gray-900">Barcode & SKU</h3>
                 </div>
                 <div className="space-y-4">
-                  {stockIn.sku && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">SKU</label>
-                      <div className="bg-white p-3 rounded border">
-                        <span className="font-mono text-lg text-gray-900">{stockIn.sku}</span>
-                      </div>
-                    </div>
-                  )}
+                 
                   {stockIn.barcodeUrl && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Barcode</label>
@@ -212,7 +202,7 @@ const ViewStockInModal = ({ isOpen, onClose, stockIn }) => {
 
               {/* Product Images */}
               {stockIn.product?.imageUrls && (
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-blue-50 row-span-2 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <FileText className="w-5 h-5 text-blue-600" />
                     <h3 className="font-semibold text-gray-900">Product Images</h3>

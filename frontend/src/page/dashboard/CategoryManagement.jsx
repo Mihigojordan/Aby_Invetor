@@ -5,14 +5,19 @@ import UpsertCategoryModal from '../../components/dashboard/category/UpsertCateg
 import DeleteCategoryModal from '../../components/dashboard/category/DeleteCategoryModal';
 
 import categoryService from '../../services/categoryService';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import useAdminAuth from '../../context/AdminAuthContext';
 
-const CategoryManagement = () => {
+const CategoryManagement = ({role}) => {
   const [categories, setCategories] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const {user:employeeData} = useEmployeeAuth()
+  const {user:adminData} = useAdminAuth()
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,6 +59,16 @@ const CategoryManagement = () => {
       if (!validation.isValid) {
         throw new Error(validation.errors.join(', '));
       }
+
+      if(role == 'admin'){
+        categoryData.adminId = adminData.id
+      }
+      if(role == 'employee'){
+        categoryData.employeeId = employeeData.id
+      }
+
+      
+      
       const response = await categoryService.createCategory(categoryData);
       setCategories(prev => [...prev, response.category]);
       setIsAddModalOpen(false);
@@ -68,9 +83,16 @@ const CategoryManagement = () => {
   const handleEditCategory = async (categoryData) => {
     setIsLoading(true);
     try {
-      const validation = categoryService.validateCategoryData(categoryData);
-      if (!validation.isValid) {
-        throw new Error(validation.errors.join(', '));
+      // const validation = categoryService.validateCategoryData(categoryData);
+      // if (!validation.isValid) {
+      //   throw new Error(validation.errors.join(', '));
+      // }
+
+      if(role == 'admin'){
+        categoryData.adminId = adminData.id
+      }
+      if(role == 'employee'){
+        categoryData.employeeId = employeeData.id
       }
       const response = await categoryService.updateCategory(selectedCategory.id, categoryData);
       setCategories(prev =>
@@ -86,9 +108,19 @@ const CategoryManagement = () => {
     }
   };
 
-  const handleDeleteCategory = async () => {
+  const handleDeleteCategory = async (categoryData) => {
     setIsLoading(true);
     try {
+       const validation = categoryService.validateCategoryData(categoryData);
+      if (!validation.isValid) {
+        throw new Error(validation.errors.join(', '));
+      }
+      if(role == 'admin'){
+        categoryData.adminId = adminData.id
+      }
+      if(role == 'employee'){
+        categoryData.employeeId = employeeData.id
+      }
       await categoryService.deleteCategory(selectedCategory.id);
       setCategories(prev => prev.filter(cat => cat.id !== selectedCategory.id));
       setIsDeleteModalOpen(false);

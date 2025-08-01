@@ -1,17 +1,26 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { generateStockSKU } from 'src/common/utils/generate-sku.util';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
 export class StockoutService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityManagementService,
+  ) {}
 
   async create(data: {
     stockinId: string;
     adminId?: string;
     employeeId?: string;
     quantity: number;
-    soldPrice?: number;
     clientName?: string;
     clientEmail?: string;
     clientPhone?: string;
@@ -44,14 +53,48 @@ export class StockoutService {
         },
       });
 
-      const sku = generateStockSKU('abyride', String(data.clientName))
+      if (stockin.sellingPrice === null || stockin.sellingPrice === undefined) {
+        throw new BadRequestException('Stockin selling price is not set');
+      }
+      const soldPrice = stockin.sellingPrice * quantity;
 
-      return await this.prisma.stockOut.create({
+      const sku = generateStockSKU('abyride', String(data.clientName));
+
+      const stockout = await this.prisma.stockOut.create({
         data: {
           ...data,
           sku: sku,
+          soldPrice: soldPrice,
         },
       });
+      if (data.adminId) {
+        const admin = await this.prisma.admin.findUnique({
+          where: { id: data.adminId },
+        });
+        if (!admin)
+          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Stock Out',
+          description: `${admin.adminName} recorded a stock out of ${quantity} items`,
+          adminId: admin.id,
+        });
+      }
+
+      if (data.employeeId) {
+        const employee = await this.prisma.employee.findUnique({
+          where: { id: data.employeeId },
+        });
+        if (!employee)
+          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Stock Out',
+          description: `${employee.firstname} recorded a stock out of ${quantity} items`,
+          employeeId: employee.id,
+        });
+      }
+      return stockout;
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -89,7 +132,7 @@ export class StockoutService {
     }
   }
 
-    async update(
+  async update(
     id: string,
     data: Partial<{
       quantity: number;
@@ -97,27 +140,85 @@ export class StockoutService {
       clientName: string;
       clientEmail: string;
       clientPhone: string;
+      adminId: string;
+      employeeId: string;
     }>,
   ) {
     try {
       const stockout = await this.prisma.stockOut.findUnique({ where: { id } });
       if (!stockout) throw new NotFoundException('StockOut not found');
 
-      return await this.prisma.stockOut.update({
+      const updatedStockout = await this.prisma.stockOut.update({
         where: { id },
         data,
       });
+      if (data.adminId) {
+        const admin = await this.prisma.admin.findUnique({
+          where: { id: data.adminId },
+        });
+        if (!admin)
+          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Stock Out Updated',
+          description: `${admin.adminName} updated stock out record for client ${stockout.clientName || ''}`,
+          adminId: admin.id,
+        });
+      }
+
+      if (data.employeeId) {
+        const employee = await this.prisma.employee.findUnique({
+          where: { id: data.employeeId },
+        });
+        if (!employee)
+          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Stock Out Updated',
+          description: `${employee.firstname} updated stock out record for client ${stockout.clientName || ''}`,
+          employeeId: employee.id,
+        });
+      }
+      return updatedStockout;
     } catch (error) {
       throw new BadRequestException(error.message);
     }
   }
 
-  async delete(id: string) {
+  async delete(id: string, data?: { adminId?: string; employeeId?: string }) {
     try {
       const stockout = await this.prisma.stockOut.findUnique({ where: { id } });
       if (!stockout) throw new NotFoundException('StockOut not found');
+      const deletedStock = await this.prisma.stockOut.delete({ where: { id } });
+      if (data?.adminId) {
+        const admin = await this.prisma.admin.findUnique({
+          where: { id: data.adminId },
+        });
+        if (!admin)
+          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
 
-      return await this.prisma.stockOut.delete({ where: { id } });
+        await this.activityService.createActivity({
+          activityName: 'Stock Out Deleted',
+          description: `${admin.adminName} deleted stock out record for client ${stockout.clientName || ''}`,
+          adminId: admin.id,
+        });
+      }
+
+      if (data?.employeeId) {
+        const employee = await this.prisma.employee.findUnique({
+          where: { id: data.employeeId },
+        });
+        if (!employee)
+          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Stock Out Deleted',
+          description: `${employee.firstname} deleted stock out record for client ${stockout.clientName || ''}`,
+          employeeId: employee.id,
+        });
+      }
+
+      return deletedStock
     } catch (error) {
       throw new BadRequestException(error.message);
     }

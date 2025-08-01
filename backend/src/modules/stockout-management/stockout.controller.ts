@@ -42,9 +42,9 @@ export class StockoutController{
   }
 
   @Delete('delete/:id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @Body() data ) {
     try {
-      return await this.stockoutService.delete(id);
+      return await this.stockoutService.delete(id, data);
     } catch (error) {
       throw new HttpException(error.message, error.status || HttpStatus.NOT_FOUND);
     }

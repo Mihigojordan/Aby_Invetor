@@ -12,6 +12,7 @@ export class StockinManagmentController {
       productId: string;
       quantity: number;
       price: number;
+      sellingPrice:number;
       supplier?: string;
     },
   ) {
@@ -46,8 +47,8 @@ export class StockinManagmentController {
   }
 
   @Delete('delete/:id')
-  async deleteStockIn(@Param('id') id: string) {
-    await this.stockInService.delete(id);
+  async deleteStockIn(@Param('id') id: string, @Body() data ) {
+    await this.stockInService.delete(id, data);
     return { message: 'StockIn deleted successfully' };
   }
 }

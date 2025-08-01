@@ -17,7 +17,7 @@ export class AdminJwtAuthGuard implements CanActivate {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const adminToken = this.extractTokenFromCookies(request);
 
-    console.log("the host's token represented here is:", adminToken);
+    console.log("the admin's token represented here is:", adminToken);
     if (!adminToken) {
       throw new UnauthorizedException('not authenticated');
     }
