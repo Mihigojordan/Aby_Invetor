@@ -191,6 +191,10 @@ const StockInManagement = () => {
                 <DollarSign size={14} />
                 <span className="font-medium">Total: {formatPrice(stockIn.totalPrice)}</span>
               </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <DollarSign size={14} />
+                <span className="font-medium">Total: {formatPrice(stockIn.sellingPrice)}</span>
+              </div>
               {stockIn.supplier && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <User size={14} />
@@ -243,6 +247,7 @@ const StockInManagement = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sell Price</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -307,6 +312,11 @@ const StockInManagement = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-semibold text-blue-600">
                     {formatPrice(stockIn.totalPrice || 0)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="font-semibold text-blue-600">
+                    {formatPrice(stockIn.sellingPrice || 0)}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

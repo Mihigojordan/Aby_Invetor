@@ -96,6 +96,12 @@ const Sidebar = ({ isOpen =true , onToggle, role }) => {
       icon: StoreIcon,
       path:'/admin/dashboard/stockin'
     },
+    {
+      key: 'Stockout',
+      label: 'Stock Out',
+      icon: StoreIcon,
+      path:'/admin/dashboard/stockout'
+    },
    
  
   ];

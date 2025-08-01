@@ -13,12 +13,13 @@ class StockInService {
    * @param {number} stockInData.quantity - Quantity
    * @param {number} stockInData.price - Price per unit
    * @param {string} [stockInData.supplier] - Supplier name (optional)
+   * @param {number} stockInData.sellingPrice 
    * @returns {Promise<Object>} Created stock-in entry with success message
    */
   async createStockIn(stockInData) {
     try {
-      if (!stockInData.productId || !stockInData.quantity || !stockInData.price) {
-        throw new Error('Product ID, quantity, and price are required');
+      if (!stockInData.productId || !stockInData.quantity || !stockInData.price || !stockInData.sellingPrice ) {
+        throw new Error('Product ID, quantity, selling price and price are required');
       }
 
       const response = await api.post('/stockin/create', stockInData);
@@ -69,6 +70,7 @@ class StockInService {
    * @param {number} [updateData.quantity] - Updated quantity
    * @param {number} [updateData.price] - Updated price
    * @param {string} [updateData.supplier] - Updated supplier
+   * @param {number} [updateData.sellingPrice] 
    * @returns {Promise<Object>} Updated stock-in entry
    */
   async updateStockIn(id, updateData) {

@@ -36,10 +36,10 @@ export class ProductManagmentService {
         data: {
           productName,
           brand,
-          adminId: String(data.adminId),
+          adminId: data.adminId ? String(data.adminId): null,
           description: descriptionJson, // Store as JSON object
           imageUrls,
-          employeeId: String(data.employeeId),
+          employeeId: data.employeeId ? String(data.employeeId): null,
           categoryId: categoryId,
         },
       });

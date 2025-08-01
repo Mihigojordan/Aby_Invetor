@@ -133,6 +133,12 @@ const ViewStockInModal = ({ isOpen, onClose, stockIn }) => {
                       {formatPrice(stockIn.totalPrice)}
                     </p>
                   </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Selling Price</label>
+                    <p className="text-3xl font-bold text-green-600">
+                      {formatPrice(stockIn.sellingPrice)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

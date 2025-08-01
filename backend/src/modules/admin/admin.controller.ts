@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpException,
   Post,
   Req,
   Res,
@@ -22,7 +23,7 @@ export class AdminController {
       return await this.adminServices.registerAdmin(req);
     } catch (error) {
       console.log('error registering admin', error);
-      throw new Error(error.message);
+      throw new HttpException(error.message, error.status);
     }
   }
 
@@ -48,7 +49,7 @@ export class AdminController {
       });
     } catch (error) {
       console.log('error registering admin', error);
-      throw new Error(error.message);
+      throw new HttpException(error.message, error.status);
     }
   }
 
@@ -63,7 +64,7 @@ export class AdminController {
       return await this.adminServices.logout(res, adminId);
     } catch (error) {
       console.error('Error logging out client:', error);
-      throw new Error(error.message);
+      throw new HttpException(error.message, error.status);
     }
   }
 
@@ -75,7 +76,7 @@ export class AdminController {
       return await this.adminServices.findAdminById(adminId);
     } catch (error) {
       console.error('Error logging out admin:', error);
-      throw new Error(error.message);
+      throw new HttpException(error.message, error.status);
     }
   }
 
@@ -92,7 +93,7 @@ export class AdminController {
       return await this.adminServices.lockAdmin(adminId);
     } catch (error) {
       console.log('error locking admin', error);
-      throw new Error(error.message);
+      throw new HttpException(error.message, error.status);
     }
   }
 
@@ -108,7 +109,7 @@ export class AdminController {
       return await this.adminServices.adminUnlocking(adminId, datas);
     } catch (error) {
       console.log('error editing host', error);
-      throw new Error(error.message);
+      throw new HttpException(error.message, error.status);
     }
   }
 }
