@@ -9,9 +9,14 @@ const ProtectPrivateEmployee = ({ children }) => {
 
   // Route to task mapping
   const routeTaskMapping = {
+    // saling
     '/employee/dashboard/stockout': 'saling',
+    // returning
     '/employee/dashboard/returning': 'returning',
+    // receiving
     '/employee/dashboard/stockin': 'receiving',
+    '/employee/dashboard/category': 'receiving',
+    '/employee/dashboard/product': 'receiving',
     // Add more route mappings as needed
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, ShoppingCart, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Package, TrendingUp } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, ShoppingCart, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Package, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import stockOutService from '../../services/stockOutService';
 import stockInService from '../../services/stockInService';
 import UpsertStockOutModal from '../../components/dashboard/stockout/UpsertStockOutModal';
@@ -18,6 +18,10 @@ const StockOutManagement = () => {
   const [selectedStockOut, setSelectedStockOut] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,7 +53,32 @@ const StockOutManagement = () => {
       stockOut.sku?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredStockOuts(filtered);
+    setCurrentPage(1); // Reset to first page when filtering
   }, [searchTerm, stockOuts]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredStockOuts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredStockOuts.slice(startIndex, endIndex);
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // Adjust start page if we're near the end
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -147,115 +176,196 @@ const StockOutManagement = () => {
     return (soldPrice - costPrice) * stockOut.quantity;
   };
 
+  // Pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page
+  };
+
+  // Pagination Component
+  const PaginationComponent = ({ showItemsPerPage = true }) => (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
+      <div className="flex items-center gap-4">
+        <p className="text-sm text-gray-600">
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredStockOuts.length)} of {filteredStockOuts.length} entries
+        </p>
+        {showItemsPerPage && filteredStockOuts.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Show:</label>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+              className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+        )}
+      </div>
+      
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
+              currentPage === 1
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+          
+          <div className="flex items-center gap-1 mx-2">
+            {getPageNumbers().map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                  currentPage === page
+                    ? 'bg-primary-600 text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
+              currentPage === totalPages
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   // Card View Component (Mobile/Tablet)
   const CardView = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:hidden">
-      {filteredStockOuts.map((stockOut) => (
-        <div key={stockOut.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-          <div className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                  <ShoppingCart size={20} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">
-                    {stockOut.stockin?.product?.productName || 'Sale Transaction'}
-                  </h3>
-                  <div className="flex items-center gap-1 mt-1">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <span className="text-xs text-gray-500">Sold</span>
+    <div className="md:hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+        {currentItems.map((stockOut, index) => (
+          <div key={stockOut.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                    <ShoppingCart size={20} />
                   </div>
-                  {stockOut.sku && (
-                    <span className="text-xs text-gray-500 font-mono">{stockOut.sku}</span>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      {stockOut.stockin?.product?.productName || 'Sale Transaction'}
+                    </h3>
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className="w-2 h-2 rounded-full bg-primary-500"></div>
+                      <span className="text-xs text-gray-500">Sold</span>
+                    </div>
+                    {stockOut.sku && (
+                      <span className="text-xs text-gray-500 font-mono">{stockOut.sku}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => openViewModal(stockOut)}
+                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-green-50 rounded-lg transition-colors"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  <button
+                    onClick={() => openEditModal(stockOut)}
+                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                {stockOut.quantity && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Hash size={14} />
+                    <span>Qty: {stockOut.quantity}</span>
+                  </div>
+                )}
+                {stockOut.soldPrice && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <DollarSign size={14} />
+                    <span>Unit Price: {formatPrice(stockOut.soldPrice)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Client Information */}
+              {(stockOut.clientName || stockOut.clientEmail || stockOut.clientPhone) && (
+                <div className="mb-4 p-3 bg-orange-50 rounded-lg">
+                  <div className="text-sm font-medium text-gray-700 mb-2">Client</div>
+                  {stockOut.clientName && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                      <User size={14} />
+                      <span className="truncate">{stockOut.clientName}</span>
+                    </div>
+                  )}
+                  {stockOut.clientEmail && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                      <Mail size={14} />
+                      <span className="truncate">{stockOut.clientEmail}</span>
+                    </div>
+                  )}
+                  {stockOut.clientPhone && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone size={14} />
+                      <span>{stockOut.clientPhone}</span>
+                    </div>
                   )}
                 </div>
-              </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => openViewModal(stockOut)}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-green-50 rounded-lg transition-colors"
-                >
-                  <Eye size={16} />
-                </button>
-                <button
-                  onClick={() => openEditModal(stockOut)}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                  <Edit3 size={16} />
-                </button>
-                {/* <button
-                  onClick={() => openDeleteModal(stockOut)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button> */}
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              {stockOut.quantity && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Hash size={14} />
-                  <span>Qty: {stockOut.quantity}</span>
-                </div>
               )}
-              {stockOut.soldPrice && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <DollarSign size={14} />
-                  <span>Unit Price: {formatPrice(stockOut.soldPrice)}</span>
-                </div>
-              )}
-              {/* {stockOut.quantity && stockOut.soldPrice && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <TrendingUp size={14} />
-                  <span className="font-medium text-green-600">Revenue: {formatPrice(calculateRevenue(stockOut))}</span>
-                </div>
-              )} */}
-              {/* {stockOut.stockin && stockOut.quantity && stockOut.soldPrice && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <DollarSign size={14} />
-                  <span className={`font-medium ${calculateProfit(stockOut) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    Profit: {formatPrice(calculateProfit(stockOut))}
-                  </span>
-                </div>
-              )} */}
-            </div>
 
-            {/* Client Information */}
-            {(stockOut.clientName || stockOut.clientEmail || stockOut.clientPhone) && (
-              <div className="mb-4 p-3 bg-orange-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-700 mb-2">Client</div>
-                {stockOut.clientName && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                    <User size={14} />
-                    <span className="truncate">{stockOut.clientName}</span>
-                  </div>
-                )}
-                {stockOut.clientEmail && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                    <Mail size={14} />
-                    <span className="truncate">{stockOut.clientEmail}</span>
-                  </div>
-                )}
-                {stockOut.clientPhone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Phone size={14} />
-                    <span>{stockOut.clientPhone}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="pt-4 border-t border-gray-100">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Calendar size={12} />
-                <span>Sold {formatDate(stockOut.createdAt)}</span>
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Calendar size={12} />
+                  <span>Sold {formatDate(stockOut.createdAt)}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+      
+      {/* Pagination for Cards */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <PaginationComponent showItemsPerPage={false} />
+      </div>
     </div>
   );
 
@@ -271,23 +381,21 @@ const StockOutManagement = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-              {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th> */}
-              {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profit</th> */}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Sold</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredStockOuts.map((stockOut) => (
+            {currentItems.map((stockOut, index) => (
               <tr key={stockOut.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                    {truncateId(stockOut.id)}
+                    {startIndex + index + 1}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white">
                       <ShoppingCart size={16} />
                     </div>
                     <div>
@@ -354,24 +462,6 @@ const StockOutManagement = () => {
                     <span className="text-sm text-gray-400">N/A</span>
                   )}
                 </td>
-                {/* <td className="px-6 py-4 whitespace-nowrap">
-                  {stockOut.quantity && stockOut.soldPrice ? (
-                    <span className="font-semibold text-green-600">
-                      {formatPrice(calculateRevenue(stockOut))}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-gray-400">N/A</span>
-                  )}
-                </td> */}
-                {/* <td className="px-6 py-4 whitespace-nowrap">
-                  {stockOut.stockin && stockOut.quantity && stockOut.soldPrice ? (
-                    <span className={`font-semibold ${calculateProfit(stockOut) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatPrice(calculateProfit(stockOut))}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-gray-400">N/A</span>
-                  )}
-                </td> */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Calendar size={14} className="text-gray-400" />
@@ -391,18 +481,11 @@ const StockOutManagement = () => {
                     </button>
                     <button
                       onClick={() => openEditModal(stockOut)}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                       title="Edit"
                     >
                       <Edit3 size={16} />
                     </button>
-                    {/* <button
-                      onClick={() => openDeleteModal(stockOut)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={16} />
-                    </button> */}
                   </div>
                 </td>
               </tr>
@@ -411,28 +494,8 @@ const StockOutManagement = () => {
         </table>
       </div>
 
-      {/* Table Footer */}
-      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            Showing {filteredStockOuts.length} of {stockOuts.length} sales transactions
-          </p>
-          <div className="flex space-x-2">
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100 transition-colors">
-              Previous
-            </button>
-            <button className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors">
-              1
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100 transition-colors">
-              2
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100 transition-colors">
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Table Pagination */}
+      <PaginationComponent showItemsPerPage={false} />
     </div>
   );
 
@@ -440,7 +503,7 @@ const StockOutManagement = () => {
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {notification && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
+          notification.type === 'success' ? 'bg-primary-500 text-white' : 'bg-red-500 text-white'
         } animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
@@ -450,7 +513,7 @@ const StockOutManagement = () => {
       <div className="h-full overflow-y-auto mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-600 rounded-lg">
+            <div className="p-2 bg-primary-600 rounded-lg">
               <ShoppingCart className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900">Stock Out Management</h1>
@@ -467,12 +530,12 @@ const StockOutManagement = () => {
                 placeholder="Search by product, client, phone, or SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
             >
               <Plus size={20} />
               Add Sale Transaction
@@ -482,7 +545,7 @@ const StockOutManagement = () => {
 
         {isLoading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
             <p className="text-gray-600 mt-4">Loading sales transactions...</p>
           </div>
         ) : filteredStockOuts.length === 0 ? (
@@ -495,7 +558,7 @@ const StockOutManagement = () => {
             {!searchTerm && (
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
                 <Plus size={20} />
                 Add Sale Transaction

@@ -24,9 +24,10 @@ export class ProductManagmentService {
     adminId?: string;
     employeeId?: string;
     imageurls?: Express.Multer.File[];
+    createdAt:Date
   }) {
     try {
-      const { productName, brand, categoryId, description, imageurls } = data;
+      const { productName, brand, categoryId, description, imageurls,createdAt } = data;
 
       const imageUrls =
         imageurls?.map((file) => `/uploads/product_images/${file.filename}`) ||
@@ -47,6 +48,7 @@ export class ProductManagmentService {
           imageUrls,
           employeeId: data.employeeId ? String(data.employeeId) : null,
           categoryId: categoryId,
+          createdAt: createdAt ? createdAt : new Date().toISOString()
         },
       });
 

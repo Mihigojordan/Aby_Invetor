@@ -17,7 +17,9 @@ class StockInService {
    * @returns {Promise<Object>} Created stock-in entry with success message
    */
   async createStockIn(stockInData) {
+    
     try {
+
       if (!stockInData.productId || !stockInData.quantity || !stockInData.price || !stockInData.sellingPrice ) {
         throw new Error('Product ID, quantity, selling price and price are required');
       }
@@ -79,6 +81,7 @@ class StockInService {
         throw new Error('Stock-in ID is required');
       }
 
+      delete updateData?.productId
       if (!updateData || Object.keys(updateData).length === 0) {
         throw new Error('Update data is required');
       }

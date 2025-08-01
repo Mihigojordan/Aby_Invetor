@@ -103,6 +103,7 @@ export class StockinManagmentService {
       quantity: number;
       price: number;
       supplier: string;
+      sellingPrice: number;
       adminId: string;
       employeeId: string;
     }>,
@@ -119,9 +120,9 @@ export class StockinManagmentService {
       where: { id },
       data: {
         ...data,
-        quantity:
-          data.quantity !== undefined ? Number(data.quantity) : stock.quantity,
+        quantity:data.quantity !== undefined ? Number(data.quantity) : stock.quantity,
         price: data.price !== undefined ? Number(data.price) : stock.price,
+        sellingPrice: Number(data.sellingPrice),
         totalPrice,
       },
     });
@@ -198,6 +199,6 @@ export class StockinManagmentService {
         employeeId: employee.id,
       });
     }
-    return deletedStock
+    return deletedStock;
   }
 }

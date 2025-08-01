@@ -79,6 +79,7 @@ model Product {
   categoryId  String
   description Json?
   imageUrls   Json?
+  createdAt    DateTime?  
   admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   category    Category? @relation("CategoryToProduct", fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
