@@ -5,19 +5,25 @@ import stockInService from '../../services/stockInService';
 import UpsertStockOutModal from '../../components/dashboard/stockout/UpsertStockOutModal';
 // import DeleteModal from '../../components/dashboard/stockout/DeleteStockOutModal';
 import ViewStockOutModal from '../../components/dashboard/stockout/ViewStockOutModal';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import useAdminAuth from '../../context/AdminAuthContext';
 
-const StockOutManagement = () => {
+const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
   const [stockIns, setStockIns] = useState([]);
   const [filteredStockOuts, setFilteredStockOuts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-//   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  //   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedStockOut, setSelectedStockOut] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  const { user: employeeData } = useEmployeeAuth()
+  const { user: adminData } = useAdminAuth()
+
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,12 +74,12 @@ const StockOutManagement = () => {
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    
+
     // Adjust start page if we're near the end
     if (endPage - startPage < maxVisiblePages - 1) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-    
+
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
@@ -88,6 +94,12 @@ const StockOutManagement = () => {
   const handleAddStockOut = async (stockOutData) => {
     setIsLoading(true);
     try {
+      if(role == 'admin'){
+        stockOutData.adminId = adminData.id
+      }
+      if (role == 'employee') {
+        stockOutData.employeeId = employeeData.id
+      }
       await stockOutService.createStockOut(stockOutData);
       const updatedStockOuts = await stockOutService.getAllStockOuts();
       setStockOuts(updatedStockOuts);
@@ -103,6 +115,12 @@ const StockOutManagement = () => {
   const handleEditStockOut = async (stockOutData) => {
     setIsLoading(true);
     try {
+      if(role == 'admin'){
+        stockOutData.adminId = adminData.id
+      }
+      if (role == 'employee') {
+        stockOutData.employeeId = employeeData.id
+      }
       await stockOutService.updateStockOut(selectedStockOut.id, stockOutData);
       const updatedStockOuts = await stockOutService.getAllStockOuts();
       setStockOuts(updatedStockOuts);
@@ -116,30 +134,30 @@ const StockOutManagement = () => {
     }
   };
 
-//   const handleDeleteStockOut = async () => {
-//     setIsLoading(true);
-//     try {
-//       await stockOutService.deleteStockOut(selectedStockOut.id);
-//       setStockOuts(prev => prev.filter(stock => stock.id !== selectedStockOut.id));
-//       setIsDeleteModalOpen(false);
-//       setSelectedStockOut(null);
-//       showNotification('Stock out entry deleted successfully!');
-//     } catch (error) {
-//       showNotification(`Failed to delete stock out entry: ${error.message}`, 'error');
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
+  //   const handleDeleteStockOut = async () => {
+  //     setIsLoading(true);
+  //     try {
+  //       await stockOutService.deleteStockOut(selectedStockOut.id);
+  //       setStockOuts(prev => prev.filter(stock => stock.id !== selectedStockOut.id));
+  //       setIsDeleteModalOpen(false);
+  //       setSelectedStockOut(null);
+  //       showNotification('Stock out entry deleted successfully!');
+  //     } catch (error) {
+  //       showNotification(`Failed to delete stock out entry: ${error.message}`, 'error');
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   };
 
   const openEditModal = (stockOut) => {
     setSelectedStockOut(stockOut);
     setIsEditModalOpen(true);
   };
 
-//   const openDeleteModal = (stockOut) => {
-//     setSelectedStockOut(stockOut);
-//     setIsDeleteModalOpen(true);
-//   };
+  //   const openDeleteModal = (stockOut) => {
+  //     setSelectedStockOut(stockOut);
+  //     setIsDeleteModalOpen(true);
+  //   };
 
   const openViewModal = (stockOut) => {
     setSelectedStockOut(stockOut);
@@ -221,46 +239,43 @@ const StockOutManagement = () => {
           </div>
         )}
       </div>
-      
+
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
-              currentPage === 1
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1
                 ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <ChevronLeft size={16} />
             Previous
           </button>
-          
+
           <div className="flex items-center gap-1 mx-2">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${
-                  currentPage === page
+                className={`px-3 py-2 text-sm rounded-md transition-colors ${currentPage === page
                     ? 'bg-primary-600 text-white'
                     : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 {page}
               </button>
             ))}
           </div>
-          
+
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
-              currentPage === totalPages
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages
                 ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-            }`}
+              }`}
           >
             Next
             <ChevronRight size={16} />
@@ -361,7 +376,7 @@ const StockOutManagement = () => {
           </div>
         ))}
       </div>
-      
+
       {/* Pagination for Cards */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <PaginationComponent showItemsPerPage={false} />
@@ -487,9 +502,8 @@ const StockOutManagement = () => {
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-primary-500 text-white' : 'bg-red-500 text-white'
-        } animate-in slide-in-from-top-2 duration-300`}>
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-primary-500 text-white' : 'bg-red-500 text-white'
+          } animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>

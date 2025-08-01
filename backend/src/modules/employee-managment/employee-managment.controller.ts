@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Put,
+  Req,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -19,10 +20,14 @@ import {
   EmployeeFileFields,
   EmployeeUploadConfig,
 } from 'src/common/utils/file-upload.utils';
+import { RequestWithAdmin } from 'src/common/interfaces/admin.interface';
+import { EmployeeJwtAuthGuard } from 'src/guards/employeeGuard.guard';
+import { RequestWithEmployee } from 'src/common/interfaces/employee.interface';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Controller('employee')
 export class EmployeeManagmentController {
-  constructor(private readonly employeeServices: EmployeeManagmentService) {}
+  constructor(private readonly employeeServices: EmployeeManagmentService, private readonly activity: ActivityManagementService) {}
 
   @Post('register')
   @UseInterceptors(
@@ -37,13 +42,16 @@ export class EmployeeManagmentController {
       cv?: Express.Multer.File[];
       identityCard?: Express.Multer.File[];
     },
+    @Req() req: RequestWithAdmin,
   ) {
     try {
+      const adminId = req.admin?.id as string;
       return await this.employeeServices.registerEmployee({
         ...data,
         profileImg: files.profileImg,
         identityCard: files.identityCard,
         cv: files.cv,
+        adminId,
       });
     } catch (error) {
       console.error('error registering a employee', error);
@@ -111,5 +119,14 @@ export class EmployeeManagmentController {
       console.error('error assigning task   employees', error);
       throw new Error(error.message);
     }
+  }
+
+  @Get('activity')
+  @UseGuards(EmployeeJwtAuthGuard)
+  async getActivityOfEmployee(@Req() req: RequestWithEmployee) {
+    try {
+      const id = req.employee?.id as string;
+      return await this.activity.getActivityByEmployeeId(id)
+    } catch (error) {}
   }
 }

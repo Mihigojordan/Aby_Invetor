@@ -1,14 +1,20 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { deleteFile } from 'src/common/utils/file-upload.utils';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
 export class ProductManagmentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityManagementService,
+  ) {}
 
   async createProduct(data: {
     productName?: string;
@@ -37,14 +43,44 @@ export class ProductManagmentService {
         data: {
           productName,
           brand,
-          adminId: data.adminId ? String(data.adminId): null,
+          adminId: data.adminId ? String(data.adminId) : null,
           description: descriptionJson, // Store as JSON object
           imageUrls,
-          employeeId: data.employeeId ? String(data.employeeId): null,
+          employeeId: data.employeeId ? String(data.employeeId) : null,
           categoryId: categoryId,
           createdAt: createdAt ? createdAt : new Date().toISOString()
         },
       });
+
+      // 🔍 Log activity
+      if (data.adminId) {
+        console.log('adminID:', data.adminId)
+        const admin = await this.prisma.admin.findUnique({
+          where: { id: data.adminId },
+        });
+        if (!admin)
+          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Product Created',
+          description: `${admin.adminName} created product: ${product.productName}`,
+          adminId: admin.id,
+        });
+      }
+      if (data.employeeId) {
+        console.log('employeeiD:', data.employeeId)
+        const employee = await this.prisma.employee.findUnique({
+          where: { id: data.employeeId },
+        });
+        if (!employee)
+          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Product Created',
+          description: `${employee.firstname} created product: ${product.productName}`,
+          employeeId: employee.id,
+        });
+      }
 
       return {
         message: 'Product created successfully',
@@ -83,6 +119,8 @@ export class ProductManagmentService {
       categoryId?: string;
       description?: any; // HTML string from frontend
       keepImages?: any;
+      adminId?: string;
+      employeeId?: string;
       imageurls?: Express.Multer.File[];
     },
   ) {
@@ -147,13 +185,42 @@ export class ProductManagmentService {
       },
     });
 
+    // 🔍 Log activity
+    if ('adminId' in data && data.adminId) {
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: data.adminId },
+      });
+      if (!admin)
+        throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+      await this.activityService.createActivity({
+        activityName: 'Product Updated',
+        description: `${admin.adminName} updated product: ${updated.productName}`,
+        adminId: admin.id,
+      });
+    }
+
+    if ('employeeId' in data && data.employeeId) {
+      const employee = await this.prisma.employee.findUnique({
+        where: { id: data.employeeId },
+      });
+      if (!employee)
+        throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+      await this.activityService.createActivity({
+        activityName: 'Product Updated',
+        description: `${employee.firstname} updated product: ${updated.productName}`,
+        employeeId: employee.id,
+      });
+    }
+
     return {
       message: 'Product updated successfully',
       product: updated,
     };
   }
 
-  async deleteProduct(id: string) {
+  async deleteProduct(id: string, data?: { adminId?: string; employeeId?: string }) {
     const product = await this.getProductById(id);
 
     // Delete all image files from disk
@@ -170,6 +237,29 @@ export class ProductManagmentService {
     }
 
     await this.prisma.product.delete({ where: { id } });
+
+    // 🔍 Log activity
+  if (data?.adminId) {
+    const admin = await this.prisma.admin.findUnique({ where: { id: data.adminId } });
+    if (!admin) throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+    await this.activityService.createActivity({
+      activityName: 'Product Deleted',
+      description: `${admin.adminName} deleted product: ${product.productName}`,
+      adminId: admin.id,
+    });
+  }
+
+  if (data?.employeeId) {
+    const employee = await this.prisma.employee.findUnique({ where: { id: data.employeeId } });
+    if (!employee) throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+    await this.activityService.createActivity({
+      activityName: 'Product Deleted',
+      description: `${employee.firstname} deleted product: ${product.productName}`,
+      employeeId: employee.id,
+    });
+  }
 
     return { message: 'Product deleted successfully' };
   }

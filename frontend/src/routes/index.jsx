@@ -79,7 +79,7 @@ const routes = createBrowserRouter([
                                 path: "category",
                                 element: (
                                     <SuspenseWrapper>
-                                        <CategoryManagement />
+                                        <CategoryManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -88,7 +88,7 @@ const routes = createBrowserRouter([
                                 path: "product",
                                 element: (
                                     <SuspenseWrapper>
-                                        <ProductManagement />
+                                        <ProductManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -97,7 +97,7 @@ const routes = createBrowserRouter([
                                 path: "stockin",
                                 element: (
                                     <SuspenseWrapper>
-                                        <StockInManagement />
+                                        <StockInManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -106,7 +106,7 @@ const routes = createBrowserRouter([
                                 path: "stockout",
                                 element: (
                                     <SuspenseWrapper>
-                                        <StockOutManagment />
+                                        <StockOutManagment role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -146,7 +146,7 @@ const routes = createBrowserRouter([
                                 path: "stockin",
                                 element: (
                                     <SuspenseWrapper>
-                                        <StockInManagement />
+                                        <StockInManagement role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -155,7 +155,7 @@ const routes = createBrowserRouter([
                                 path: "category",
                                 element: (
                                     <SuspenseWrapper>
-                                        <CategoryManagement />
+                                        <CategoryManagement role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -164,7 +164,7 @@ const routes = createBrowserRouter([
                                 path: "product",
                                 element: (
                                     <SuspenseWrapper>
-                                        <ProductManagement />
+                                        <ProductManagement role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 

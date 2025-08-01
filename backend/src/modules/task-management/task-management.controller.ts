@@ -1,6 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { TaskManagementService } from './task-management.service';
 import { AdminJwtAuthGuard } from 'src/guards/adminGuard.guard';
+import { RequestWithAdmin } from 'src/common/interfaces/admin.interface';
 
 @Controller('task')
 @UseGuards(AdminJwtAuthGuard)
@@ -26,21 +37,33 @@ export class TaskManagementController {
     }
   }
 
-   @Get(':id')
+  @Get(':id')
   async findById(@Param('id') id: string) {
     return this.taskServices.findTaskById(id);
   }
 
   @Put('update/:id')
+  @UseGuards(AdminJwtAuthGuard)
   async updateTask(
     @Param('id') id: string,
-    @Body() data: { taskname?: string; description?: string },
+    @Body() data,
+    @Req() req: RequestWithAdmin,
   ) {
-    return this.taskServices.updateTask(id, data);
+    const adminId = req.admin?.id as string;
+    return this.taskServices.updateTask(id, {
+      ...data,
+      adminId,
+    });
   }
 
   @Delete('delete/:id')
-  async deleteTask(@Param('id') id: string) {
-    return this.taskServices.deleteTask(id);
+  @UseGuards(AdminJwtAuthGuard)
+  async deleteTask(
+    @Param('id') id: string,
+    @Body() data,
+    @Req() req: RequestWithAdmin,
+  ) {
+     const adminId = req.admin?.id as string;
+    return this.taskServices.deleteTask(id, adminId);
   }
 }

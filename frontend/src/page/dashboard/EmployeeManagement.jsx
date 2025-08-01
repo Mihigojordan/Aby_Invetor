@@ -7,8 +7,10 @@ import AssignModal from '../../components/dashboard/employee/AssignModal';
 // import ViewEmployeeModal from '../../components/dashboard/employee/ViewEmployeeModal';
 import employeeService from '../../services/employeeService';
 import taskService from '../../services/taskService';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import useAdminAuth from '../../context/AdminAuthContext';
 
-const EmployeeManagement = () => {
+const EmployeeManagement = ({role}) => {
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');

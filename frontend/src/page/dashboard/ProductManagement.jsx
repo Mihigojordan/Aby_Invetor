@@ -3,9 +3,11 @@ import { Search, Plus, Edit3, Trash2, Package, Tag, Image, Check, AlertTriangle,
 import UpsertProductModal from '../../components/dashboard/product/UpsertProductModal';
 import DeleteProductModal from '../../components/dashboard/product/DeleteProductModal';
 import productService from '../../services/productService';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import useAdminAuth from '../../context/AdminAuthContext';
 import ViewProductModal from '../../components/dashboard/product/ViewProductModal';
 
-const ProductManagement = () => {
+const ProductManagement = ({ role }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,6 +26,10 @@ const ProductManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
+
+  const { user: employeeData } = useEmployeeAuth()
+  const { user: adminData } = useAdminAuth()
+
   // Fetch all products with better error handling
   const fetchProducts = async (showRefreshLoader = false) => {
     if (showRefreshLoader) {
@@ -31,12 +37,12 @@ const ProductManagement = () => {
     } else {
       setIsLoading(true);
     }
-    
+
     try {
       const data = await productService.getAllProducts();
       setProducts(data);
       setFilteredProducts(data);
-      
+
       if (showRefreshLoader) {
         showNotification('Products refreshed successfully!');
       }
@@ -75,12 +81,12 @@ const ProductManagement = () => {
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    
+
     // Adjust start page if we're near the end
     if (endPage - startPage < maxVisiblePages - 1) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-    
+
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
@@ -127,38 +133,68 @@ const ProductManagement = () => {
       }
 
       if (selectedProduct) {
-        // Update existing product
-        await productService.updateProduct(selectedProduct.id, {
-          productName: productData.productName,
-          brand: productData.brand,
-          categoryId: productData.categoryId,
-          description: productData.description,
-          keepImages: productData.keepImages,
-          newImages: productData.images || productData.newImages
-        });
+        if (role == 'admin') {
+          // Update existing product
+          await productService.updateProduct(selectedProduct.id, {
+            productName: productData.productName,
+            brand: productData.brand,
+            categoryId: productData.categoryId,
+            description: productData.description,
+            keepImages: productData.keepImages,
+            newImages: productData.images || productData.newImages,
+            adminId: adminData.id
+          });
+
+          if (role == 'employee') {
+            // Update existing product
+            await productService.updateProduct(selectedProduct.id, {
+              productName: productData.productName,
+              brand: productData.brand,
+              categoryId: productData.categoryId,
+              description: productData.description,
+              keepImages: productData.keepImages,
+              newImages: productData.images || productData.newImages,
+              employeeId: employeeData.id
+            });
+          }
+        }
         showNotification('Product updated successfully!');
         console.log('Product updated successfully');
       } else {
-        // Create new product
-        await productService.createProduct({
-          productName: productData.productName,
-          brand: productData.brand,
-          categoryId: productData.categoryId,
-          description: productData.description,
-          images: productData.images
-        });
+        if (role == 'admin') {
+          // Create new product
+          await productService.createProduct({
+            productName: productData.productName,
+            brand: productData.brand,
+            categoryId: productData.categoryId,
+            description: productData.description,
+            images: productData.images,
+            adminId: adminData.id
+          });
+        }
+        if (role == 'employee') {
+            // Create new product
+          await productService.createProduct({
+            productName: productData.productName,
+            brand: productData.brand,
+            categoryId: productData.categoryId,
+            description: productData.description,
+            images: productData.images,
+            employeeId: employeeData.id
+          });
+        }
         showNotification('Product added successfully!');
         console.log('Product created successfully');
       }
-      
+
       // Refresh products list
       await fetchProducts();
-      
+
       // Close modals and reset state
       setIsAddModalOpen(false);
       setIsEditModalOpen(false);
       setSelectedProduct(null);
-      
+
     } catch (error) {
       console.error('Failed to save product:', error);
       showNotification(`Failed to save product: ${error.message}`, 'error');
@@ -170,14 +206,14 @@ const ProductManagement = () => {
   // Handle product deletion with confirmation
   const handleConfirmDelete = async () => {
     if (!selectedProduct) return;
-    
+
     setIsLoading(true);
     try {
       await productService.deleteProduct(selectedProduct.id);
-      
+
       // Update local state immediately for better UX
       setProducts(prev => prev.filter(product => product.id !== selectedProduct.id));
-      
+
       setIsDeleteModalOpen(false);
       setSelectedProduct(null);
       showNotification('Product deleted successfully!');
@@ -212,7 +248,7 @@ const ProductManagement = () => {
       if (productService.parseDescription) {
         return productService.parseDescription(description);
       }
-      
+
       const parsed = typeof description === 'string' ? JSON.parse(description) : description;
       if (parsed.details) return parsed.details;
       if (typeof parsed === 'string') return parsed;
@@ -254,46 +290,43 @@ const ProductManagement = () => {
           Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} entries
         </p>
       </div>
-      
+
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
-              currentPage === 1
-                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-            }`}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
           >
             <ChevronLeft size={16} />
             Previous
           </button>
-          
+
           <div className="flex items-center gap-1 mx-2">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${
-                  currentPage === page
-                    ? 'bg-primary-600 text-white'
-                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
-                }`}
+                className={`px-3 py-2 text-sm rounded-md transition-colors ${currentPage === page
+                  ? 'bg-primary-600 text-white'
+                  : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                  }`}
               >
                 {page}
               </button>
             ))}
           </div>
-          
+
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
-              currentPage === totalPages
-                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-            }`}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
           >
             Next
             <ChevronRight size={16} />
@@ -324,8 +357,8 @@ const ProductManagement = () => {
                       }}
                     />
                   ) : null}
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold text-lg" 
-                       style={{display: getFirstImage(product.imageUrls) ? 'none' : 'flex'}}>
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold text-lg"
+                    style={{ display: getFirstImage(product.imageUrls) ? 'none' : 'flex' }}>
                     <Package size={24} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -384,9 +417,9 @@ const ProductManagement = () => {
               {product.description && (
                 <div className="mb-4">
                   <div className="text-sm font-medium text-gray-700 mb-1">Description</div>
-                  <div 
+                  <div
                     className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ 
+                    dangerouslySetInnerHTML={{
                       __html: parseDescription(product.description)
                     }}
                   />
@@ -404,7 +437,7 @@ const ProductManagement = () => {
           </div>
         ))}
       </div>
-      
+
       {/* Pagination for Cards */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <PaginationComponent />
@@ -436,7 +469,7 @@ const ProductManagement = () => {
                     {startIndex + index + 1}
                   </span>
                 </td>
-                
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                     {getFirstImage(product.imageUrls) ? (
@@ -450,8 +483,8 @@ const ProductManagement = () => {
                         }}
                       />
                     ) : null}
-                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white" 
-                         style={{display: getFirstImage(product.imageUrls) ? 'none' : 'flex'}}>
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white"
+                      style={{ display: getFirstImage(product.imageUrls) ? 'none' : 'flex' }}>
                       <Package size={16} />
                     </div>
                     <div>
@@ -465,7 +498,7 @@ const ProductManagement = () => {
                     </div>
                   </div>
                 </td>
-                
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <Tag size={14} className="text-gray-400" />
@@ -474,7 +507,7 @@ const ProductManagement = () => {
                     </span>
                   </div>
                 </td>
-                
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <Package size={14} className="text-gray-400" />
@@ -483,7 +516,7 @@ const ProductManagement = () => {
                     </span>
                   </div>
                 </td>
-                
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <Image size={14} className="text-gray-400" />
@@ -492,7 +525,7 @@ const ProductManagement = () => {
                     </span>
                   </div>
                 </td>
-               
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-gray-400" />
@@ -501,7 +534,7 @@ const ProductManagement = () => {
                     </span>
                   </div>
                 </td>
-                
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <button
@@ -542,9 +575,8 @@ const ProductManagement = () => {
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        } animate-in slide-in-from-top-2 duration-300`}>
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          } animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>
