@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Put,
+  Req,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -19,6 +20,7 @@ import {
   EmployeeFileFields,
   EmployeeUploadConfig,
 } from 'src/common/utils/file-upload.utils';
+import { RequestWithAdmin } from 'src/common/interfaces/admin.interface';
 
 @Controller('employee')
 export class EmployeeManagmentController {
@@ -37,13 +39,16 @@ export class EmployeeManagmentController {
       cv?: Express.Multer.File[];
       identityCard?: Express.Multer.File[];
     },
+    @Req() req: RequestWithAdmin
   ) {
     try {
+      const adminId = req.admin?.id as string
       return await this.employeeServices.registerEmployee({
         ...data,
         profileImg: files.profileImg,
         identityCard: files.identityCard,
         cv: files.cv,
+        adminId
       });
     } catch (error) {
       console.error('error registering a employee', error);

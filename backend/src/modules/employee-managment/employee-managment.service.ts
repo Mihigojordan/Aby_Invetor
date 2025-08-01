@@ -4,10 +4,11 @@ import { isPhoneValid, isValidEmail } from 'src/common/utils/validation.util';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcyrpt from 'bcryptjs';
 import { EmailService } from 'src/global/email/email.service';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
 export class EmployeeManagmentService {
-  constructor(private readonly prismaService: PrismaService, private readonly emailService:EmailService) {}
+  constructor(private readonly prismaService: PrismaService, private readonly emailService:EmailService, private readonly activityService:ActivityManagementService ) {}
 
   async registerEmployee(data: {
     firstname: string;
@@ -15,6 +16,7 @@ export class EmployeeManagmentService {
     email: string;
     phoneNumber: string;
     address: string;
+    adminId?: string;
     profileImg?: Express.Multer.File[];
     identityCard?: Express.Multer.File[];
     cv?: Express.Multer.File[];
@@ -32,10 +34,6 @@ export class EmployeeManagmentService {
       if (!isValidEmail(email)) {
         throw new BadRequestException('email is not valid');
       }
-      if (!isPhoneValid(phoneNumber)) {
-        throw new BadRequestException('phone number is not valid');
-      }
-
       const existingEmployee = await this.findEmployeeByEmail(email);
       if (existingEmployee) {
         throw new BadRequestException('employee already exists');
@@ -149,6 +147,22 @@ export class EmployeeManagmentService {
 </html>
 
       `)
+
+      // ✅ Log admin activity
+    if (data.adminId) {
+      const admin = await this.prismaService.admin.findUnique({
+        where: { id: data.adminId },
+      });
+      if (!admin) {
+        throw new BadRequestException('admin not found');
+      }
+
+      await this.activityService.createActivity({
+        activityName: 'Employee Registered',
+        description: `${admin.adminName} registered employee: ${firstname} ${lastname}`,
+        adminId: admin.id,
+      });
+    }
       return {
         message: 'employee registered succefully',
         createEmployee,

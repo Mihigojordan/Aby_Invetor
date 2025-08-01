@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs'
 import { Response } from 'express';
+import { ActivityManagementService } from 'src/Modules/activity-managament/activity.service';
 
 @Injectable()
 export class EmployeeAuthService {
@@ -10,6 +11,7 @@ export class EmployeeAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtServices: JwtService,
+    private readonly activityService: ActivityManagementService
   ) {}
 
 
@@ -30,6 +32,13 @@ export class EmployeeAuthService {
       if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
       const token = this.jwtServices.sign({ id: employee.id });
+
+       // Track the login activity
+      await this.activityService.createActivity({
+        activityName: 'employee Login',
+        description: `${employee.firstname} logged in successfully`,
+        employeeId: employee.id,
+      });
 
       return token;
     } catch (error) {
@@ -126,6 +135,13 @@ export class EmployeeAuthService {
         secure: true, // <-- Required for SameSite=None in production
         sameSite: 'none', // <-- Required for cross-origin cookies
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      // Track the login activity
+      await this.activityService.createActivity({
+        activityName: 'employee Logout',
+        description: `${employee.firstname} logged out successfully`,
+        employeeId: employee.id,
       });
 
       return { message: 'logged out successfully' };
