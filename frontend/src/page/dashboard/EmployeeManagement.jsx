@@ -278,6 +278,7 @@ const EmployeeManagement = () => {
                             }}
                           />
                         ) : null}
+                        
                         <div className={employee.profileImg ? 'hidden' : 'flex'}>
                           {`${employee.firstname?.[0] || ''}${employee.lastname?.[0] || ''}`}
                         </div>

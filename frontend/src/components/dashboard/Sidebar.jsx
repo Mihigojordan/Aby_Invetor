@@ -44,11 +44,13 @@ import {
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import useAdminAuth from '../../context/AdminAuthContext';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
 
 // Sidebar Component with NavLink
-const Sidebar = ({ isOpen =true , onToggle }) => {
+const Sidebar = ({ isOpen = true, onToggle, role }) => {
   const [expandedMenus, setExpandedMenus] = useState({});
-  const {user} = useAdminAuth()
+  const { user: adminData } = useAdminAuth();
+  const { user: employeeData } = useEmployeeAuth();
 
   const toggleSubmenu = (menuKey) => {
     setExpandedMenus(prev => ({
@@ -57,7 +59,7 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
     }));
   };
 
-  const menuItems = [
+  const adminItems = [
     {
       key: 'dashboard',
       label: 'Dashboard',
@@ -68,40 +70,95 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
       key: 'employees',
       label: 'Employees',
       icon: User2,
-     path:'/admin/dashboard/employee'
+      path: '/admin/dashboard/employee'
     },
     {
-      key: 'postions',
+      key: 'positions',
       label: 'Positions',
       icon: ClipboardList,
-      path:'/admin/dashboard/position'
+      path: '/admin/dashboard/position'
     },
     {
-      key: 'Category',
+      key: 'category',
       label: 'Category',
       icon: Layers,
-      path:'/admin/dashboard/category'
+      path: '/admin/dashboard/category'
     },
     {
-      key: 'Products',
+      key: 'products',
       label: 'Products',
       icon: TagIcon,
-      path:'/admin/dashboard/product'
+      path: '/admin/dashboard/product'
     },
     {
-      key: 'Stockin',
+      key: 'stockin',
       label: 'Stock In',
       icon: StoreIcon,
-      path:'/admin/dashboard/stockin'
+      path: '/admin/dashboard/stockin'
     },
-   
- 
   ];
+
+  const employeeItems = [
+    {
+      key: 'dashboard',
+      label: 'Dashboard',
+      icon: Home,
+      path: '/employee/dashboard',
+      alwaysShow: true // Always show dashboard for employees
+    },
+    {
+      key: 'stockout',
+      label: 'Stock Out',
+      taskname: 'saling',
+      icon: StoreIcon,
+      path: '/employee/dashboard/stockout'
+    },
+    {
+      key: 'returning',
+      label: 'Stock In (Returns)',
+      taskname: 'returning',
+      icon: StoreIcon,
+      path: '/employee/dashboard/returning'
+    },
+    {
+      key: 'stockin_receiving',
+      label: 'Stock In (Receiving)',
+      taskname: 'receiving',
+      icon: StoreIcon,
+      path: '/employee/dashboard/stockin'
+    },
+  ];
+
+  // Filter employee items based on their tasks
+  const getFilteredEmployeeItems = () => {
+    if (!employeeData || !employeeData.tasks) {
+      // If no tasks data, still show dashboard
+      return employeeItems.filter(item => item.alwaysShow);
+    }
+
+    const employeeTaskNames = employeeData.tasks.map(task => task.taskname);
+    
+    return employeeItems.filter(item => 
+      item.alwaysShow || employeeTaskNames.includes(item.taskname)
+    );
+  };
+
+  // Get current menu items based on role
+  const getCurrentMenuItems = () => {
+    if (role === 'admin') {
+      return adminItems;
+    } else if (role === 'employee') {
+      return getFilteredEmployeeItems();
+    }
+    return [];
+  };
+
+  const currentMenuItems = getCurrentMenuItems();
 
   // Auto-expand parent menu if a submenu item is active
   useEffect(() => {
     const activePath = window.location.pathname;
-    menuItems.forEach(item => {
+    currentMenuItems.forEach(item => {
       if (item.submenu) {
         const isSubmenuActive = item.submenu.some(subItem => activePath.startsWith(subItem.path));
         if (isSubmenuActive) {
@@ -112,7 +169,7 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
         }
       }
     });
-  }, []);
+  }, [currentMenuItems]);
 
   const renderMenuItem = (item) => {
     const Icon = item.icon;
@@ -221,7 +278,7 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">ABY Inventory</h1>
-              <p className="text-xs text-gray-500">Admin Dashboard</p>
+              <p className="text-xs text-gray-500 capitalize">{role} Dashboard</p>
             </div>
           </div>
           <button
@@ -235,7 +292,18 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
         {/* Navigation Menu */}
         <div className="flex-1 overflow-y-auto p-4">
           <nav className="space-y-2">
-            {menuItems.map(renderMenuItem)}
+            {currentMenuItems.length > 0 ? (
+              currentMenuItems.map(renderMenuItem)
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500 text-sm">No additional menu items available</p>
+                {role === 'employee' && (
+                  <p className="text-gray-400 text-xs mt-2">
+                    Contact admin to assign tasks for more options
+                  </p>
+                )}
+              </div>
+            )}
           </nav>
         </div>
 
@@ -245,13 +313,31 @@ const Sidebar = ({ isOpen =true , onToggle }) => {
             <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
               <User className="w-5 h-5 text-primary-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.adminName}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.adminEmail}</p>
-            </div>
+            {role === 'admin' ? (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {adminData?.adminName || 'Admin User'}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {adminData?.adminEmail || 'admin@example.com'}
+                </p>
+              </div>
+            ) : (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {employeeData?.firstname} {employeeData?.lastname}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {employeeData?.email}
+                </p>
+                {employeeData?.tasks && (
+                  <p className="text-xs text-gray-400 truncate">
+                    Tasks: {employeeData.tasks.length}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
-          
-        
         </div>
       </div>
     </>

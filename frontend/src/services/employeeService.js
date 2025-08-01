@@ -277,9 +277,10 @@ class EmployeeService {
       return filePath;
     }
     
+    
     // Construct full URL from your API base
     const baseUrl = api.defaults.baseURL || '';
-    return `${baseUrl}/uploads/${filePath}`;
+    return `${baseUrl}${filePath}`;
   }
 }
 
