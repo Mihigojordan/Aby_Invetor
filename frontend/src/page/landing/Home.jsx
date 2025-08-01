@@ -124,7 +124,7 @@ export default function LandingPage() {
               <a href="#contact" className="text-primary-700 hover:text-primary-900 font-medium">Contact</a>
             </nav>
             <div className="flex space-x-3">
-                <Link to={'/auth/admin/login'}>
+                <Link to={'/auth/'}>
               <button className="px-4 py-2 text-primary-600 hover:text-primary-800 font-medium">Login</button>
                 </Link>
              
@@ -146,7 +146,7 @@ export default function LandingPage() {
               Manage your stock levels efficiently with our powerful dashboard.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-           <Link to={'/auth/admin/login'}>
+           <Link to={'/auth/admin/'}>
               <button className="px-8 py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center">
                 Get Started Now
                 <ArrowRight className="ml-2 h-5 w-5" />

@@ -11,6 +11,7 @@ import {
   Users
 } from 'lucide-react';
 import useEmployeeAuth from '../../../context/EmployeeAuthContext';
+import { API_URL } from '../../../api/api';
 
 const EmployeeUnlockScreen = () => {
   const [password, setPassword] = useState('');
@@ -84,7 +85,7 @@ const EmployeeUnlockScreen = () => {
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
               {user?.profileImg ? (
                 <img 
-                  src={user.profileImg} 
+                  src={`${API_URL}${user.profileImg}`} 
                   alt="Profile" 
                   className="w-12 h-12 rounded-full object-cover"
                 />
