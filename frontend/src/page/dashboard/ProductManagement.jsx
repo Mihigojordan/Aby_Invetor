@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, Tag, Image, Check, AlertTriangle, Eye, RefreshCw } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, Tag, Image, Check, AlertTriangle, Eye, RefreshCw, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import UpsertProductModal from '../../components/dashboard/product/UpsertProductModal';
 import DeleteProductModal from '../../components/dashboard/product/DeleteProductModal';
 import productService from '../../services/productService';
@@ -7,7 +7,6 @@ import productService from '../../services/productService';
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  // const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -16,6 +15,10 @@ const ProductManagement = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // Fetch all products with better error handling
   const fetchProducts = async (showRefreshLoader = false) => {
@@ -53,7 +56,32 @@ const ProductManagement = () => {
       product.category?.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredProducts(filtered);
+    setCurrentPage(1); // Reset to first page when filtering
   }, [searchTerm, products]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredProducts.slice(startIndex, endIndex);
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // Adjust start page if we're near the end
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -73,6 +101,11 @@ const ProductManagement = () => {
   const handleDeleteProduct = (product) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleViewProduct = (product) => {
+    // You can implement a view modal or navigate to a detail page
+    console.log('View product:', product);
   };
 
   // Handle form submission for both create and update
@@ -191,6 +224,315 @@ const ProductManagement = () => {
     setSelectedProduct(null);
   };
 
+  // Pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Pagination Component
+  const PaginationComponent = () => (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
+      <div className="flex items-center gap-4">
+        <p className="text-sm text-gray-600">
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} entries
+        </p>
+      </div>
+      
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
+              currentPage === 1
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+          
+          <div className="flex items-center gap-1 mx-2">
+            {getPageNumbers().map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                  currentPage === page
+                    ? 'bg-primary-600 text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
+              currentPage === totalPages
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  // Card View Component (Mobile/Tablet)
+  const CardView = () => (
+    <div className="md:hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+        {currentItems.map((product, index) => (
+          <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="p-6">
+              {/* Product Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  {getFirstImage(product.imageUrls) ? (
+                    <img
+                      src={getFirstImage(product.imageUrls)}
+                      alt={product.productName}
+                      className="w-12 h-12 object-cover rounded-lg shadow-sm"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold text-lg" 
+                       style={{display: getFirstImage(product.imageUrls) ? 'none' : 'flex'}}>
+                    <Package size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 truncate" title={product.productName}>
+                      {product.productName || 'Unnamed Product'}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      <span className="text-xs text-gray-500">Available</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Action Buttons */}
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleViewProduct(product)}
+                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    title="View product"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleEditProduct(product)}
+                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    title="Edit product"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteProduct(product)}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete product"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Product Details */}
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Tag size={14} />
+                  <span className="truncate">{product.brand || 'No brand'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Package size={14} />
+                  <span className="truncate">{product.category?.name || 'No category'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Image size={14} />
+                  <span>{product.imageUrls?.length || 0} image{(product.imageUrls?.length || 0) !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+
+              {/* Description Preview */}
+              {product.description && (
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-700 mb-1">Description</div>
+                  <div 
+                    className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ 
+                      __html: parseDescription(product.description)
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Calendar size={12} />
+                  <span>Added {formatDate(product.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* Pagination for Cards */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <PaginationComponent />
+      </div>
+    </div>
+  );
+
+  // Table View Component (Desktop)
+  const TableView = () => (
+    <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Images</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {currentItems.map((product, index) => (
+              <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                    {startIndex + index + 1}
+                  </span>
+                </td>
+                
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-3">
+                    {getFirstImage(product.imageUrls) ? (
+                      <img
+                        src={getFirstImage(product.imageUrls)}
+                        alt={product.productName}
+                        className="w-10 h-10 object-cover rounded-lg shadow-sm"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white" 
+                         style={{display: getFirstImage(product.imageUrls) ? 'none' : 'flex'}}>
+                      <Package size={16} />
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {product.productName || 'Unnamed Product'}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span className="text-xs text-gray-500">Available</span>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <Tag size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-900">
+                      {product.brand || 'No brand'}
+                    </span>
+                  </div>
+                </td>
+                
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <Package size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-900">
+                      {product.category?.name || 'No category'}
+                    </span>
+                  </div>
+                </td>
+                
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <Image size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-600">
+                      {product.imageUrls?.length || 0} image{(product.imageUrls?.length || 0) !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </td>
+               
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-600">
+                      {formatDate(product.createdAt)}
+                    </span>
+                  </div>
+                </td>
+                
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleViewProduct(product)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleEditProduct(product)}
+                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProduct(product)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Table Pagination */}
+      <PaginationComponent />
+    </div>
+  );
+
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {/* Notification Toast */}
@@ -275,99 +617,10 @@ const ProductManagement = () => {
             )}
           </div>
         ) : (
-          /* Products Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
-                <div className="p-6">
-                  {/* Product Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        {getFirstImage(product.imageUrls) ? (
-                          <img
-                            src={getFirstImage(product.imageUrls)}
-                            alt={product.productName}
-                            className="w-12 h-12 object-cover rounded-lg shadow-sm"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold text-lg" 
-                             style={{display: getFirstImage(product.imageUrls) ? 'none' : 'flex'}}>
-                          <Package size={24} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 truncate" title={product.productName}>
-                            {product.productName || 'Unnamed Product'}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                            <span className="text-xs text-gray-500">Available</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Action Buttons */}
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => handleEditProduct(product)}
-                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                        title="Edit product"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProduct(product)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete product"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Product Details */}
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Tag size={14} />
-                      <span className="truncate">{product.brand || 'No brand'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Package size={14} />
-                      <span className="truncate">{product.category?.name || 'No category'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Image size={14} />
-                      <span>{product.imageUrls?.length || 0} image{(product.imageUrls?.length || 0) !== 1 ? 's' : ''}</span>
-                    </div>
-                  </div>
-
-                  {/* Description Preview */}
-                  {product.description && (
-                    <div className="mb-4">
-                      <div className="text-sm font-medium text-gray-700 mb-1">Description</div>
-                      <div 
-                        className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ 
-                          __html: parseDescription(product.description)
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Footer */}
-                  <div className="pt-4 border-t border-gray-100">
-                    <span className="text-xs text-gray-500">
-                      Added {formatDate(product.createdAt)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <CardView />
+            <TableView />
+          </>
         )}
 
         {/* Upsert Product Modal */}

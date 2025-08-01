@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
+  HttpStatus,
   Param,
   Post,
   Put,
@@ -45,7 +47,10 @@ export class EmployeeManagmentController {
       });
     } catch (error) {
       console.error('error registering a employee', error);
-      throw new Error(error.message);
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
@@ -56,7 +61,7 @@ export class EmployeeManagmentController {
       return await this.employeeServices.getAllEmployee();
     } catch (error) {
       console.error('error getting   employees', error);
-      throw new Error(error.message);
+      throw new HttpException(error.message, error.status);
     }
   }
 
@@ -64,7 +69,7 @@ export class EmployeeManagmentController {
     FileFieldsInterceptor(EmployeeFileFields, EmployeeUploadConfig),
   )
   @Put('update/:id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() data,
     @UploadedFiles()
@@ -74,17 +79,27 @@ export class EmployeeManagmentController {
       identityCard?: Express.Multer.File[];
     },
   ) {
-    return this.employeeServices.updateEmployee(id, {
-      ...data,
-      profileImg: files.profileImg,
-      identityCard: files.identityCard,
-      cv: files.cv,
-    });
+    try {
+      return await this.employeeServices.updateEmployee(id, {
+        ...data,
+        profileImg: files.profileImg,
+        identityCard: files.identityCard,
+        cv: files.cv,
+      });
+    } catch (error) {
+      console.error('error getting   employees', error);
+      throw new HttpException(error.message, error.status);
+    }
   }
 
   @Delete('delete/:id')
-  remove(@Param('id') id: string) {
-    return this.employeeServices.deleteEmployee(id);
+  async remove(@Param('id') id: string) {
+    try {
+      return await this.employeeServices.deleteEmployee(id);
+    } catch (error) {
+      console.error('error getting   employees', error);
+      throw new HttpException(error.message, error.status);
+    }
   }
 
   @Post('assign-task')

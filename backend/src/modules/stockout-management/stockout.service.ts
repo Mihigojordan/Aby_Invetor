@@ -11,7 +11,6 @@ export class StockoutService {
     adminId?: string;
     employeeId?: string;
     quantity: number;
-    soldPrice?: number;
     clientName?: string;
     clientEmail?: string;
     clientPhone?: string;
@@ -44,12 +43,18 @@ export class StockoutService {
         },
       });
 
+      if (stockin.sellingPrice === null || stockin.sellingPrice === undefined) {
+        throw new BadRequestException('Stockin selling price is not set');
+      }
+      const soldPrice = stockin.sellingPrice * quantity;
+
       const sku = generateStockSKU('abyride', String(data.clientName))
 
       return await this.prisma.stockOut.create({
         data: {
           ...data,
           sku: sku,
+          soldPrice: soldPrice
         },
       });
     } catch (error) {

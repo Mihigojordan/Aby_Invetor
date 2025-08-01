@@ -6,7 +6,8 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
     productId: '',
     quantity: '',
     price: '',
-    supplier: ''
+    supplier: '',
+    sellingPrice:''
   });
 
   useEffect(() => {
@@ -15,10 +16,11 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
         productId: stockIn.productId || '',
         quantity: stockIn.quantity || '',
         price: stockIn.price || '',
-        supplier: stockIn.supplier || ''
+        supplier: stockIn.supplier || '',
+        sellingPrice: stockIn.sellingPrice || '',
       });
     } else {
-      setFormData({ productId: '', quantity: '', price: '', supplier: '' });
+      setFormData({ productId: '', quantity: '', price: '', supplier: '' , sellingPrice:''});
     }
   }, [stockIn]);
 
@@ -30,7 +32,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
       price: Number(formData.price)
     });
 
-     setFormData({ productId: '', quantity: '', price: '', supplier: '' });
+     setFormData({ productId: '', quantity: '', price: '', supplier: '', sellingPrice:'' });
   };
 
   if (!isOpen) return null;
@@ -76,6 +78,15 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
               required
               min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Selling price</label>
+            <input
+              type="number"
+              value={formData.sellingPrice}
+              onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
             />
           </div>

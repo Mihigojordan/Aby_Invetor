@@ -22,6 +22,7 @@ import EmployeeUnlockScreen from "../page/auth/employee/EmployeeUnlockScreen";
 import AuthSelectionPage from "../page/auth/AuthSelectionPage";
 import ProtectPrivateEmployee from "../components/protectors/employee/ProtectPrivateAdmin";
 import EmployeeProfile from "../page/dashboard/EmployeeProfileManagement";
+import StockOutManagment from "../page/dashboard/StockOutManagment";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -100,7 +101,16 @@ const routes = createBrowserRouter([
                                     </SuspenseWrapper>
                                 )
 
-                            }
+                            },
+                            {
+                                path: "stockout",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <StockOutManagment />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     }
                 ]

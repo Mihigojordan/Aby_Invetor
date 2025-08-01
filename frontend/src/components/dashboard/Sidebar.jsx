@@ -96,6 +96,13 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       icon: StoreIcon,
       path: '/admin/dashboard/stockin'
     },
+        {
+      key: 'stockout',
+      label: 'Stock Out',
+      taskname: 'saling',
+      icon: StoreIcon,
+      path: '/admin/dashboard/stockout'
+    },
   ];
 
   const employeeItems = [
@@ -112,6 +119,12 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       taskname: 'saling',
       icon: StoreIcon,
       path: '/employee/dashboard/stockout'
+    },
+    {
+      key: 'Stockout',
+      label: 'Stock Out',
+      icon: StoreIcon,
+      path:'/admin/dashboard/stockout'
     },
    
     {

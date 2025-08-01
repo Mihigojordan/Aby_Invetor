@@ -15,9 +15,12 @@ export class StockinManagmentService {
     productId: string;
     quantity: number;
     price: number;
+    adminId?: string;
+    employeeId?: string;
+    sellingPrice: number;
     supplier?: string;
   }) {
-    const { productId, quantity, price, supplier } = data;
+    const { productId, quantity, price, supplier , sellingPrice } = data;
 
     if (!productId || !quantity || !price) {
       throw new BadRequestException('Missing required fields');
@@ -40,8 +43,11 @@ export class StockinManagmentService {
         price,
         totalPrice: Number(totalPrice),
         supplier,
+        sellingPrice: Number(sellingPrice),
         sku,
         barcodeUrl,
+        adminId: data.adminId,
+        employeeId: data.employeeId
       },
     });
   }
@@ -54,7 +60,7 @@ export class StockinManagmentService {
     });
   }
 
-  async update(id: string, data: Partial<{ quantity: number; price: number; supplier: string }>) {
+  async update(id: string, data: Partial<{ quantity: number; price: number; supplier: string,sellingPrice:number }>) {
     const stock = await this.prisma.stockIn.findUnique({ where: { id } });
     if (!stock) throw new NotFoundException('Stock not found');
 
@@ -62,10 +68,13 @@ export class StockinManagmentService {
       ? data.quantity * data.price
       : stock.totalPrice;
 
+    
+
     return this.prisma.stockIn.update({
       where: { id },
       data: {
         ...data,
+        sellingPrice: Number(data.sellingPrice),
         quantity: Number(data.quantity),
         totalPrice,
       },
