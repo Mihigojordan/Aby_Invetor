@@ -3,6 +3,7 @@ import { Search, Plus, Edit3, Trash2, Package, Tag, Image, Check, AlertTriangle,
 import UpsertProductModal from '../../components/dashboard/product/UpsertProductModal';
 import DeleteProductModal from '../../components/dashboard/product/DeleteProductModal';
 import productService from '../../services/productService';
+import ViewProductModal from '../../components/dashboard/product/ViewProductModal';
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
@@ -11,10 +12,13 @@ const ProductManagement = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
+
+
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -102,11 +106,12 @@ const ProductManagement = () => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
   };
-
   const handleViewProduct = (product) => {
-    // You can implement a view modal or navigate to a detail page
-    console.log('View product:', product);
+    setSelectedProduct(product);
+    setIsViewModalOpen(true);
   };
+
+ 
 
   // Handle form submission for both create and update
   const handleProductSubmit = async (productData) => {
@@ -632,6 +637,12 @@ const ProductManagement = () => {
           isLoading={isLoading}
           title={isEditModalOpen ? 'Edit Product' : 'Add New Product'}
         />
+
+        <ViewProductModal 
+  isOpen={isViewModalOpen}
+  onClose={() => setIsViewModalOpen(false)}
+  product={selectedProduct}
+/>
 
         {/* Delete Product Modal */}
         <DeleteProductModal

@@ -42,7 +42,7 @@ import {
   StoreIcon
 } from 'lucide-react';
 import { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, replace, useNavigate } from "react-router-dom";
 import useAdminAuth from '../../context/AdminAuthContext';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 
@@ -51,6 +51,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
   const [expandedMenus, setExpandedMenus] = useState({});
   const { user: adminData } = useAdminAuth();
   const { user: employeeData } = useEmployeeAuth();
+  const navigate =  useNavigate()
 
   const toggleSubmenu = (menuKey) => {
     setExpandedMenus(prev => ({
@@ -157,6 +158,17 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: '/employee/dashboard/stockin'
     },
   ];
+
+    const getProfileRoute = () => {
+    return role === 'admin' ? '/admin/profile' : '/employee/dashboard/profile'
+  }
+
+  const handleNavigateProfile = ()=>{
+    const route = getProfileRoute()
+    if(route){
+      navigate(route,{replace:true})
+    }
+  }
 
   // Filter employee items based on their tasks
   const getFilteredEmployeeItems = () => {
@@ -337,7 +349,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 cursor-pointer  " onClick={handleNavigateProfile}>
           <div className="flex items-center space-x-3 p-3 bg-primary-50 rounded-lg">
             <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
               <User className="w-5 h-5 text-primary-600" />

@@ -92,6 +92,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
               {stockIns?.map(stockIn => (
                 <option key={stockIn.id} value={stockIn.id}>
                   {stockIn.product?.productName || 'Unknown Product'} - 
+                  Quantity: #{stockIn.quantity} -
                   Price: ${stockIn.sellingPrice}
                 </option>
               ))}

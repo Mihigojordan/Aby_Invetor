@@ -125,10 +125,6 @@ const routes = createBrowserRouter([
                         element: <Navigate to={'/employee/dashboard'} replace />
                     },
                     {
-                        path:'profile',
-                        element: <SuspenseWrapper> <EmployeeProfile /> </SuspenseWrapper>
-                    },
-                    {
                         path: "dashboard",
                         element: <DashboardLayout role={'employee'} />,
                         children: [
@@ -140,7 +136,11 @@ const routes = createBrowserRouter([
                                     </SuspenseWrapper>
                                 )
                             },
-                           
+                            
+                            {
+                                path:'profile',
+                                element: <SuspenseWrapper> <EmployeeProfile /> </SuspenseWrapper>
+                            },
           
                             {
                                 path: "stockin",
@@ -165,6 +165,15 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <ProductManagement />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "stockout",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <StockOutManagment />
                                     </SuspenseWrapper>
                                 )
 

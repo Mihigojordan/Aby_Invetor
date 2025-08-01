@@ -412,7 +412,7 @@ const StockOutManagement = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {stockOut.clientName || stockOut.clientEmail || stockOut.clientPhone ? (
+                  {stockOut.clientName ? (
                     <div className="flex flex-col gap-1">
                       {stockOut.clientName && (
                         <div className="flex items-center gap-1">
@@ -422,23 +422,8 @@ const StockOutManagement = () => {
                           </span>
                         </div>
                       )}
-                      {stockOut.clientEmail && (
-                        <div className="flex items-center gap-1">
-                          <Mail size={12} className="text-gray-400" />
-                          <span className="text-xs text-gray-500 truncate max-w-32">
-                            {stockOut.clientEmail}
-                          </span>
-                        </div>
-                      )}
-                      {stockOut.clientPhone && (
-                        <div className="flex items-center gap-1">
-                          <Phone size={12} className="text-gray-400" />
-                          <span className="text-xs text-gray-500">
-                            {stockOut.clientPhone}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+              
+                            </div>
                   ) : (
                     <span className="text-sm text-gray-400">No client info</span>
                   )}
