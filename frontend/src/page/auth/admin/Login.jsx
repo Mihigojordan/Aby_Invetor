@@ -1,82 +1,94 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  Loader2, 
-  AlertCircle, 
-  User,
-  ArrowLeft 
+  Package, 
+  Loader2,
+  AlertCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
-import useAdminAuth from '../../context/AdminAuthContext';
+import useAdminAuth from '../../../context/AdminAuthContext';
 
-const UnlockScreen = () => {
+const LoginPage = () => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const { user, unlockAdmin } = useAdminAuth();
+
+  const { login, isAuthenticated, isLoading } = useAdminAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-
-
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      const from = location.state?.from?.pathname || "/admin/dashboard";
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate, location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
-    if (!password) {
-      setError('Please enter your password');
+    // Basic validation
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const response = await unlockAdmin(password);
-      
-      if (response) {
+      const response = await login({
+        adminEmail: email,
+        password: password
+      });
+
+      if (response.authenticated) {
         // Redirect to intended page or dashboard
         const from = location.state?.from?.pathname || "/admin/dashboard";
         navigate(from, { replace: true });
+      } else {
+        setError(response.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      console.error('Unlock error:', err);
-      setError(err.message || 'Invalid password. Please try again.');
+      console.error('Login error:', err);
+      setError(err.message || 'An error occurred during login. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleBackToLogin = () => {
-    navigate('/auth/admin/login', { replace: true });
-  };
+  // Show loading spinner while checking auth status
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 size={40} className="animate-spin text-primary-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-inter">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-8">
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Header */}
+          {/* Logo and Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4">
-              <Lock className="w-8 h-8 text-white" />
+              <Package className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Screen Locked</h2>
-            <p className="text-gray-600">Enter your password to unlock</p>
-          </div>
-
-          {/* User Info */}
-          <div className="flex items-center justify-center space-x-3 mb-6 p-4 bg-primary-50 rounded-xl">
-            <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-primary-600" />
-            </div>
-            <div className="text-center">
-              <p className="font-medium text-gray-900">{user?.adminName || 'Admin'}</p>
-              <p className="text-sm text-gray-600">{user?.adminEmail}</p>
-            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+            <p className="text-gray-600">Sign in to your ABY Inventory Admin dashboard</p>
           </div>
 
           {/* Error Message */}
@@ -87,8 +99,24 @@ const UnlockScreen = () => {
             </div>
           )}
 
-          {/* Unlock Form */}
+          {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
+                placeholder="Enter your email"
+                autoComplete="email"
+              />
+            </div>
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
@@ -103,7 +131,6 @@ const UnlockScreen = () => {
                   className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                   placeholder="Enter your password"
                   autoComplete="current-password"
-                  autoFocus
                 />
                 <button
                   type="button"
@@ -116,47 +143,39 @@ const UnlockScreen = () => {
               </div>
             </div>
 
+            <div className="flex items-center justify-between">
+              <label className="flex items-center">
+                <input 
+                  type="checkbox" 
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" 
+                  disabled={isSubmitting}
+                />
+                <span className="ml-2 text-sm text-gray-600">Remember me</span>
+              </label>
+             
+            </div>
+
             <button
               type="submit"
-              disabled={isSubmitting || !password}
+              disabled={isSubmitting || !email || !password}
               className="w-full bg-primary-600 text-white py-3 px-4 rounded-xl hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Unlocking...
+                  Signing In...
                 </>
               ) : (
-                <>
-                  <Lock className="w-5 h-5 mr-2" />
-                  Unlock
-                </>
+                'Sign In'
               )}
             </button>
           </form>
 
-          {/* Footer */}
-          <div className="mt-8 text-center">
-            <button
-              onClick={handleBackToLogin}
-              disabled={isSubmitting}
-              className="inline-flex items-center text-sm text-primary-600 hover:text-primary-500 font-medium transition-colors disabled:cursor-not-allowed"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Login
-            </button>
-          </div>
-        </div>
-
-        {/* Additional Info */}
-        <div className="text-center">
-          <p className="text-sm text-gray-500">
-            For security, your session was locked after a period of inactivity
-          </p>
+        
         </div>
       </div>
     </div>
   );
 };
 
-export default UnlockScreen;
+export default LoginPage;
