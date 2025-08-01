@@ -4,9 +4,43 @@ import { Loader2 } from 'lucide-react';
 import useEmployeeAuth from '../../../context/EmployeeAuthContext';
 
 const ProtectPrivateEmployee = ({ children }) => {
-  const { isAuthenticated, isLocked, isLoading } = useEmployeeAuth();
+  const { isAuthenticated, isLocked, isLoading, user } = useEmployeeAuth();
   const location = useLocation();
 
+  // Route to task mapping
+  const routeTaskMapping = {
+    '/employee/dashboard/stockout': 'saling',
+    '/employee/dashboard/returning': 'returning',
+    '/employee/dashboard/stockin': 'receiving',
+    // Add more route mappings as needed
+  };
+
+  // Check if the current route requires a specific task
+  const checkTaskPermission = () => {
+    const currentPath = location.pathname;
+   
+    // Find if current path matches any protected route
+    const matchedRoute = Object.keys(routeTaskMapping).find(route =>
+      currentPath.includes(route) || currentPath === route
+    );
+   
+    if (!matchedRoute) {
+      // Route doesn't require task permission, allow access
+      return true;
+    }
+
+    const requiredTask = routeTaskMapping[matchedRoute];
+   
+    // Check if user has the required task
+    if (!user || !user.tasks || !Array.isArray(user.tasks)) {
+      return false;
+    }
+
+    const userTaskNames = user.tasks.map(task => task.taskname);
+    return userTaskNames.includes(requiredTask);
+  };
+
+  // Show loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-primary-50">
@@ -18,16 +52,22 @@ const ProtectPrivateEmployee = ({ children }) => {
     );
   }
 
+  // Check authentication first
   if (!isAuthenticated) {
-    // Redirect to employee login page with the current location as state
     return <Navigate to="/auth/employee/login" state={{ from: location }} replace />;
   }
 
+  // Check if account is locked
   if (isLocked) {
-    // Redirect to employee unlock screen with the current location as state
     return <Navigate to="/auth/employee/unlock" state={{ from: location }} replace />;
   }
 
+  // Check task permissions (only after user is loaded and authenticated)
+  if (!checkTaskPermission()) {
+    return <Navigate to="/employee/dashboard" replace />;
+  }
+
+  // All checks passed, render children
   return children;
 };
 

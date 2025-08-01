@@ -181,20 +181,7 @@ const Header = ({ onToggle, role }) => {
                         My Profile
                       </button>
                       
-                      {/* Employee-specific menu item */}
-                      {role === 'employee' && (
-                        <button
-                          onClick={() => {
-                            navigate('/employee/tasks');
-                            setIsDropdownOpen(false);
-                          }}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
-                        >
-                          <Settings className="w-4 h-4 mr-2" />
-                          My Tasks
-                        </button>
-                      )}
-
+                   
                       <button
                         onClick={() => {
                           handleLock();
