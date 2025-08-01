@@ -23,6 +23,18 @@ export class StockoutController{
     }
   }
 
+
+  @Get('transaction')
+  async getStockoutBytransactionId(@Body() data){
+    try {
+      const { id } = data
+      return await this.stockoutService.getStockOutByTransactionId(id)
+    } catch (error) {
+      console.log('error getting transactions:', error.message)
+      throw new HttpException(error.message, error.status)
+    }
+  }
+
   @Get('getone/:id')
   async getOne(@Param('id') id: string) {
     try {
