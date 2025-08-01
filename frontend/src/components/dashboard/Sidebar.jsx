@@ -113,12 +113,28 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       icon: StoreIcon,
       path: '/employee/dashboard/stockout'
     },
+   
     {
       key: 'returning',
       label: 'Stock In (Returns)',
       taskname: 'returning',
       icon: StoreIcon,
       path: '/employee/dashboard/returning'
+    },
+
+     {
+      key: 'product_receiving',
+      label: 'Product',
+      taskname: 'receiving',
+      icon: TagIcon,
+      path: '/employee/dashboard/product'
+    },
+     {
+      key: 'category_receiving',
+      label: 'Category',
+      taskname: 'receiving',
+      icon: Layers,
+      path: '/employee/dashboard/category'
     },
     {
       key: 'stockin_receiving',

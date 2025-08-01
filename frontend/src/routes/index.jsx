@@ -140,7 +140,26 @@ const routes = createBrowserRouter([
                                     </SuspenseWrapper>
                                 )
 
-                            }
+                            },
+                             {
+                                path: "category",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <CategoryManagement />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "product",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ProductManagement />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                          
                         ]
                     }
                 ]
