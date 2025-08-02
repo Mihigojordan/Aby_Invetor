@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
-import stockInService from '../../services/stockInService';
+import stockInService from '../../services/stockinService';
 import productService from '../../services/productService';
 import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockInModel';
 // import DeleteModal from '../../components/dashboard/stockin/DeleteStockInModel';
@@ -16,7 +16,7 @@ const StockInManagement = ({ role }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedStockIn, setSelectedStockIn] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +28,7 @@ const StockInManagement = ({ role }) => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage,] = useState(5);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -136,6 +136,7 @@ const StockInManagement = ({ role }) => {
         throw new Error('Missing required fields');
       }
 
+      // eslint-disable-next-line no-unused-vars
       result = await stockInService.createStockIn(singleStockData);
       successMessage = `Stock entry added successfully! (${singleStockData.quantity} items)`;
     }
@@ -211,11 +212,6 @@ const StockInManagement = ({ role }) => {
     setIsEditModalOpen(true);
   };
 
-  const openDeleteModal = (stockIn) => {
-    setSelectedStockIn(stockIn);
-    setIsDeleteModalOpen(true);
-  };
-
   const openViewModal = (stockIn) => {
     setSelectedStockIn(stockIn);
     setIsViewModalOpen(true);
@@ -236,10 +232,6 @@ const StockInManagement = ({ role }) => {
     }).format(price);
   };
 
-  const truncateId = (id) => {
-    return id ? `${id.substring(0, 8)}...` : 'N/A';
-  };
-
   // Pagination handlers
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -257,13 +249,9 @@ const StockInManagement = ({ role }) => {
     }
   };
 
-  const handleItemsPerPageChange = (newItemsPerPage) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to first page
-  };
-
   // Pagination Component
-  const PaginationComponent = ({ showItemsPerPage = true }) => (
+  // eslint-disable-next-line no-empty-pattern
+  const PaginationComponent = ({ }) => (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
         <p className="text-sm text-gray-600">
@@ -335,7 +323,7 @@ const StockInManagement = ({ role }) => {
   const CardView = () => (
     <div className="md:hidden">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-        {currentItems.map((stockIn, index) => (
+        {currentItems.map((stockIn) => (
           <div key={stockIn.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
