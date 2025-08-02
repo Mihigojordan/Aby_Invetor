@@ -429,7 +429,6 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Product Description</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">SKU</th>
                   <th className="text-center py-3 px-4 font-semibold text-gray-700">Qty</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Unit Price</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Total</th>
@@ -440,9 +439,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                   <tr key={item.id} className="border-b border-gray-200">
                     <td className="py-3 px-4 text-gray-700">
                       {item.stockin?.product?.productName || 'Product'}
-                      {item.stockin?.supplier && (
-                        <div className="text-xs text-gray-500">Supplier: {item.stockin.supplier}</div>
-                      )}
+                    
                     </td>
                     <td className="py-3 px-4 text-center text-gray-700">{item.quantity}</td>
                     <td className="py-3 px-4 text-right text-gray-700">
