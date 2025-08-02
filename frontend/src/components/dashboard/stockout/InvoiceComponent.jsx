@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import stockOutService from '../../../services/stockOutService';
 import Swal from 'sweetalert2';
-import CompanyLogo from '../../../assets/images/abytech-logo.png'
+import CompanyLogo from '../../../assets/images/applogo_rm_bg.png'
 import signature from '../../../assets/images/signature.webp'
 import html2pdf from 'html2pdf.js';
 
@@ -50,7 +50,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       };
     }
 
- 
+
 
     return {
       name: 'Sadiki Rukara',
@@ -64,10 +64,10 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const userInfo = getUserInfo();
 
   const companyInfo = {
-    logo:CompanyLogo,
-    companyName:'Umusindi Hardware',
-    companyAddress:'Kigali,Rwanda',
-    
+    logo: CompanyLogo,
+    companyName: 'Umusingi Hardware',
+    companyAddress: 'Kigali,Rwanda',
+
 
   }
 
@@ -132,7 +132,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
 
     let result = '';
     let thousandIndex = 0;
-    
+
     while (num > 0) {
       if (num % 1000 !== 0) {
         result = convertHundreds(num % 1000) + thousands[thousandIndex] + ' ' + result;
@@ -140,7 +140,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       num = Math.floor(num / 1000);
       thousandIndex++;
     }
-    
+
     return 'Dollar ' + result.trim();
   };
 
@@ -166,11 +166,11 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   // Handle email sending
   const handleSendEmail = async () => {
     setActionLoading(prev => ({ ...prev, email: true }));
-    
+
     try {
       // Simulate API call - replace with your actual email service
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       Swal.fire({
         icon: 'success',
         title: 'Email Sent!',
@@ -194,10 +194,10 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   // Handle PDF generation with html2pdf.js
   const handleGeneratePDF = async () => {
     setActionLoading(prev => ({ ...prev, pdf: true }));
-    
+
     try {
       const element = document.getElementById('print-section');
-      
+
       if (!element) {
         throw new Error('Print section not found');
       }
@@ -207,22 +207,22 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
         margin: [10, 10, 10, 10],
         filename: `Invoice-${transactionId}-${new Date().toDateString()}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
+        html2canvas: {
           scale: 2,
           useCORS: true,
           allowTaint: true,
           letterRendering: true
         },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait' 
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait'
         }
       };
 
       // Generate and download PDF
       await html2pdf().set(options).from(element).save();
-      
+
       Swal.fire({
         icon: 'success',
         title: 'PDF Generated!',
@@ -275,7 +275,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
             <div className="text-red-500 text-5xl mb-4">⚠️</div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">No Invoice Data</h3>
             <p className="text-gray-600 mb-4">Unable to load invoice information.</p>
-            <button 
+            <button
               onClick={onClose}
               className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
             >
@@ -296,6 +296,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
             <h2 className="text-xl font-bold">Invoice #{transactionIdDisplay}</h2>
             <div className="flex gap-3">
               {/* Email Button */}
+              {/*               
               <button 
                 onClick={handleSendEmail}
                 disabled={actionLoading.email || actionLoading.pdf}
@@ -314,10 +315,11 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                     Send Email
                   </>
                 )}
-              </button>
+              </button>  
+              */}
 
               {/* PDF Button */}
-              <button 
+              <button
                 onClick={handleGeneratePDF}
                 disabled={actionLoading.email || actionLoading.pdf}
                 className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg"
@@ -338,7 +340,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               </button>
 
               {/* Close Button */}
-              <button 
+              <button
                 onClick={handleClose}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg"
               >
@@ -359,19 +361,19 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div className="flex flex-col">
-              <img 
+              <img
                 src={companyInfo.logo}
-                className="rounded-full w-20 h-20 flex items-center justify-center font-bold text-xl mr-4"
+                className="  w-44 h-44 scale-125 flex items-center justify-center font-bold text-xl mr-4"
               />
-              
+
               <div className="mb-4">
                 <h1 className="text-2xl font-bold text-gray-800">{companyInfo.companyName}</h1>
                 <p className="text-sm text-gray-600">{companyInfo.companyAddress}</p>
               </div>
             </div>
             <div className="text-right">
-              <div className="bg-orange-500 text-white px-3 py-1 rounded text-sm font-semibold mb-2">
-                INVOICE
+              <div className="bg-blue-500 text-white px-3 py-2 flex justify-end rounded text-sm font-semibold mb-2">
+                <p>INVOICE</p>
               </div>
               <div className="text-sm text-gray-600">
                 <p className="font-semibold">Invoice No #{transactionIdDisplay}</p>
@@ -381,7 +383,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
           </div>
 
           {/* From and To Section */}
-          <div className="grid grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-3 gap-8 mb-8">
             <div>
               <h3 className="font-semibold text-gray-800 mb-2">From</h3>
               <div className="text-gray-700">
@@ -391,7 +393,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                 <p className="text-sm text-blue-600 font-medium">{userInfo.title}</p>
               </div>
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-gray-800 mb-2">To</h3>
               <div className="text-gray-700">
@@ -399,6 +401,11 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                 <p className="text-sm">Email: {clientInfo.clientEmail}</p>
                 <p className="text-sm">Phone: {clientInfo.clientPhone}</p>
               </div>
+            </div>
+
+
+            <div className="flex items-center">
+              <img src={stockOutService.getBarCodeUrlImage(transactionId)} className='h-20 object-contain' alt="" />
             </div>
           </div>
 
@@ -409,10 +416,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                 <span className="font-semibold">Invoice For:</span> Product Sales Transaction
               </p>
             </div>
-            
-            <div className="">
-              <img src={stockOutService.getBarCodeUrlImage(transactionId)} className='h-20 object-contain' alt="" />
-            </div>
+
 
           </div>
 
@@ -473,13 +477,11 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
           <div className="grid grid-cols-2 gap-8">
             <div className=''>
             </div>
-            
+
             <div className="text-right">
-              <div className="w-32 h-16 ml-auto mb-12 flex items-end justify-center">
-                  <div className="text-2xl font-script text-gray-600">Signature</div>
-                </div>
+
               <div className='flex items-end flex-col'>
-                
+
                 <img src={signature} className='object-contain h-32' alt="" />
                 <p className="font-semibold text-gray-800">{userInfo.name}</p>
               </div>
