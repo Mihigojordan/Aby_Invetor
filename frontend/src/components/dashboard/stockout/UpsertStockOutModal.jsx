@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 
+import stockOutService from "../../../services/stockOutService";
+import { XIcon } from "lucide-react";
+
+
 // Modal Component for StockOut
 const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, isLoading, title }) => {
   const [formData, setFormData] = useState({
@@ -309,7 +313,12 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-semibold mb-4">{title}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold mb-4">{title}</h2>
+          <div className="" onClick={onClose}>
+            <XIcon size={24} />
+          </div>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           
           {isUpdateMode ? (
@@ -372,16 +381,9 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
             </>
           ) : (
             // Multiple entries form for create mode
-            <div>
-              <div className="flex justify-between items-center mb-4">
+            <div className="min-h-[50vh] max-h-96 overflow-y-auto">
+              <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-800">Sales Entries</h3>
-                <button
-                  type="button"
-                  onClick={addSalesEntry}
-                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  + Add Entry
-                </button>
               </div>
 
               {formData.salesEntries.map((entry, index) => (
@@ -461,6 +463,18 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                   </div>
                 </div>
               ))}
+
+              {/* Add Sales Entry Button - Now at the bottom */}
+              <div className="flex justify-center mb-4">
+                <button
+                  type="button"
+                  onClick={addSalesEntry}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <span className="text-lg">+</span>
+                  Add Another Entry
+                </button>
+              </div>
             </div>
           )}
 

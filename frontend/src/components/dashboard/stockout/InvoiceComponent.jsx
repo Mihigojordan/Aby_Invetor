@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import stockOutService from '../../../services/stockoutService';
 import Swal from 'sweetalert2';
+import CompanyLogo from '../../../assets/images/abytech-logo.png'
+import signature from '../../../assets/images/signature.webp'
+import html2pdf from 'html2pdf.js';
 
 const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const [invoiceData, setInvoiceData] = useState(null);
@@ -42,40 +45,31 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       return {
         name: 'Unknown User',
         email: 'N/A',
-        title: 'Staff',
+        title: '',
         role: 'unknown'
       };
     }
 
-    const firstItem = invoiceData[0];
-    
-    if (firstItem.admin) {
-      return {
-        name: firstItem.admin.adminName,
-        email: firstItem.admin.adminEmail,
-        title: 'Administrator',
-        role: 'admin'
-      };
-    }
-    
-    if (firstItem.employee) {
-      return {
-        name: `${firstItem.employee.firstname} ${firstItem.employee.lastname}`,
-        email: firstItem.employee.email,
-        title: 'Employee',
-        role: 'employee'
-      };
-    }
+ 
 
     return {
-      name: 'Unknown User',
-      email: 'N/A',
-      title: 'Staff',
+      name: 'Sadiki Rukara',
+      email: 'abyridellc@gmail.com',
+      title: '',
+      phone: '+1 (616) 633-7026',
       role: 'unknown'
     };
   };
 
   const userInfo = getUserInfo();
+
+  const companyInfo = {
+    logo:CompanyLogo,
+    companyName:'Umusindi Hardware',
+    companyAddress:'Kigali,Rwanda',
+    
+
+  }
 
   // Extract client info from the first invoice item
   const clientInfo = invoiceData?.length > 0 ? {
@@ -198,17 +192,37 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
     }
   };
 
-  // Handle PDF generation
+  // Handle PDF generation with html2pdf.js
   const handleGeneratePDF = async () => {
     setActionLoading(prev => ({ ...prev, pdf: true }));
     
     try {
-      // Simulate PDF generation - replace with your actual PDF service
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      let old_title = document.title
-      document.title = `Invoice-${transactionId}, on ${new Date().toDateString()}`
-      window.print()
-      document.title = old_title
+      const element = document.getElementById('print-section');
+      
+      if (!element) {
+        throw new Error('Print section not found');
+      }
+
+      // Configure html2pdf options
+      const options = {
+        margin: [10, 10, 10, 10],
+        filename: `Invoice-${transactionId}-${new Date().toDateString()}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          letterRendering: true
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait' 
+        }
+      };
+
+      // Generate and download PDF
+      await html2pdf().set(options).from(element).save();
       
       Swal.fire({
         icon: 'success',
@@ -220,6 +234,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       });
     // eslint-disable-next-line no-unused-vars
     } catch (error) {
+      console.error('PDF generation error:', error);
       Swal.fire({
         icon: 'error',
         title: 'Failed to Generate PDF',
@@ -275,19 +290,10 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   }
 
   return (
-<div className="
-  fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4
-  print:static print:bg-white print:p-0 print:z-0 print:block
-">
-
-      <div className="
-  bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto
-  print:max-h-full print:rounded-none print:shadow-none print:overflow-visible print:w-full
-">
-
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         {/* Action Bar */}
-       <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg print:hidden">
-
+        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">Invoice #{transactionIdDisplay}</h2>
             <div className="flex gap-3">
@@ -348,20 +354,21 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
         </div>
 
         {/* Invoice Content */}
-      <div
-  id="print-section"
-  className="p-8 bg-white font-sans print:p-0 print:mt-0 print:break-inside-avoid"
->
-
+        <div
+          id="print-section"
+          className="p-8 bg-white font-sans"
+        >
           {/* Header */}
-          <div className="flex justify-between items-start mb-8">
-            <div className="flex items-center">
-              <div className="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-xl mr-4">
-                {userInfo.role === 'admin' ? 'A' : userInfo.role === 'employee' ? 'E' : 'U'}
-              </div>
-              <div className=" print:block text-center mb-4">
-                <h1 className="text-2xl font-bold text-gray-800">Aby Intentory Managament</h1>
-                <p className="text-sm text-gray-600">Sales & Inventory Management</p>
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col">
+              <img 
+                src={companyInfo.logo}
+                className="rounded-full w-20 h-20 flex items-center justify-center font-bold text-xl mr-4"
+              />
+              
+              <div className="mb-4">
+                <h1 className="text-2xl font-bold text-gray-800">{companyInfo.companyName}</h1>
+                <p className="text-sm text-gray-600">{companyInfo.companyAddress}</p>
               </div>
             </div>
             <div className="text-right">
@@ -370,15 +377,9 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               </div>
               <div className="text-sm text-gray-600">
                 <p className="font-semibold">Invoice No #{transactionIdDisplay}</p>
-                <p>Created Date: {formatDate(createdAt)}</p>
-                <p>Due Date: {formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))}</p>
+                <p>Due Date: {formatDate(createdAt)}</p>
               </div>
             </div>
-          </div>
-
-          {/* Company Address */}
-          <div className="mb-8">
-            <p className="text-gray-600">Nyakabanda, KN 3 Rd, Kigali</p>
           </div>
 
           {/* From and To Section */}
@@ -387,9 +388,8 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               <h3 className="font-semibold text-gray-800 mb-2">From</h3>
               <div className="text-gray-700">
                 <p className="font-semibold text-lg">{userInfo.name}</p>
-                <p className="text-sm">456 Office Avenue, Business District, State 67890</p>
                 <p className="text-sm">Email: {userInfo.email}</p>
-                <p className="text-sm">Phone: +1 555 123 4567</p>
+                <p className="text-sm">Phone: {userInfo.phone}</p>
                 <p className="text-sm text-blue-600 font-medium">{userInfo.title}</p>
               </div>
             </div>
@@ -398,7 +398,6 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               <h3 className="font-semibold text-gray-800 mb-2">To</h3>
               <div className="text-gray-700">
                 <p className="font-semibold text-lg">{clientInfo.clientName}</p>
-                <p className="text-sm">Customer Address</p>
                 <p className="text-sm">Email: {clientInfo.clientEmail}</p>
                 <p className="text-sm">Phone: {clientInfo.clientPhone}</p>
               </div>
@@ -412,17 +411,11 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                 <span className="font-semibold">Invoice For:</span> Product Sales Transaction
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-600 mb-2">Payment Status</p>
-              <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold">
-                Pending
-              </span>
-              <div className="mt-2">
-                <div className="w-16 h-16 bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center">
-                  <span className="text-xs text-gray-500">QR</span>
-                </div>
-              </div>
+            
+            <div className="">
+              <img src={stockOutService.getBarCodeUrlImage(transactionId)} className='h-20 object-contain' alt="" />
             </div>
+
           </div>
 
           {/* Invoice Table */}
@@ -430,8 +423,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Product Description</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">SKU</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Product</th>
                   <th className="text-center py-3 px-4 font-semibold text-gray-700">Qty</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Unit Price</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Total</th>
@@ -442,9 +434,6 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                   <tr key={item.id} className="border-b border-gray-200">
                     <td className="py-3 px-4 text-gray-700">
                       {item.stockin?.product?.productName || 'Product'}
-                      {item.stockin?.supplier && (
-                        <div className="text-xs text-gray-500">Supplier: {item.stockin.supplier}</div>
-                      )}
                     </td>
                     <td className="py-3 px-4 text-center text-gray-700">{item.quantity}</td>
                     <td className="py-3 px-4 text-right text-gray-700">
@@ -484,27 +473,17 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
 
           {/* Terms and Signature */}
           <div className="grid grid-cols-2 gap-8">
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-2">Terms and Conditions</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Please pay within 15 days from the date of invoice, overdue interest @ 14% will be charged on delayed payments.
-              </p>
-              
-              <h4 className="font-semibold text-gray-800 mb-2">Notes</h4>
-              <p className="text-sm text-gray-600">
-                Please quote invoice number when remitting funds. Thank you for your business!
-              </p>
+            <div className=''>
             </div>
             
             <div className="text-right">
-              <div className="mb-16">
-                <div className="w-32 h-16 ml-auto mb-2 flex items-end justify-center">
+              <div className="w-32 h-16 ml-auto mb-12 flex items-end justify-center">
                   <div className="text-2xl font-script text-gray-600">Signature</div>
                 </div>
-              </div>
-              <div>
+              <div className='flex items-end flex-col'>
+                
+                <img src={signature} className='object-contain h-32' alt="" />
                 <p className="font-semibold text-gray-800">{userInfo.name}</p>
-                <p className="text-sm text-gray-600">{userInfo.title}</p>
               </div>
             </div>
           </div>
