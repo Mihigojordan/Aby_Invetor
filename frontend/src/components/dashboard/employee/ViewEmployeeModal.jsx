@@ -1,23 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Shield, Eye, EyeOff, Lock, Save, BarChart3 } from 'lucide-react';
-import useEmployeeAuth from '../../context/EmployeeAuthContext';
-import { API_URL } from '../../api/api';
-import GeneralInformation from '../../components/dashboard/employee/GeneralInformation';
-import ChangePassword from '../../components/dashboard/employee/ChangePassword';
-import WorkPerformance from '../../components/dashboard/employee/WorkPerformance';
+import { User, Mail, Phone, MapPin, Calendar, Shield, Eye, EyeOff, Lock, Save, BarChart3, X, XCircle } from 'lucide-react';
+import useEmployeeAuth from '../../../context/EmployeeAuthContext';
 
-const EmployeeProfile = ({}) => {
-  const [activeTab, setActiveTab] = useState('password');
-  const { user: employee } = useEmployeeAuth();
+import GeneralInformation from './GeneralInformation';
+
+import WorkPerformance from './WorkPerformance';
+
+const ViewEmployeeModal = ({isOpen,onClose,employee}) => {
+  const [activeTab, setActiveTab] = useState('general');
+
+  useEffect(()=>{
+    if(!employee){
+        onClose()
+    }
+
+  },[])
+
 
   // Get tab from URL params on component mount
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+   if(isOpen){
+     const urlParams = new URLSearchParams(window.location.search);
     const tab = urlParams.get('tab');
-    if (tab && ['general', 'password', 'performance'].includes(tab)) {
+    if (tab && ['general', 'performance'].includes(tab)) {
       setActiveTab(tab);
     }
+   }
   }, []);
+
+
+
+
 
   // Update URL when tab changes
   const handleTabChange = (tab) => {
@@ -54,11 +67,7 @@ const EmployeeProfile = ({}) => {
       label: 'Profile',
       icon: User,
     },
-    {
-      id: 'password',
-      label: 'Security',
-      icon: Lock,
-    },
+  
     {
       id: 'performance',
       label: 'Work Performance',
@@ -66,9 +75,13 @@ const EmployeeProfile = ({}) => {
     },
   ];
 
+  if(!isOpen){
+    return null
+  }
+
   return (
-    <div className=" mt-5 bg-gray-50">
-      <div className="flex">
+    <div className="fixed min-h-screen w-screen left-0 top-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="flex min-h-[90vh] w-11/12 bg-white p-5 rounded-md">
         {/* Sidebar */}
         <div className="  w-64  bg-white shadow-sm border-r border-gray-200 ">
           <div className="p-6">
@@ -96,11 +109,13 @@ const EmployeeProfile = ({}) => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-4 h-[85vh] overflow-auto ">
+        <div className="flex-1 p-4 h-[90vh] overflow-y-auto ">
+        
           {activeTab === 'general' && <GeneralInformation employee={employee} formatDate={formatDate} getStatusBadge={getStatusBadge} />}
-          {activeTab === 'password' && <ChangePassword employee={employee} />}
-          {activeTab === 'performance' && <WorkPerformance />}
+        
+          {activeTab === 'performance' && <WorkPerformance employee={employee} notAsEmployee={true} />}
         </div>
+        <XCircle className='cursor-pointer' title='close' onClick={onClose} />
       </div>
     </div>
   );
@@ -112,4 +127,4 @@ const EmployeeProfile = ({}) => {
 
 
 
-export default EmployeeProfile;
+export default ViewEmployeeModal;

@@ -24,10 +24,10 @@ export class StockoutController{
   }
 
 
-  @Get('transaction')
-  async getStockoutBytransactionId(@Body() data){
+  @Get('transaction/:id')
+  async getStockoutBytransactionId(@Param('id') id:string){
     try {
-      const { id } = data
+      
       return await this.stockoutService.getStockOutByTransactionId(id)
     } catch (error) {
       console.log('error getting transactions:', error.message)

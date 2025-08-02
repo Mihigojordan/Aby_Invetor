@@ -91,27 +91,84 @@ const StockInManagement = ({ role }) => {
   };
 
   const handleAddStockIn = async (stockInData) => {
-    setIsLoading(true);
-    try {
-      if (role == 'admin') {
-        stockInData.adminId = adminData.id
-      }
-      if (role == 'employee') {
-        stockInData.employeeId = employeeData.id
-      }
-
-      const newStockIn = await stockInService.createStockIn(stockInData);
-      const updatedStockIns = await stockInService.getAllStockIns();
-      setStockIns(updatedStockIns);
-      setIsAddModalOpen(false);
-      showNotification('Stock entry added successfully!');
-    } catch (error) {
-      showNotification(`Failed to add stock entry: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
+  setIsLoading(true);
+  try {
+    // Validate user data
+    if (!adminData?.id && !employeeData?.id) {
+      throw new Error('User authentication required');
     }
-  };
 
+    // Prepare user identification data
+    const userInfo = {};
+    if (role === 'admin' && adminData?.id) {
+      userInfo.adminId = adminData.id;
+    }
+    if (role === 'employee' && employeeData?.id) {
+      userInfo.employeeId = employeeData.id;
+    }
+
+    let result;
+    let successMessage;
+    let totalItems = 0;
+
+    // Handle multiple vs single purchases
+    if (stockInData.purchases && Array.isArray(stockInData.purchases)) {
+      // Validate purchases array
+      if (stockInData.purchases.length === 0) {
+        throw new Error('At least one purchase is required');
+      }
+
+      // Calculate total items for notification
+      totalItems = stockInData.purchases.reduce((sum, purchase) => sum + (purchase.quantity || 0), 0);
+
+      // Create multiple purchases
+      result = await stockInService.createMultipleStockIn(stockInData.purchases, userInfo);
+      successMessage = `Successfully added ${stockInData.purchases.length} purchase${stockInData.purchases.length > 1 ? 's' : ''} (${totalItems} total items)`;
+    } else {
+      // Single purchase
+      const singleStockData = {
+        ...stockInData,
+        ...userInfo
+      };
+      
+      // Validate required fields
+      if (!singleStockData.productId || !singleStockData.quantity || !singleStockData.price || !singleStockData.sellingPrice) {
+        throw new Error('Missing required fields');
+      }
+
+      result = await stockInService.createStockIn(singleStockData);
+      successMessage = `Stock entry added successfully! (${singleStockData.quantity} items)`;
+    }
+
+    // Refresh the stock list
+    const updatedStockIns = await stockInService.getAllStockIns();
+    setStockIns(updatedStockIns);
+    
+    // Close modal and show success notification
+    setIsAddModalOpen(false);
+    showNotification(successMessage);
+
+    // Optional: Additional success actions
+    // You could add analytics tracking, audit logging, etc. here
+
+  } catch (error) {
+    console.error('Error adding stock:', error);
+    
+    // More specific error messages
+    let errorMessage = 'Failed to add stock entry';
+    if (error.message.includes('required')) {
+      errorMessage = 'Please fill in all required fields';
+    } else if (error.message.includes('authentication')) {
+      errorMessage = 'Please log in again';
+    } else {
+      errorMessage = `Failed to add stock entry: ${error.message}`;
+    }
+    
+    showNotification(errorMessage, 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
   const handleEditStockIn = async (stockInData) => {
     setIsLoading(true);
     try {

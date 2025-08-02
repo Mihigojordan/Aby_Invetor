@@ -7,6 +7,7 @@ import UpsertStockOutModal from '../../components/dashboard/stockout/UpsertStock
 import ViewStockOutModal from '../../components/dashboard/stockout/ViewStockOutModal';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
+import InvoiceComponent from '../../components/dashboard/stockout/InvoiceComponent';
 
 const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
@@ -20,6 +21,8 @@ const StockOutManagement = ({ role }) => {
   const [selectedStockOut, setSelectedStockOut] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [isInvoiceNoteOpen,setIsInvoiceNoteOpen ] = useState(false)
+  const [transactionId,setTransactionId ] = useState(null)
 
   const { user: employeeData } = useEmployeeAuth()
   const { user: adminData } = useAdminAuth()
@@ -91,27 +94,86 @@ const StockOutManagement = ({ role }) => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleAddStockOut = async (stockOutData) => {
-    setIsLoading(true);
-    try {
-      if(role == 'admin'){
-        stockOutData.adminId = adminData.id
-      }
-      if (role == 'employee') {
-        stockOutData.employeeId = employeeData.id
-      }
-      
-      await stockOutService.createStockOut(stockOutData);
-      const updatedStockOuts = await stockOutService.getAllStockOuts();
-      setStockOuts(updatedStockOuts);
-      setIsAddModalOpen(false);
-      showNotification('Stock out entry added successfully!');
-    } catch (error) {
-      showNotification(`Failed to add stock out entry: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
+useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const trId = params.get("transactionId");
+
+    if (trId?.trim()) {
+      setTransactionId(trId)
+      setIsInvoiceNoteOpen(true);
     }
-  };
+  }, [])
+
+  
+  function updateSearchParam(key, value) {
+  const params = new URLSearchParams(window.location.search);
+
+  if (!value) {
+    // Remove the key if value is null, undefined, or empty string
+    params.delete(key);
+  } else {
+    // Add or update the key with the value
+    params.set(key, value);
+  }
+
+  const newUrl = `${window.location.pathname}?${params.toString()}`;
+  window.history.pushState({}, "", newUrl);
+}
+
+const handleCloseInvoiceModal = () => {
+  setIsInvoiceNoteOpen(false);
+  setTransactionId(null);
+  updateSearchParam("transactionId");
+};
+
+const handleAddStockOut = async (stockOutData) => {
+  setIsLoading(true);
+  try {
+    // Prepare user info
+    const userInfo = {};
+    if (role === 'admin') {
+      userInfo.adminId = adminData.id;
+    }
+    if (role === 'employee') {
+      userInfo.employeeId = employeeData.id;
+    }
+
+    // Check if it's multiple entries (new create mode) or single entry (legacy support)
+    if (stockOutData.salesArray && Array.isArray(stockOutData.salesArray)) {
+      // Multiple entries - use the new bulk create service
+     const response =  await stockOutService.createMultipleStockOut(
+        stockOutData.salesArray, 
+        stockOutData.clientInfo || {}, 
+        userInfo
+      );
+      updateSearchParam('transactionId',response.transactionId)
+      setTransactionId(response.transactionId); // ← set it right away
+setIsInvoiceNoteOpen(true);     
+      showNotification(`Stock out transaction created successfully with ${stockOutData.salesArray.length} entries!`);
+    } else {
+      // Single entry - use existing single create service
+      const singleEntryData = {
+        ...stockOutData,
+        ...userInfo
+      };
+      const  response = await stockOutService.createStockOut(singleEntryData);
+      updateSearchParam('transactionId',response.transactionId)
+      setTransactionId(response.transactionId); // ← set it right away
+setIsInvoiceNoteOpen(true);     
+      showNotification('Stock out entry added successfully!');
+    }
+
+    // Refresh the stock-out list
+    const updatedStockOuts = await stockOutService.getAllStockOuts();
+    setStockOuts(updatedStockOuts);
+    setIsAddModalOpen(false);
+  } catch (error) {
+    console.error('Error adding stock out:', error);
+    showNotification(`Failed to add stock out entry: ${error.message}`, 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleEditStockOut = async (stockOutData) => {
     setIsLoading(true);
@@ -134,6 +196,7 @@ const StockOutManagement = ({ role }) => {
       setIsLoading(false);
     }
   };
+
 
   //   const handleDeleteStockOut = async () => {
   //     setIsLoading(true);
@@ -509,6 +572,7 @@ const StockOutManagement = ({ role }) => {
           {notification.message}
         </div>
       )}
+      <InvoiceComponent isOpen={isInvoiceNoteOpen} onClose={handleCloseInvoiceModal} transactionId={transactionId} />
 
       <div className="h-full overflow-y-auto mx-auto">
         <div className="mb-8">

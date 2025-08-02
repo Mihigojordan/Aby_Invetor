@@ -13,7 +13,7 @@ const routeTaskMapping = {
   // saling
   '/employee/dashboard/stockout': ['saling'],
   // returning and receiving (both can access these routes)
-  '/employee/dashboard/returning': ['returning'],
+  '/employee/dashboard/sales-return': ['returning'],
   '/employee/dashboard/category': ['returning', 'receiving'],
   '/employee/dashboard/product': ['returning', 'receiving'],
   // receiving

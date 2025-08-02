@@ -129,4 +129,12 @@ export class EmployeeManagmentController {
       return await this.activity.getActivityByEmployeeId(id)
     } catch (error) {}
   }
+
+   @Get('activity/:id')
+  async getActivityOfEmployeeWithId(@Req() req: RequestWithEmployee,@Param('id') id: string) {
+    try {
+   
+      return await this.activity.getActivityByEmployeeId(id)
+    } catch (error) {}
+  }
 }

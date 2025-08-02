@@ -39,7 +39,8 @@ import {
   PresentationIcon,
   ClipboardList,
   TagIcon,
-  StoreIcon
+  StoreIcon,
+  Undo2Icon
 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { NavLink, replace, useNavigate } from "react-router-dom";
@@ -103,6 +104,14 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       icon: StoreIcon,
       path: '/admin/dashboard/stockout'
     },
+     {
+      key: 'returning',
+      label: 'Sales Returns',
+     
+      icon: Undo2Icon,
+      path: '/admin/dashboard/sales-return'
+    },
+   
   ];
 
   const employeeItems = [
@@ -146,8 +155,8 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       key: 'returning',
       label: 'Sales Returns',
       taskname: ['returning'],
-      icon: StoreIcon,
-      path: '/employee/dashboard/returning'
+      icon: Undo2Icon,
+      path: '/employee/dashboard/sales-return'
     },
    
 
