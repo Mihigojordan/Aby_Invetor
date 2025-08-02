@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import stockOutService from '../../../services/stockOutService';
+import stockOutService from '../../../services/stockoutService';
 import Swal from 'sweetalert2';
 
 const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
@@ -185,6 +185,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
         timer: 3000,
         timerProgressBar: true
       });
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       Swal.fire({
         icon: 'error',
@@ -217,6 +218,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
         timer: 3000,
         timerProgressBar: true
       });
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       Swal.fire({
         icon: 'error',
