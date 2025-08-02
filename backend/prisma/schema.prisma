@@ -133,7 +133,8 @@ model Activity {
   description  String
   employeeId  String?
   adminId      String?
-  doneAt   DateTime
+  doneAt DateTime @default(now())
+
   admin  Admin? @relation(fields: [adminId], references: [id], onDelete: Cascade,onUpdate: Cascade)
   employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
