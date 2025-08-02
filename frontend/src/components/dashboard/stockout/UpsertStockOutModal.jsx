@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import stockOutService from "../../../services/stockOutService";
 
 // Modal Component for StockOut
 const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, isLoading, title }) => {
