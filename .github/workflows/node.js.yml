@@ -28,7 +28,7 @@ jobs:
         run: npm run build
 
       - name: 🗄 Run backend migrations
-        run: npm run migration:run # Adjust based on your command
+        run: npx prisma migrate deploy # Adjust based on your command
 
       # === FRONTEND ===
       - name: 📦 Install frontend dependencies
