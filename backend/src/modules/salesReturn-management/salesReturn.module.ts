@@ -3,6 +3,7 @@ import { SalesReturnService } from './salesReturn.service';
 import { SalesReturnController } from './salesReturn.controller';
 import { ActivityManagementService } from '../activity-managament/activity.service';
 
+
 @Module({
   controllers: [SalesReturnController],
   providers: [SalesReturnService, ActivityManagementService],
