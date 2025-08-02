@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-import stockOutService from "../../../services/stockOutService";
 import { XIcon } from "lucide-react";
 
 
