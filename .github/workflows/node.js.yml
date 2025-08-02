@@ -27,7 +27,7 @@ jobs:
           server: ftp.abyinventory.com
           username: deploy@abyinventory.com
           password: Abyinvetory12@
-          local-dir: ./frontend/dist
+          local-dir: ./frontend/dist/
           server-dir: /public_html/
 
       # === BACKEND (Raw source only) ===
@@ -37,5 +37,5 @@ jobs:
           server: ftp.abyinventory.com
           username: deploy@abyinventory.com
           password: Abyinvetory12@
-          local-dir: ./backend
+          local-dir: ./backend/
           server-dir: /backend/
