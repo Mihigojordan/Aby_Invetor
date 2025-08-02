@@ -444,9 +444,6 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                         <div className="text-xs text-gray-500">Supplier: {item.stockin.supplier}</div>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-center text-gray-600 text-sm font-mono">
-                      {item.stockin?.sku || 'N/A'}
-                    </td>
                     <td className="py-3 px-4 text-center text-gray-700">{item.quantity}</td>
                     <td className="py-3 px-4 text-right text-gray-700">
                       {formatCurrency(item.soldPrice / item.quantity)}
