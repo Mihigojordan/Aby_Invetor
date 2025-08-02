@@ -51,9 +51,4 @@ jobs:
     
 
       - name: 🚀 Execute deploy.sh on VPS
-        run: |
-          ssh -o StrictHostKeyChecking=no root@162.0.224.102 << 'EOF'
-          cd /var/www/abyinvetory
-          chmod +x deploy.sh
-          ./deploy.sh
-          EOF
+        run: ssh -o StrictHostKeyChecking=no root@162.0.224.102 'cd /var/www/abyinvetory && chmod +x deploy.sh && ./deploy.sh'
