@@ -15,7 +15,8 @@ datasource db {
 }
 
 model Admin {
-  id         String     @id @default(uuid())
+
+  id         String     @id @default(uuid()) @unique
   adminName  String?
   adminEmail String?    @unique
   password   String?
@@ -23,6 +24,9 @@ model Admin {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   stockout   StockOut[]
+
+
+  Activity Activity[]
 }
 
 model Employee {
@@ -84,10 +88,24 @@ model StockIn {
   supplier   String?
   sku        String?
   barcodeUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  StockOut StockOut[]
+}
+
+
+model Activity {
+  id           String   @id @default(uuid())
+  activityName String
+  description  String
+  adminId    String
+  admin      Admin    @relation(fields: [adminId], references: [id])
+
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
-  product    Product?   @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  stockout   StockOut[]
+
 }
 
 model StockOut {
