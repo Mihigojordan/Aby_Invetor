@@ -111,7 +111,7 @@ model StockOut {
   stockinId   String?
   adminId     String?
   employeeId  String?
-  sku         String?
+  transactionId  String?
   quantity    Int?
   soldPrice   Int?
   clientName  String?
