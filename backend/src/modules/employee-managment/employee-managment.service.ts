@@ -3,7 +3,7 @@ import { generateSixDigitNumber } from 'src/common/utils/generate-sku.util';
 import { isPhoneValid, isValidEmail } from 'src/common/utils/validation.util';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcyrpt from 'bcryptjs';
-import { EmailService } from '../../Global/email/email.service';
+import { EmailService } from '../../global/email/email.service';
 import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
