@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Search, Package, DollarSign, Hash, User, Mail, Phone, Calendar, RotateCcw, AlertTriangle, Check } from 'lucide-react';
-import stockOutService from "../../../services/stockOutService";
+import stockOutService from "../../../services/stockoutService";
 
 // Modal Component for Sales Return
 const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title }) => {
