@@ -8,7 +8,7 @@ import { CategoryManagementModule } from './modules/category-management/category
 import { ProductManagmentModule } from './modules/product-managment/product-managment.module';
 import { StockinManagmentModule } from './modules/stockin-managment/stockin-managment.module';
 import { StockoutModule } from './modules/stockout-management/stockout.module';
-import { EmailModule } from './Global/email/email.module';
+import { EmailModule } from './global/email/email.module';
 import { ActivityManagmentModule } from './modules/activity-managament/activity.module';
 import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.module';
 
