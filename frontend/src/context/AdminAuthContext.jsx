@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import adminAuthService from "../services/adminAuthService";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AdminAuthContext = createContext({
     user: null,
     login: () => { },
@@ -299,6 +300,7 @@ export const AdminAuthContextProvider = ({ children }) => {
     )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export default function useAdminAuth() {
     const context = useContext(AdminAuthContext)
     

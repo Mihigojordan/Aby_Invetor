@@ -7,13 +7,7 @@ export class StockinManagmentController {
 
   @Post('create')
   async createStockIn(
-    @Body()
-    data: {
-      productId: string;
-      quantity: number;
-      price: number;
-      supplier?: string;
-    },
+    @Body() data
   ) {
     const stockIn = await this.stockInService.register(data);
     return {
@@ -46,8 +40,8 @@ export class StockinManagmentController {
   }
 
   @Delete('delete/:id')
-  async deleteStockIn(@Param('id') id: string) {
-    await this.stockInService.delete(id);
+  async deleteStockIn(@Param('id') id: string, @Body() data ) {
+    await this.stockInService.delete(id, data);
     return { message: 'StockIn deleted successfully' };
   }
 }

@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import categoryService from '../../../services/categoryService';
 
-const UpsertCategoryModal = ({ isOpen, onClose, onSubmit, category, isLoading, title }) => {
+const UpsertCategoryModal = ({ isOpen, onClose, onSubmit, category, isLoading, title}) => {
   const [formData, setFormData] = useState({
     name: '',
     description: ''

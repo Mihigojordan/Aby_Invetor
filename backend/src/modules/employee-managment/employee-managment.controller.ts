@@ -3,9 +3,12 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
+  HttpStatus,
   Param,
   Post,
   Put,
+  Req,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -17,10 +20,14 @@ import {
   EmployeeFileFields,
   EmployeeUploadConfig,
 } from 'src/common/utils/file-upload.utils';
+import { RequestWithAdmin } from 'src/common/interfaces/admin.interface';
+import { EmployeeJwtAuthGuard } from 'src/guards/employeeGuard.guard';
+import { RequestWithEmployee } from 'src/common/interfaces/employee.interface';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Controller('employee')
 export class EmployeeManagmentController {
-  constructor(private readonly employeeServices: EmployeeManagmentService) {}
+  constructor(private readonly employeeServices: EmployeeManagmentService, private readonly activity: ActivityManagementService) {}
 
   @Post('register')
   @UseInterceptors(
@@ -35,17 +42,23 @@ export class EmployeeManagmentController {
       cv?: Express.Multer.File[];
       identityCard?: Express.Multer.File[];
     },
+    @Req() req: RequestWithAdmin,
   ) {
     try {
+      const adminId = req.admin?.id as string;
       return await this.employeeServices.registerEmployee({
         ...data,
         profileImg: files.profileImg,
         identityCard: files.identityCard,
         cv: files.cv,
+        adminId,
       });
     } catch (error) {
       console.error('error registering a employee', error);
-      throw new Error(error.message);
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
@@ -56,7 +69,7 @@ export class EmployeeManagmentController {
       return await this.employeeServices.getAllEmployee();
     } catch (error) {
       console.error('error getting   employees', error);
-      throw new Error(error.message);
+      throw new HttpException(error.message, error.status);
     }
   }
 
@@ -64,7 +77,7 @@ export class EmployeeManagmentController {
     FileFieldsInterceptor(EmployeeFileFields, EmployeeUploadConfig),
   )
   @Put('update/:id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() data,
     @UploadedFiles()
@@ -74,17 +87,27 @@ export class EmployeeManagmentController {
       identityCard?: Express.Multer.File[];
     },
   ) {
-    return this.employeeServices.updateEmployee(id, {
-      ...data,
-      profileImg: files.profileImg,
-      identityCard: files.identityCard,
-      cv: files.cv,
-    });
+    try {
+      return await this.employeeServices.updateEmployee(id, {
+        ...data,
+        profileImg: files.profileImg,
+        identityCard: files.identityCard,
+        cv: files.cv,
+      });
+    } catch (error) {
+      console.error('error getting   employees', error);
+      throw new HttpException(error.message, error.status);
+    }
   }
 
   @Delete('delete/:id')
-  remove(@Param('id') id: string) {
-    return this.employeeServices.deleteEmployee(id);
+  async remove(@Param('id') id: string) {
+    try {
+      return await this.employeeServices.deleteEmployee(id);
+    } catch (error) {
+      console.error('error getting   employees', error);
+      throw new HttpException(error.message, error.status);
+    }
   }
 
   @Post('assign-task')
@@ -96,5 +119,22 @@ export class EmployeeManagmentController {
       console.error('error assigning task   employees', error);
       throw new Error(error.message);
     }
+  }
+
+  @Get('activity')
+  @UseGuards(EmployeeJwtAuthGuard)
+  async getActivityOfEmployee(@Req() req: RequestWithEmployee) {
+    try {
+      const id = req.employee?.id as string;
+      return await this.activity.getActivityByEmployeeId(id)
+    } catch (error) {}
+  }
+
+   @Get('activity/:id')
+  async getActivityOfEmployeeWithId(@Req() req: RequestWithEmployee,@Param('id') id: string) {
+    try {
+   
+      return await this.activity.getActivityByEmployeeId(id)
+    } catch (error) {}
   }
 }

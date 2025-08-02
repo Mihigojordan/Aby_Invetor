@@ -17,7 +17,7 @@ export class EmployeeJwtAuthGuard implements CanActivate {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const token = this.extractTokenFromCookies(request);
 
-    console.log("the host's token represented here is:", token);
+    console.log("the employees token represented here is:", token);
     if (!token) {
       throw new UnauthorizedException('not authenticated');
     }

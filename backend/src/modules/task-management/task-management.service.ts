@@ -1,53 +1,63 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ActivityService } from 'src/Global/Activity/activity.service';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
 export class TaskManagementService {
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly activityService: ActivityService
+    private readonly activityService: ActivityManagementService,
   ) {}
+  async registerTask(data: {
+    taskname?: string;
+    description?: string;
+    adminId: string;
+  }) {
+    try {
+      const { taskname, description } = data;
 
-async registerTask(
-  data: { taskname?: string; description?: string; ActivityAt?: Date },
-  admin: { id: string }, // passed from controller
-) {
-  try {
-    const { taskname, description, ActivityAt } = data;
+      // Basic validation - at least one field should be provided
+      if (!taskname && !description) {
+        throw new BadRequestException(
+          'At least task name or description is required',
+        );
+      }
 
-    if (!taskname && !description) {
-      throw new BadRequestException('Task name or description is required');
-    }
+      const createTask = await this.prismaService.task.create({
+        data: {
+          taskname: taskname,
+          description: description,
+        },
+      });
 
-    const createTask = await this.prismaService.task.create({
-      data: {
-        taskname,
-        description,
-      },
-    });
+      // ✅ Check if admin exists
+      const admin = await this.prismaService.admin.findUnique({
+        where: { id: data.adminId },
+      });
 
-    await this.prismaService.activity.create({
-      data: {
-        activityName: `Created task "${taskname}"`,
-        activityAt: ActivityAt || new Date(),
+      if (!admin) {
+        throw new BadRequestException('Admin not found');
+      }
+      // ✅ Log activity
+      await this.activityService.createActivity({
+        activityName: 'Task Registered',
+        description: `${admin.adminName} registered a task: ${taskname || 'No Name'}`,
         adminId: admin.id,
-      },
-    });
+      });
 
-    return {
-      message: 'Task registered and activity logged successfully',
-      createTask,
-    };
-  } catch (error) {
-    console.error('Error registering a task:', error);
-    throw new Error(error.message);
+      return {
+        message: 'task registered successfully',
+        createTask,
+      };
+    } catch (error) {
+      console.error('error registering a task', error);
+      throw new Error(error.message);
+    }
   }
-}
-
-
-
-
 
   async findTaskByName(taskname: string) {
     try {
@@ -99,7 +109,7 @@ async registerTask(
 
   async updateTask(
     id: string,
-    data: { taskname?: string; description?: string },
+    data: { taskname?: string; description?: string; adminId: string },
   ) {
     try {
       const existingTask = await this.findTaskById(id);
@@ -116,6 +126,22 @@ async registerTask(
         },
       });
 
+      // ✅ Check if admin exists
+      const admin = await this.prismaService.admin.findUnique({
+        where: { id: data.adminId },
+      });
+
+      if (!admin) {
+        throw new BadRequestException('Admin not found');
+      }
+
+      // ✅ Log activity
+      await this.activityService.createActivity({
+        activityName: 'Task Updated',
+        description: `${admin.adminName} updated a task: ${updatedTask.taskname}`,
+        adminId: admin.id,
+      });
+
       return {
         message: 'Task updated successfully',
         updatedTask,
@@ -126,15 +152,31 @@ async registerTask(
     }
   }
 
-  async deleteTask(id: string) {
+  async deleteTask(id: string, adminId: string ) {
     try {
       const existTaks = await this.findTaskById(id); // Ensure task exists first
 
       if (!existTaks) {
-        throw new NotFoundException('position not found')
+        throw new NotFoundException('position not found');
       }
       await this.prismaService.task.delete({
         where: { id },
+      });
+
+      // ✅ Check if admin exists
+      const admin = await this.prismaService.admin.findUnique({
+        where: { id: adminId },
+      });
+
+      if (!admin) {
+        throw new BadRequestException('Admin not found');
+      }
+
+      // ✅ Log activity
+      await this.activityService.createActivity({
+        activityName: 'Task Deleted',
+        description: `${admin.adminName} deleted a task: ${existTaks.taskname}`,
+        adminId: admin.id,
       });
 
       return {

@@ -1,47 +1,86 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { deleteFile } from 'src/common/utils/file-upload.utils';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
 export class ProductManagmentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityManagementService,
+  ) {}
 
   async createProduct(data: {
     productName?: string;
     brand?: string;
-    categoryId?: string;
+    categoryId: string;
     description?: string; // HTML string from frontend
+    adminId?: string;
+    employeeId?: string;
     imageurls?: Express.Multer.File[];
+    createdAt:Date
   }) {
     try {
-      const { productName, brand, categoryId, description, imageurls } = data;
+      const { productName, brand, categoryId, description, imageurls,createdAt } = data;
 
       const imageUrls =
         imageurls?.map((file) => `/uploads/product_images/${file.filename}`) ||
         [];
 
       // Convert description HTML string to JSON object
-      const descriptionJson = description ? { details: description } : {details: ''};
+      const descriptionJson = description
+        ? { details: description }
+        : { details: '' };
       console.log(descriptionJson);
-      
 
       const product = await this.prisma.product.create({
         data: {
           productName,
           brand,
+          adminId: data.adminId ? String(data.adminId) : null,
           description: descriptionJson, // Store as JSON object
           imageUrls,
-          category: {
-            connect: {
-              id: categoryId,
-            },
-          },
+          employeeId: data.employeeId ? String(data.employeeId) : null,
+          categoryId: categoryId,
+          createdAt: createdAt ? createdAt : new Date().toISOString()
         },
       });
+
+      // 🔍 Log activity
+      if (data.adminId) {
+        console.log('adminID:', data.adminId)
+        const admin = await this.prisma.admin.findUnique({
+          where: { id: data.adminId },
+        });
+        if (!admin)
+          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Product Created',
+          description: `${admin.adminName} created product: ${product.productName}`,
+          adminId: admin.id,
+        });
+      }
+      if (data.employeeId) {
+        console.log('employeeiD:', data.employeeId)
+        const employee = await this.prisma.employee.findUnique({
+          where: { id: data.employeeId },
+        });
+        if (!employee)
+          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'Product Created',
+          description: `${employee.firstname} created product: ${product.productName}`,
+          employeeId: employee.id,
+        });
+      }
 
       return {
         message: 'Product created successfully',
@@ -80,6 +119,8 @@ export class ProductManagmentService {
       categoryId?: string;
       description?: any; // HTML string from frontend
       keepImages?: any;
+      adminId?: string;
+      employeeId?: string;
       imageurls?: Express.Multer.File[];
     },
   ) {
@@ -97,15 +138,15 @@ export class ProductManagmentService {
       }
     }
 
-    const keepImages = JSON.parse(data?.keepImages) ;
+    const keepImages = JSON.parse(data?.keepImages);
     console.log('keepimages', keepImages);
-    const newImages = data.imageurls?.map(
+    const newImages =
+      data.imageurls?.map(
         (file) => `/uploads/product_images/${file.filename}`,
       ) ?? [];
 
-      console.log('keeping images',keepImages.length );
-      console.log('new images',newImages );
-      
+    console.log('keeping images', keepImages.length);
+    console.log('new images', newImages);
 
     // ✅ Ensure max 4 images
     const totalImages = keepImages.length + newImages.length;
@@ -116,7 +157,7 @@ export class ProductManagmentService {
     }
 
     // ✅ Delete images not in keepImages
-    const removedImages = (existing.imageUrls as string[] || []).filter(
+    const removedImages = ((existing.imageUrls as string[]) || []).filter(
       (url) => !keepImages.includes(url),
     );
 
@@ -127,12 +168,11 @@ export class ProductManagmentService {
     const imageUrls = [...keepImages, ...newImages];
 
     // Convert description HTML string to JSON object if provided
-    const descriptionJson = data.description 
-      ? { details: data.description } 
+    const descriptionJson = data.description
+      ? { details: data.description }
       : undefined;
 
-      console.log('sss ssf :',descriptionJson);
-      
+    console.log('sss ssf :', descriptionJson);
 
     const updated = await this.prisma.product.update({
       where: { id },
@@ -145,13 +185,42 @@ export class ProductManagmentService {
       },
     });
 
+    // 🔍 Log activity
+    if ('adminId' in data && data.adminId) {
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: data.adminId },
+      });
+      if (!admin)
+        throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+      await this.activityService.createActivity({
+        activityName: 'Product Updated',
+        description: `${admin.adminName} updated product: ${updated.productName}`,
+        adminId: admin.id,
+      });
+    }
+
+    if ('employeeId' in data && data.employeeId) {
+      const employee = await this.prisma.employee.findUnique({
+        where: { id: data.employeeId },
+      });
+      if (!employee)
+        throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+      await this.activityService.createActivity({
+        activityName: 'Product Updated',
+        description: `${employee.firstname} updated product: ${updated.productName}`,
+        employeeId: employee.id,
+      });
+    }
+
     return {
       message: 'Product updated successfully',
       product: updated,
     };
   }
 
-  async deleteProduct(id: string) {
+  async deleteProduct(id: string, data?: { adminId?: string; employeeId?: string }) {
     const product = await this.getProductById(id);
 
     // Delete all image files from disk
@@ -168,6 +237,29 @@ export class ProductManagmentService {
     }
 
     await this.prisma.product.delete({ where: { id } });
+
+    // 🔍 Log activity
+  if (data?.adminId) {
+    const admin = await this.prisma.admin.findUnique({ where: { id: data.adminId } });
+    if (!admin) throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+    await this.activityService.createActivity({
+      activityName: 'Product Deleted',
+      description: `${admin.adminName} deleted product: ${product.productName}`,
+      adminId: admin.id,
+    });
+  }
+
+  if (data?.employeeId) {
+    const employee = await this.prisma.employee.findUnique({ where: { id: data.employeeId } });
+    if (!employee) throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+    await this.activityService.createActivity({
+      activityName: 'Product Deleted',
+      description: `${employee.firstname} deleted product: ${product.productName}`,
+      employeeId: employee.id,
+    });
+  }
 
     return { message: 'Product deleted successfully' };
   }

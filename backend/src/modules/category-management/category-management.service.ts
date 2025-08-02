@@ -1,10 +1,24 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
 export class CategoryManagementService {
-    constructor( private readonly prismaService: PrismaService ){}
-    async createCategory(data: { name?: string; description?: string }) {
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly activityService: ActivityManagementService,
+  ) {}
+  async createCategory(data: {
+    name?: string;
+    description?: string;
+    adminId?: string;
+    employeeId?: string;
+  }) {
     try {
       const { name, description } = data;
 
@@ -23,6 +37,34 @@ export class CategoryManagementService {
       const createdCategory = await this.prismaService.category.create({
         data: { name, description },
       });
+
+      if (data?.adminId) {
+        const admin = await this.prismaService.admin.findUnique({
+          where: { id: data.adminId },
+        });
+        if (!admin)
+          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'category created',
+          description: `${admin.adminName} created category called ${createdCategory.name}`,
+          adminId: admin.id,
+        });
+      }
+
+      if (data?.employeeId) {
+        const employee = await this.prismaService.employee.findUnique({
+          where: { id: data.employeeId },
+        });
+        if (!employee)
+          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'category created',
+          description: `${employee.firstname} created category  ${createdCategory.name}`,
+          employeeId: employee.id,
+        });
+      }
 
       return {
         message: 'Category created successfully',
@@ -61,18 +103,59 @@ export class CategoryManagementService {
     }
   }
 
-  async updateCategory(id: string, data: { name?: string; description?: string }) {
+  async updateCategory(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      adminId?: string;
+      employeeId?: string;
+    },
+  ) {
     try {
       if (!id) throw new BadRequestException('Category ID is required');
 
-      const existing = await this.prismaService.category.findUnique({ where: { id } });
+      const existing = await this.prismaService.category.findUnique({
+        where: { id },
+      });
 
       if (!existing) throw new BadRequestException('Category not found');
 
       const updated = await this.prismaService.category.update({
         where: { id },
-        data,
+        data: {
+          name: data.name ?? existing.name,
+          description: data.name ?? existing.description
+        }
       });
+
+      if (data?.adminId) {
+        const admin = await this.prismaService.admin.findUnique({
+          where: { id: data.adminId },
+        });
+        if (!admin)
+          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'category updated',
+          description: `${admin.adminName} updated category called ${updated.name}`,
+          adminId: admin.id,
+        });
+      }
+
+      if (data?.employeeId) {
+        const employee = await this.prismaService.employee.findUnique({
+          where: { id: data.employeeId },
+        });
+        if (!employee)
+          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'category updated',
+          description: `${employee.firstname} updated category  ${updated.name}`,
+          employeeId: employee.id,
+        });
+      }
 
       return {
         message: 'Category updated successfully',
@@ -84,13 +167,41 @@ export class CategoryManagementService {
     }
   }
 
-  async deleteCategory(id: string) {
+  async deleteCategory(id: string, data:Partial<{ adminId:string, employeeId?:string  }>) {
     try {
       if (!id) throw new BadRequestException('Category ID is required');
 
       const deleted = await this.prismaService.category.delete({
         where: { id },
       });
+
+      if (data?.adminId) {
+        const admin = await this.prismaService.admin.findUnique({
+          where: { id: data.adminId },
+        });
+        if (!admin)
+          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'category deleted',
+          description: `${admin.adminName} deleted category called ${deleted.name}`,
+          adminId: admin.id,
+        });
+      }
+
+      if (data?.employeeId) {
+        const employee = await this.prismaService.employee.findUnique({
+          where: { id: data.employeeId },
+        });
+        if (!employee)
+          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+        await this.activityService.createActivity({
+          activityName: 'category deleted',
+          description: `${employee.firstname} deleted category  ${deleted.name}`,
+          employeeId: employee.id,
+        });
+      }
 
       return {
         message: 'Category deleted successfully',

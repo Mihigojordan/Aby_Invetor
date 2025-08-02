@@ -7,7 +7,7 @@ export class CategoryManagementController {
 
     //Create Category
   @Post('create')
-  async createCategory(@Body() data: { name?: string; description?: string }) {
+  async createCategory(@Body() data) {
     return await this.categoryService.createCategory(data);
   }
 
@@ -27,14 +27,14 @@ export class CategoryManagementController {
   @Put('update/:id')
   async updateCategory(
     @Param('id') id: string,
-    @Body() data: { name?: string; description?: string },
+    @Body() data,
   ) {
     return await this.categoryService.updateCategory(id, data);
   }
 
   //Delete Category
   @Delete('delete/:id')
-  async deleteCategory(@Param('id') id: string) {
-    return this.categoryService.deleteCategory(id);
+  async deleteCategory(@Param('id') id: string , @Body() data ) {
+    return this.categoryService.deleteCategory(id, data);
   }
 }

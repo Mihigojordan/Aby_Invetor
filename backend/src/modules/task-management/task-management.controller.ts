@@ -1,17 +1,26 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards,Request } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { TaskManagementService } from './task-management.service';
 import { AdminJwtAuthGuard } from 'src/guards/adminGuard.guard';
+import { RequestWithAdmin } from 'src/common/interfaces/admin.interface';
 
 @Controller('task')
 @UseGuards(AdminJwtAuthGuard)
 export class TaskManagementController {
   constructor(private readonly taskServices: TaskManagementService) {}
-
   @Post('create')
-  async registerTask(@Body() data,@Request() req) {
+  async registerTask(@Body() data) {
     try {
-  // Attach user ID from request (assuming guard sets req.user)
-    return await this.taskServices.registerTask({ ...data, userId: req.user.id })
+      return await this.taskServices.registerTask(data);
     } catch (error) {
       console.error('error registering a task', error);
       throw new Error(error.message);
@@ -28,21 +37,33 @@ export class TaskManagementController {
     }
   }
 
-   @Get(':id')
+  @Get(':id')
   async findById(@Param('id') id: string) {
     return this.taskServices.findTaskById(id);
   }
 
   @Put('update/:id')
+  @UseGuards(AdminJwtAuthGuard)
   async updateTask(
     @Param('id') id: string,
-    @Body() data: { taskname?: string; description?: string },
+    @Body() data,
+    @Req() req: RequestWithAdmin,
   ) {
-    return this.taskServices.updateTask(id, data);
+    const adminId = req.admin?.id as string;
+    return this.taskServices.updateTask(id, {
+      ...data,
+      adminId,
+    });
   }
 
   @Delete('delete/:id')
-  async deleteTask(@Param('id') id: string) {
-    return this.taskServices.deleteTask(id);
+  @UseGuards(AdminJwtAuthGuard)
+  async deleteTask(
+    @Param('id') id: string,
+    @Body() data,
+    @Req() req: RequestWithAdmin,
+  ) {
+     const adminId = req.admin?.id as string;
+    return this.taskServices.deleteTask(id, adminId);
   }
 }

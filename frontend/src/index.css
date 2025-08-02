@@ -1,3 +1,51 @@
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* PRINT MODE ONLY */
+@media print {
+  /* Hide everything */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the print section and its children */
+  #print-section,
+  #print-section * {
+    visibility: visible;
+  }
+
+  /* Position the print section at the top-left */
+  #print-section {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  /* Remove background colors and shadows (optional but useful) */
+  * {
+    background: none !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Avoid page breaks inside important elements */
+  .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Optional: remove links underline */
+  a {
+    text-decoration: none !important;
+  }
+
+  /* Optional: hide elements marked as no-print */
+  .no-print {
+    display: none !important;
+  }
+}

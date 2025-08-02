@@ -22,6 +22,8 @@ import EmployeeUnlockScreen from "../page/auth/employee/EmployeeUnlockScreen";
 import AuthSelectionPage from "../page/auth/AuthSelectionPage";
 import ProtectPrivateEmployee from "../components/protectors/employee/ProtectPrivateAdmin";
 import EmployeeProfile from "../page/dashboard/EmployeeProfileManagement";
+import StockOutManagment from "../page/dashboard/StockOutManagment";
+import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -61,7 +63,7 @@ const routes = createBrowserRouter([
                                 path: 'employee',
                                 element: (
                                     <SuspenseWrapper>
-                                        <EmployeeManagement />
+                                        <EmployeeManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
@@ -69,7 +71,7 @@ const routes = createBrowserRouter([
                                 path: "position",
                                 element: (
                                     <SuspenseWrapper>
-                                        <TaskManagement />
+                                        <TaskManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -78,7 +80,7 @@ const routes = createBrowserRouter([
                                 path: "category",
                                 element: (
                                     <SuspenseWrapper>
-                                        <CategoryManagement />
+                                        <CategoryManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -87,7 +89,7 @@ const routes = createBrowserRouter([
                                 path: "product",
                                 element: (
                                     <SuspenseWrapper>
-                                        <ProductManagement />
+                                        <ProductManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -96,11 +98,29 @@ const routes = createBrowserRouter([
                                 path: "stockin",
                                 element: (
                                     <SuspenseWrapper>
-                                        <StockInManagement />
+                                        <StockInManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
-                            }
+                            },
+                            {
+                                path: "stockout",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <StockOutManagment role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                              {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     }
                 ]
@@ -115,10 +135,6 @@ const routes = createBrowserRouter([
                         element: <Navigate to={'/employee/dashboard'} replace />
                     },
                     {
-                        path:'profile',
-                        element: <SuspenseWrapper> <EmployeeProfile /> </SuspenseWrapper>
-                    },
-                    {
                         path: "dashboard",
                         element: <DashboardLayout role={'employee'} />,
                         children: [
@@ -130,17 +146,58 @@ const routes = createBrowserRouter([
                                     </SuspenseWrapper>
                                 )
                             },
-                           
+                            
+                            {
+                                path:'profile',
+                                element: <SuspenseWrapper> <EmployeeProfile /> </SuspenseWrapper>
+                            },
           
                             {
                                 path: "stockin",
                                 element: (
                                     <SuspenseWrapper>
-                                        <StockInManagement />
+                                        <StockInManagement role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 
-                            }
+                            },
+                             {
+                                path: "category",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <CategoryManagement role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "product",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ProductManagement role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "stockout",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <StockOutManagment role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                          
                         ]
                     }
                 ]

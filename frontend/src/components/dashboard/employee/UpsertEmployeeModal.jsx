@@ -1,5 +1,6 @@
 import { X, Upload, File, Image, User, FileText, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { API_URL } from "../../../api/api";
 
 const UpsertEmployeeModal = ({ isOpen, onClose, onSubmit, employee, isLoading, title }) => {
   const [formData, setFormData] = useState({
@@ -267,6 +268,9 @@ const UpsertEmployeeModal = ({ isOpen, onClose, onSubmit, employee, isLoading, t
                   </div>
                 </div>
 
+
+ <div className="grid grid-cols-2 gap-4">
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email Address *
@@ -298,12 +302,13 @@ const UpsertEmployeeModal = ({ isOpen, onClose, onSubmit, employee, isLoading, t
                   />
                   {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>}
                 </div>
+                      </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Address *
                   </label>
-                  <textarea
+                  <input
                     value={formData.address}
                     onChange={(e) => handleChange('address', e.target.value)}
                     rows={3}
@@ -321,6 +326,9 @@ const UpsertEmployeeModal = ({ isOpen, onClose, onSubmit, employee, isLoading, t
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Documents & Photos</h3>
               <div className="space-y-4">
+
+                 <div className="grid grid-cols-2 gap-4">
+
                 <FileUploadField
                   field="profileImg"
                   label="Profile Image"
@@ -337,6 +345,7 @@ const UpsertEmployeeModal = ({ isOpen, onClose, onSubmit, employee, isLoading, t
                   description="PNG, JPG, GIF up to 10MB"
                 />
 
+                  </div>
                 <FileUploadField
                   field="cv"
                   label="CV/Resume"

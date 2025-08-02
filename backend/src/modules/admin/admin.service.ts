@@ -8,6 +8,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
+import { ActivityManagementService } from '../activity-managament/activity.service';
 
 @Injectable()
 export class AdminService {
@@ -15,6 +16,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtServices: JwtService,
+    private readonly activityService: ActivityManagementService
   ) {}
 
   async findAdminById(id: string) {
@@ -44,7 +46,7 @@ export class AdminService {
           adminEmail: email,
         },
       });
-      
+
       return admin;
     } catch (error) {
       console.error('error finding admin', error);
@@ -102,6 +104,13 @@ export class AdminService {
       if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
       const token = this.jwtServices.sign({ id: admin.id });
+
+      // Track the login activity
+      await this.activityService.createActivity({
+        activityName: 'Admin Login',
+        description: `${admin.adminName} logged in successfully`,
+        adminId: admin.id,
+      });
 
       return token;
     } catch (error) {
@@ -198,6 +207,13 @@ export class AdminService {
         secure: true, // <-- Required for SameSite=None in production
         sameSite: 'none', // <-- Required for cross-origin cookies
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+       // Track the login activity
+      await this.activityService.createActivity({
+        activityName: 'Admin Logout',
+        description: `${admin.adminName} logged out successfully`,
+        adminId: admin.id,
       });
 
       return { message: 'logged out successfully' };

@@ -8,6 +8,9 @@ import { CategoryManagementModule } from './Modules/category-management/category
 import { ProductManagmentModule } from './Modules/product-managment/product-managment.module';
 import { StockinManagmentModule } from './Modules/stockin-managment/stockin-managment.module';
 import { StockoutModule } from './Modules/stockout-management/stockout.module';
+import { EmailModule } from './global/email/email.module';
+import { ActivityManagmentModule } from './Modules/activity-managament/activity.module';
+import { SalesReturnModule } from './Modules/salesReturn-management/salesReturn.module';
 
 
 @Module({
@@ -19,7 +22,10 @@ import { StockoutModule } from './Modules/stockout-management/stockout.module';
     CategoryManagementModule,
     ProductManagmentModule,
     StockinManagmentModule,
-    StockoutModule
+    StockoutModule,
+    EmailModule,
+    ActivityManagmentModule,
+    SalesReturnModule
   ],
   controllers: [AppController],
   providers: [],

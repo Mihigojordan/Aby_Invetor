@@ -23,6 +23,18 @@ export class StockoutController{
     }
   }
 
+
+  @Get('transaction/:id')
+  async getStockoutBytransactionId(@Param('id') id:string){
+    try {
+      
+      return await this.stockoutService.getStockOutByTransactionId(id)
+    } catch (error) {
+      console.log('error getting transactions:', error.message)
+      throw new HttpException(error.message, error.status)
+    }
+  }
+
   @Get('getone/:id')
   async getOne(@Param('id') id: string) {
     try {
@@ -42,9 +54,9 @@ export class StockoutController{
   }
 
   @Delete('delete/:id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @Body() data ) {
     try {
-      return await this.stockoutService.delete(id);
+      return await this.stockoutService.delete(id, data);
     } catch (error) {
       throw new HttpException(error.message, error.status || HttpStatus.NOT_FOUND);
     }
