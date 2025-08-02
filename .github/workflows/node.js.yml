@@ -28,7 +28,7 @@ jobs:
           username: deploy@abyinventory.com
           password: Abyinvetory12@
           local-dir: ./frontend/dist/
-          server-dir: /public_html/
+          server-dir: /
 
       # === BACKEND (Raw source only) ===
       - name: 📂 Upload backend source to CPanel
