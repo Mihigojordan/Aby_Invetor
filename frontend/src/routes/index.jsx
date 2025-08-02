@@ -23,6 +23,7 @@ import AuthSelectionPage from "../page/auth/AuthSelectionPage";
 import ProtectPrivateEmployee from "../components/protectors/employee/ProtectPrivateAdmin";
 import EmployeeProfile from "../page/dashboard/EmployeeProfileManagement";
 import StockOutManagment from "../page/dashboard/StockOutManagment";
+import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -111,6 +112,15 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                              {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     }
                 ]
@@ -174,6 +184,15 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <StockOutManagment role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 

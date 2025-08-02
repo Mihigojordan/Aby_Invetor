@@ -21,14 +21,14 @@ export class StockoutService {
   sales: {
     stockinId: string;
     quantity: number;
-    clientName?: string;
-    clientEmail?: string;
-    clientPhone?: string;
   }[];
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
   adminId?: string;
   employeeId?: string;
 }) {
-  const { sales, adminId, employeeId } = data;
+  const { sales, adminId, employeeId , clientEmail,clientName,clientPhone } = data;
 
   if (!Array.isArray(sales) || sales.length === 0) {
     throw new BadRequestException('At least one sale is required');
@@ -38,7 +38,7 @@ export class StockoutService {
   const createdStockouts: Awaited<ReturnType<typeof this.prisma.stockOut.create>>[] = [];
 
   for (const sale of sales) {
-    const { stockinId, quantity, clientName, clientEmail, clientPhone } = sale;
+    const { stockinId, quantity } = sale;
 
     const stockin = await this.prisma.stockIn.findUnique({
       where: { id: stockinId },
@@ -155,7 +155,14 @@ export class StockoutService {
       const stockouts = await this.prisma.stockOut.findMany({
         where: { transactionId: id },
         include: {
-          stockin:true,
+          stockin: {
+      include: {
+        product: true, // include product via stockin
+      },
+    },
+            admin: true,
+          employee: true,
+          
         }
       })
       return stockouts
