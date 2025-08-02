@@ -499,7 +499,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               </div>
               <div>
                 <p className="font-semibold text-gray-800">{userInfo.name}</p>
-                <p className="text-sm text-gray-600">{userInfo.title}</p>
+                
               </div>
             </div>
           </div>
