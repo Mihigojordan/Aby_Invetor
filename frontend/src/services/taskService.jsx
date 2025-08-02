@@ -1,4 +1,3 @@
-// src/services/taskService.js
 import api from '../api/api';
 import db from './dexieDB'; // Dexie instance separated
 
@@ -11,8 +10,11 @@ class TaskService {
   // Create task (works offline)
   async createTask(taskData) {
     try {
+      const user = useem
+      const employeeId = user;
       const validation = this.validateTaskData(taskData);
       if (!validation.isValid) throw new Error(validation.errors.join(', '));
+      
 
       const timestamp = new Date().toISOString();
 
@@ -35,7 +37,8 @@ class TaskService {
             ...response.data,
             synced: true,
             local: false,
-            updatedAt: timestamp
+            updatedAt: timestamp,
+            ActivityAt: timestamp
           });
 
           return response.data;

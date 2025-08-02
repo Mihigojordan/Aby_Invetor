@@ -15,7 +15,8 @@ datasource db {
 }
 
 model Admin {
-  id         String     @id @default(uuid())
+
+  id         String     @id @default(uuid()) @unique
   adminName  String?
   adminEmail String?    @unique
   password   String?
@@ -120,7 +121,7 @@ model StockOut {
   stockin     StockIn?  @relation(fields: [stockinId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sales   salesReturn[]
+  sales   SalesReturnItem[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -132,16 +133,26 @@ model Activity {
   description  String
   employeeId  String?
   adminId      String?
-  doneAt   DateTime
+  doneAt DateTime @default(now())
+
   admin  Admin? @relation(fields: [adminId], references: [id], onDelete: Cascade,onUpdate: Cascade)
   employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 
-model salesReturn {
-  id String @id @default(uuid())
-  stockoutId String?
-  reason  String?
-  createdAt DateTime
-  stockout StockOut? @relation(fields: [stockoutId], references: [id], onDelete: Cascade, onUpdate: Cascade) 
+model SalesReturn {
+  id        String              @id @default(uuid())
+  transactionId String?
+  reason    String?
+  createdAt DateTime            @default(now())
+  items     SalesReturnItem[]
+}
+
+model SalesReturnItem {
+  id            String   @id @default(uuid())
+  salesReturnId String
+  stockoutId    String
+  quantity      Int
+  stockout      StockOut     @relation(fields: [stockoutId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }

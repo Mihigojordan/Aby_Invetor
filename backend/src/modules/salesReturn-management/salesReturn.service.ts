@@ -8,82 +8,120 @@ import { ActivityManagementService } from '../activity-managament/activity.servi
 
 @Injectable()
 export class SalesReturnService {
-  constructor(private readonly prisma: PrismaService , private readonly activityService:ActivityManagementService ) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityManagementService,
+  ) {}
 
   // Create a new sales return
   async create(data: {
-    returns: { transactionId: string; reason?: string; createdAt?: Date }[];
+    transactionId: string;
+    reason?: string;
+    createdAt?: Date;
+    items: { stockoutId: string; quantity: number }[];
     adminId?: string;
     employeeId?: string;
   }) {
-    const result: {
-      success: { transactionId: string; returnId: string }[];
-      errors: { transactionId: string; error: string }[];
-    } = {
-      success: [],
-      errors: [],
-    };
+    const {
+      transactionId,
+      reason,
+      createdAt,
+      items,
+      adminId,
+      employeeId,
+    } = data;
 
-    const { returns, adminId, employeeId } = data;
+    if (!items || items.length === 0) {
+      throw new BadRequestException('At least one item must be provided');
+    }
 
     const activityUser =
-      (adminId && (await this.prisma.admin.findUnique({ where: { id: adminId } }))) ||
-      (employeeId && (await this.prisma.employee.findUnique({ where: { id: employeeId } })));
+      (adminId &&
+        (await this.prisma.admin.findUnique({ where: { id: adminId } }))) ||
+      (employeeId &&
+        (await this.prisma.employee.findUnique({ where: { id: employeeId } })));
 
     if (!activityUser) {
       throw new NotFoundException('Admin or Employee not found');
     }
 
-    for (const item of returns) {
-      const { transactionId, reason, createdAt } = item;
+    const success: { stockoutId: string; itemId: string }[] = [];
+    const errors: { stockoutId: string; error: string }[] = [];
+
+    // Create SalesReturn first
+    const salesReturn = await this.prisma.salesReturn.create({
+      data: {
+        transactionId,
+        reason,
+        createdAt: createdAt ? createdAt : String(new Date().toISOString) ,
+      },
+    });
+
+    for (const item of items) {
+      const { stockoutId, quantity } = item;
 
       try {
-        if (!transactionId) throw new Error('transactionId is required');
-
-        const stockout = await this.prisma.stockOut.findFirst({
-          where: { transactionId },
+        const stockout = await this.prisma.stockOut.findUnique({
+          where: { id: stockoutId },
         });
 
-        if (!stockout)
-          throw new Error(`StockOut not found for ${transactionId}`);
+        if (!stockout) throw new Error('Invalid stockoutId');
+
+        if (quantity > (stockout.quantity ?? 0)) {
+          throw new Error(
+            `Returned quantity ${quantity} exceeds stockout quantity ${stockout.quantity ?? 0}`,
+          );
+        }
 
         const stockin = await this.prisma.stockIn.findUnique({
-          where: { id: String(stockout.stockinId) },
+          where: { id: stockout.stockinId ?? '' },
         });
 
-        if (!stockin) throw new Error(`StockIn not found for ${transactionId}`);
+        if (!stockin) throw new Error('Related stockin not found');
 
+        // Update StockIn quantity
         await this.prisma.stockIn.update({
           where: { id: stockin.id },
           data: {
-            quantity: (stockin.quantity ?? 0) + (stockout.quantity ?? 0),
+            quantity: (stockin.quantity ?? 0) + quantity,
           },
         });
 
-        const newReturn = await this.prisma.salesReturn.create({
+        // Subtract from StockOut
+        await this.prisma.stockOut.update({
+          where: { id: stockout.id },
           data: {
-            stockoutId: stockout.id,
-            reason,
-            createdAt: createdAt ?? new Date(),
+            quantity: (stockout.quantity ?? 0) - quantity,
           },
         });
 
-        result.success.push({ transactionId, returnId: newReturn.id });
+        // Create SalesReturnItem
+        const returnItem = await this.prisma.salesReturnItem.create({
+          data: {
+            salesReturnId: salesReturn.id,
+            stockoutId,
+            quantity,
+          },
+        });
+
+        success.push({ stockoutId, itemId: returnItem.id });
       } catch (error) {
-        result.errors.push({ transactionId, error: error.message });
+        errors.push({ stockoutId, error: error.message });
       }
     }
 
     await this.activityService.createActivity({
       activityName: 'Sales Return',
-      description: `${'adminName' in activityUser ? activityUser.adminName : activityUser.firstname} processed ${returns.length} sales return(s)`,
+      description: `${'adminName' in activityUser ? activityUser.adminName : activityUser.firstname} processed a sales return with ${success.length} item(s)`,
       adminId,
       employeeId,
     });
 
     return {
-      message: 'Bulk sales return processing completed',
-      ...result,
+      message: 'Sales return processed',
+      transactionId: transactionId,
+      success,
+      errors,
     };
   }
 
@@ -91,9 +129,6 @@ export class SalesReturnService {
   async findAll() {
     try {
       const returns = await this.prisma.salesReturn.findMany({
-        include: {
-          stockout: true,
-        },
       });
 
       return {
@@ -112,9 +147,17 @@ export class SalesReturnService {
 
       const returnItem = await this.prisma.salesReturn.findUnique({
         where: { id },
-        include: {
-          stockout: true,
-        },
+        include:{
+          items: {
+            include:{
+              stockout: {
+                include:{
+                  stockin:true
+                }
+              }
+            }
+          }
+        }
       });
 
       if (!returnItem) {
