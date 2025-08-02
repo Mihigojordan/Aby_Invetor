@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit3, Trash2, ShoppingCart, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Package, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
-import stockOutService from '../../services/stockOutService';
-import stockInService from '../../services/stockInService';
+import stockOutService from '../../services/stockoutService';
+import stockInService from '../../services/stockinService';
 import UpsertStockOutModal from '../../components/dashboard/stockout/UpsertStockOutModal';
 // import DeleteModal from '../../components/dashboard/stockout/DeleteStockOutModal';
 import ViewStockOutModal from '../../components/dashboard/stockout/ViewStockOutModal';
@@ -243,20 +243,6 @@ setIsInvoiceNoteOpen(true);
     }).format(price || 0);
   };
 
-  const truncateId = (id) => {
-    return id ? `${id.substring(0, 8)}...` : 'N/A';
-  };
-
-  const calculateRevenue = (stockOut) => {
-    return (stockOut.quantity || 0) * (stockOut.soldPrice || 0);
-  };
-
-  const calculateProfit = (stockOut) => {
-    if (!stockOut.stockin || !stockOut.quantity || !stockOut.soldPrice) return 0;
-    const costPrice = stockOut.stockin.price || 0;
-    const soldPrice = stockOut.soldPrice || 0;
-    return (soldPrice - costPrice) * stockOut.quantity;
-  };
 
   // Pagination handlers
   const handlePageChange = (page) => {
@@ -353,7 +339,7 @@ setIsInvoiceNoteOpen(true);
   const CardView = () => (
     <div className="md:hidden">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-        {currentItems.map((stockOut, index) => (
+        {currentItems.map((stockOut) => (
           <div key={stockOut.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
