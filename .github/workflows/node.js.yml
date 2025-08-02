@@ -1,0 +1,50 @@
+name: Deploy Fullstack App
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⏬ Checkout code
+        uses: actions/checkout@v4
+
+      # === FRONTEND DEPLOYMENT ===
+      - name: 📦 Install frontend dependencies
+        run: npm install
+        working-directory: ./frontend
+
+      - name: 🛠 Build frontend (Vite)
+        run: npm run build
+        working-directory: ./frontend
+
+      - name: 📂 Upload frontend build to Shared Hosting (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ftp.abyinventory.com
+          username: deploy@abyinventory.com
+          password: Abyinvetory12@
+          local-dir: ./frontend/dist/
+          server-dir: /
+
+      # === BACKEND DEPLOYMENT ===
+      - name: 📦 Install backend dependencies
+        run: npm install
+        working-directory: ./backend
+
+      - name: 🛠 Build backend
+        run: npm run build
+        working-directory: ./backend
+
+      - name: 📂 Upload backend to VPS via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 162.0.224.102
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "backend/**"
+          target: "/var/www/abyinvetory"
+          strip_components: 1

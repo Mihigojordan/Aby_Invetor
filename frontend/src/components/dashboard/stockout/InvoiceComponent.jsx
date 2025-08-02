@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import stockOutService from '../../../services/stockOutService';
+import stockOutService from '../../../services/stockoutService';
 import Swal from 'sweetalert2';
 import CompanyLogo from '../../../assets/images/abytech-logo.png'
 import signature from '../../../assets/images/signature.webp'
@@ -179,6 +179,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
         timer: 3000,
         timerProgressBar: true
       });
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       Swal.fire({
         icon: 'error',
@@ -231,6 +232,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
         timer: 3000,
         timerProgressBar: true
       });
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       console.error('PDF generation error:', error);
       Swal.fire({
