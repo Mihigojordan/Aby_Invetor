@@ -48,7 +48,3 @@ jobs:
           source: "backend/**"
           target: "/var/www/abyinvetory"
           strip_components: 1
-    
-
-      - name: 🚀 Execute deploy.sh on VPS
-        run: ssh -o StrictHostKeyChecking=no root@162.0.224.102 'cd /var/www/abyinvetory && chmod +x deploy.sh && ./deploy.sh'
