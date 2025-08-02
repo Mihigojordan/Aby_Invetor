@@ -1,4 +1,4 @@
-import api from '../api/api'; // Adjust the import path as needed
+import api, { API_URL } from '../api/api'; // Adjust the import path as needed
 
 /**
  * StockOut Service for Frontend
@@ -219,6 +219,12 @@ async createMultipleStockOut(salesArray, clientInfo = {}, userInfo = {}) {
     }
   }
 
+   getBarCodeUrlImage  (code){
+    if(!code){
+      return null
+    }
+    return `${API_URL}/uploads/barcodes/${code}.png`;
+  }
   /**
    * Utility function to validate stock-out data before sending
    * @param {Object} stockOutData - Stock-out data to validate

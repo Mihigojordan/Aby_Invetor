@@ -24,6 +24,7 @@ import ProtectPrivateEmployee from "../components/protectors/employee/ProtectPri
 import EmployeeProfile from "../page/dashboard/EmployeeProfileManagement";
 import StockOutManagment from "../page/dashboard/StockOutManagment";
 import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
+import AdminProfile from "../page/dashboard/AdminProfile";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -121,6 +122,14 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                            {
+                                path:"profile",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <AdminProfile role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            }
                         ]
                     }
                 ]
