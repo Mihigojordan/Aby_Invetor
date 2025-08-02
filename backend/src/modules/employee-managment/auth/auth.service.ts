@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs'
 import { Response } from 'express';
-import { ActivityManagementService } from 'src/Modules/activity-managament/activity.service';
+import { ActivityManagementService } from 'src/modules/activity-managament/activity.service';
 
 @Injectable()
 export class EmployeeAuthService {
