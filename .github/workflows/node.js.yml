@@ -5,30 +5,12 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
 
     steps:
       - name: ⏬ Checkout code
         uses: actions/checkout@v4
-
-      - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-
-      # === BACKEND ===
-      - name: 📦 Install backend dependencies
-        run: npm install
-
-      - name: 🛠 Build backend
-        run: npm run build
-
-      - name: 🗄 Run backend migrations
-        run: npx prisma migrate deploy # Adjust based on your command
 
       # === FRONTEND ===
       - name: 📦 Install frontend dependencies
@@ -39,10 +21,8 @@ jobs:
         run: npm run build
         working-directory: ./frontend
 
-      # === DEPLOY (Manual/FTP) ===
-      - name: 📂 Upload to CPanel via FTP
+      - name: 📂 Upload frontend build to CPanel
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-
         with:
           server: ftp.abyinventory.com
           username: deploy@abyinventory.com
@@ -50,12 +30,12 @@ jobs:
           local-dir: ./frontend/dist
           server-dir: /public_html/
 
-      - name: 📂 Upload backend to CPanel
+      # === BACKEND (Raw source only) ===
+      - name: 📂 Upload backend source to CPanel
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-
         with:
           server: ftp.abyinventory.com
           username: deploy@abyinventory.com
           password: Abyinvetory12@
-          local-dir: ./backend/dist
+          local-dir: ./backend
           server-dir: /backend/
