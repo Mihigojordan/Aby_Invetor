@@ -163,7 +163,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
   ];
 
   const getProfileRoute = () => {
-    return role === 'admin' ? '/admin/profile' : '/employee/dashboard/profile'
+    return role === 'admin' ? '/admin/dashboard/profile' : '/employee/dashboard/profile'
   }
 
   const handleNavigateProfile = () => {

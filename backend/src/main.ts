@@ -11,7 +11,7 @@ async function bootstrap() {
 
   app.use(cookieParser());
   app.enableCors({
-    origin:[ process.env.CORS_ORIGIN , 'http://localhost:5173' , 'http://localhost:4173'],
+    origin:[ process.env.CORS_ORIGIN , 'http://localhost:5173' , 'http://localhost:4173','https://abyinventory.com'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -40,6 +40,6 @@ async function bootstrap() {
   }),
 );
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 6000);
 }
 bootstrap();
