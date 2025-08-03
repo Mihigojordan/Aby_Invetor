@@ -40,7 +40,10 @@ import {
   ClipboardList,
   TagIcon,
   StoreIcon,
-  Undo2Icon
+  Undo2Icon,
+  RotateCcw,
+  ArrowDown,
+  ArrowUp
 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { NavLink, replace, useNavigate } from "react-router-dom";
@@ -61,106 +64,101 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     }));
   };
 
-  const adminItems = [
-    {
-      key: 'dashboard',
-      label: 'Dashboard',
-      icon: Home,
-      path: '/admin/dashboard'
-    },
-    {
-      key: 'employees',
-      label: 'Employees',
-      icon: User2,
-      path: '/admin/dashboard/employee'
-    },
-    {
-      key: 'positions',
-      label: 'Positions',
-      icon: ClipboardList,
-      path: '/admin/dashboard/position'
-    },
-    {
-      key: 'category',
-      label: 'Category',
-      icon: Layers,
-      path: '/admin/dashboard/category'
-    },
-    {
-      key: 'products',
-      label: 'Products',
-      icon: TagIcon,
-      path: '/admin/dashboard/product'
-    },
-    {
-      key: 'stockin',
-      label: 'Stock In',
-      icon: StoreIcon,
-      path: '/admin/dashboard/stockin'
-    },
-    {
-      key: 'stockout',
-      label: 'Stock Out',
-      icon: StoreIcon,
-      path: '/admin/dashboard/stockout'
-    },
-     {
-      key: 'returning',
-      label: 'Sales Returns',
-     
-      icon: Undo2Icon,
-      path: '/admin/dashboard/sales-return'
-    },
-   
-  ];
+const adminItems = [
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    icon: Home, // Perfect for dashboard
+    path: '/admin/dashboard'
+  },
+  {
+    key: 'employees',
+    label: 'Employees',
+    icon: Users, // Better than User2 for multiple employees
+    path: '/admin/dashboard/employee'
+  },
+  {
+    key: 'positions',
+    label: 'Positions',
+    icon: Briefcase, // More appropriate than ClipboardList for job positions
+    path: '/admin/dashboard/position'
+  },
+  {
+    key: 'category',
+    label: 'Category',
+    icon: Layers, // Good choice, keep as is
+    path: '/admin/dashboard/category'
+  },
+  {
+    key: 'products',
+    label: 'Products',
+    icon: Package, // Better than TagIcon for products/inventory
+    path: '/admin/dashboard/product'
+  },
+  {
+    key: 'stockin',
+    label: 'Stock In',
+    icon: ArrowDown, // Clear indication of incoming stock
+    path: '/admin/dashboard/stockin'
+  },
+  {
+    key: 'stockout',
+    label: 'Stock Out',
+    icon: ArrowUp, // Clear indication of outgoing stock
+    path: '/admin/dashboard/stockout'
+  },
+  {
+    key: 'returning',
+    label: 'Sales Returns',
+    icon: RotateCcw, // Better than Undo2Icon for returns/refunds
+    path: '/admin/dashboard/sales-return'
+  },
+];
 
-  const employeeItems = [
-    {
-      key: 'dashboard',
-      label: 'Dashboard',
-      icon: Home,
-      path: '/employee/dashboard',
-      alwaysShow: true // Always show dashboard for employees
-    },
-    {
-      key: 'category_receiving_returning',
-      label: 'Category',
-      taskname:[ 'receiving','returning'],
-      icon: Layers,
-      path: '/employee/dashboard/category'
-    },
-
-    {
-      key: 'product_receiving_returning',
-      label: 'Product',
-      taskname:[ 'receiving','returning'],
-      icon: TagIcon,
-      path: '/employee/dashboard/product'
-    },
-    {
-      key: 'stockin_receiving',
-      label: 'Stock In (Purchase)',
-      taskname: ['receiving'],
-      icon: StoreIcon,
-      path: '/employee/dashboard/stockin'
-    },
-     {
-      key: 'stockout',
-      label: 'Stock Out (Sale)',
-      taskname: ['saling'],
-      icon: StoreIcon,
-      path: '/employee/dashboard/stockout'
-    },
-    {
-      key: 'returning',
-      label: 'Sales Returns',
-      taskname: ['returning'],
-      icon: Undo2Icon,
-      path: '/employee/dashboard/sales-return'
-    },
-   
-
-  ];
+const employeeItems = [
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    icon: Home, // Perfect for dashboard
+    path: '/employee/dashboard',
+    alwaysShow: true
+  },
+  {
+    key: 'category_receiving_returning',
+    label: 'Category',
+    taskname: ['receiving', 'returning'],
+    icon: Layers, // Good choice, keep as is
+    path: '/employee/dashboard/category'
+  },
+  {
+    key: 'product_receiving_returning',
+    label: 'Product',
+    taskname: ['receiving', 'returning'],
+    icon: Package, // Better than TagIcon for products
+    path: '/employee/dashboard/product'
+  },
+  {
+    key: 'stockin_receiving',
+    label: 'Stock In (Purchase)',
+    taskname: ['receiving'],
+    icon: ArrowDown, // Clear indication of incoming stock
+    path: '/employee/dashboard/stockin'
+  },
+  {
+    key: 'stockout',
+    label: 'Stock Out (Sale)',
+    taskname: ['saling'],
+    icon: ShoppingCart, // More specific for sales than generic ArrowUp
+    path: '/employee/dashboard/stockout'
+  },
+  {
+    key: 'returning',
+    label: 'Sales Returns',
+    taskname: ['returning'],
+    icon: RotateCcw, // Better than Undo2Icon for returns
+    path: '/employee/dashboard/sales-return'
+  },
+];
 
   const getProfileRoute = () => {
     return role === 'admin' ? '/admin/dashboard/profile' : '/employee/dashboard/profile'

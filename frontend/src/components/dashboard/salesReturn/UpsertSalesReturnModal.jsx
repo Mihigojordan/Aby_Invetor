@@ -1,16 +1,31 @@
 import { useEffect, useState } from "react";
-import { Search, Package, DollarSign, Hash, User, Mail, Phone, Calendar, RotateCcw, AlertTriangle, Check } from 'lucide-react';
-import stockOutService from "../../../services/stockoutService";
+import { Search, Package, DollarSign, Hash, User, Mail, Phone, Calendar, RotateCcw, AlertTriangle, Check, X, Info } from 'lucide-react';
+import stockOutService from "../../../services/stockOutService";
 
 // Modal Component for Sales Return
-const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title }) => {
+const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, currentUser, userRole }) => {
   const [transactionId, setTransactionId] = useState('');
+  const [reason, setReason] = useState('');
   const [soldProducts, setSoldProducts] = useState([]);
-  const [selectedReturns, setSelectedReturns] = useState([]);
+  const [selectedItems, setSelectedItems] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+
+  // Predefined return reasons
+  const commonReasons = [
+    'Defective product',
+    'Wrong item ordered',
+    'Damaged during shipping',
+    'Customer changed mind',
+    'Product expired',
+    'Size/color mismatch',
+    'Quality issues',
+    'Not as described',
+    'Duplicate order',
+    'Other'
+  ];
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -21,8 +36,9 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
 
   const resetForm = () => {
     setTransactionId('');
+    setReason('');
     setSoldProducts([]);
-    setSelectedReturns([]);
+    setSelectedItems([]);
     setIsSearching(false);
     setSearchError('');
     setHasSearched(false);
@@ -43,10 +59,21 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
       const response = await stockOutService.getStockOutByTransactionId(transactionId.trim());
       
       if (response && response.length > 0) {
-        setSoldProducts(response);
-        setHasSearched(true);
-        // Initialize selected returns array
-        setSelectedReturns([]);
+        // Filter out items that have already been fully returned
+        const availableProducts = response.filter(product => {
+          // Check if product has remaining quantity available for return
+          return product.quantity > 0;
+        });
+
+        if (availableProducts.length > 0) {
+          setSoldProducts(availableProducts);
+          setHasSearched(true);
+          setSelectedItems([]);
+        } else {
+          setSoldProducts([]);
+          setSearchError('All products from this transaction have already been returned');
+          setHasSearched(true);
+        }
       } else {
         setSoldProducts([]);
         setSearchError('No products found for this transaction ID');
@@ -62,27 +89,27 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
     }
   };
 
-  const handleProductSelect = (stockoutId, isSelected) => {
+  const handleItemSelect = (stockoutId, isSelected) => {
     if (isSelected) {
-      // Add to selected returns
       const product = soldProducts.find(p => p.id === stockoutId);
       if (product) {
-        setSelectedReturns(prev => [...prev, {
+        const newItem = {
           stockoutId: stockoutId,
-          reason: '',
+          quantity: 1, // Default to 1 instead of full quantity
           maxQuantity: product.quantity,
-          quantity: product.quantity, // Default to full quantity
           productName: product.stockin?.product?.productName || 'Unknown Product',
-          soldPrice: product.soldPrice,
+          sku: product.stockin?.product?.sku || 'N/A',
+          unitPrice: product.soldPrice ? (product.soldPrice / product.quantity) : 0,
+          soldPrice: product.soldPrice || 0,
           soldQuantity: product.quantity
-        }]);
+        };
+        setSelectedItems(prev => [...prev, newItem]);
       }
     } else {
-      // Remove from selected returns
-      setSelectedReturns(prev => prev.filter(item => item.stockoutId !== stockoutId));
+      setSelectedItems(prev => prev.filter(item => item.stockoutId !== stockoutId));
     }
     
-    // Clear validation error for this product
+    // Clear validation error for this item
     setValidationErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[stockoutId];
@@ -90,17 +117,18 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
     });
   };
 
-  const handleReasonChange = (stockoutId, reason) => {
-    setSelectedReturns(prev => 
+  const handleQuantityChange = (stockoutId, quantity) => {
+    const numQuantity = parseInt(quantity) || 0;
+    setSelectedItems(prev => 
       prev.map(item => 
         item.stockoutId === stockoutId 
-          ? { ...item, reason } 
+          ? { ...item, quantity: Math.min(Math.max(0, numQuantity), item.maxQuantity) } 
           : item
       )
     );
-    
-    // Clear validation error for this product
-    if (reason.trim()) {
+
+    // Clear validation error if quantity is valid
+    if (numQuantity > 0) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[stockoutId];
@@ -109,41 +137,40 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
     }
   };
 
-  const handleQuantityChange = (stockoutId, quantity) => {
-    const numQuantity = parseInt(quantity) || 0;
-    setSelectedReturns(prev => 
-      prev.map(item => 
-        item.stockoutId === stockoutId 
-          ? { ...item, quantity: numQuantity } 
-          : item
-      )
-    );
-  };
-
   const validateForm = () => {
     const errors = {};
     let isValid = true;
 
-    if (selectedReturns.length === 0) {
-      setSearchError('Please select at least one product to return');
+    if (!transactionId.trim()) {
+      setSearchError('Transaction ID is required');
       return false;
     }
 
-    selectedReturns.forEach(item => {
-      if (!item.reason.trim()) {
-        errors[item.stockoutId] = 'Return reason is required';
+    if (!reason.trim()) {
+      setSearchError('Return reason is required');
+      return false;
+    }
+
+    if (selectedItems.length === 0) {
+      setSearchError('Please select at least one item to return');
+      return false;
+    }
+
+    selectedItems.forEach(item => {
+      if (item.quantity <= 0) {
+        errors[item.stockoutId] = 'Quantity must be greater than 0';
         isValid = false;
       }
       
-      if (item.quantity <= 0 || item.quantity > item.maxQuantity) {
-        errors[item.stockoutId] = `Quantity must be between 1 and ${item.maxQuantity}`;
+      if (item.quantity > item.maxQuantity) {
+        errors[item.stockoutId] = `Quantity cannot exceed ${item.maxQuantity}`;
         isValid = false;
       }
     });
 
     setValidationErrors(errors);
     if (!isValid) {
-      setSearchError('');
+      setSearchError('Please fix the quantity errors below');
     }
     
     return isValid;
@@ -156,12 +183,11 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
       return;
     }
 
-    // Prepare the data in the format expected by the service
+    // Prepare the data in the format expected by the backend
     const returnData = {
-      returns: selectedReturns.map(item => ({
-        transactionId: transactionId.trim(),
-        reason: item.reason.trim(),
-        // You might want to include additional fields based on your backend requirements
+      transactionId: transactionId.trim(),
+      reason: reason.trim(),
+      items: selectedItems.map(item => ({
         stockoutId: item.stockoutId,
         quantity: item.quantity
       }))
@@ -174,7 +200,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(price);
+    }).format(price || 0);
   };
 
   const formatDate = (dateString) => {
@@ -188,34 +214,64 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
   };
 
   const calculateTotalRefund = () => {
-    return selectedReturns.reduce((total, item) => {
-      const unitPrice = item.soldPrice / item.soldQuantity;
-      return total + (unitPrice * item.quantity);
+    return selectedItems.reduce((total, item) => {
+      return total + (item.unitPrice * item.quantity);
     }, 0);
   };
 
-  const isProductSelected = (stockoutId) => {
-    return selectedReturns.some(item => item.stockoutId === stockoutId);
+  const calculateTotalQuantity = () => {
+    return selectedItems.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const getSelectedProduct = (stockoutId) => {
-    return selectedReturns.find(item => item.stockoutId === stockoutId);
+  const isItemSelected = (stockoutId) => {
+    return selectedItems.some(item => item.stockoutId === stockoutId);
+  };
+
+  const getSelectedItem = (stockoutId) => {
+    return selectedItems.find(item => item.stockoutId === stockoutId);
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg w-full max-w-6xl mx-4 max-h-[95vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl w-full max-w-6xl mx-4 max-h-[95vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-          <p className="text-sm text-gray-600 mt-1">Search for a transaction and select products to return</p>
+        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-blue-50">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <RotateCcw className="w-5 h-5 text-primary-600" />
+                {title}
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">Search for a transaction and select items to return</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X size={20} className="text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
+            {/* User Info */}
+            {currentUser && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <User size={16} className="text-blue-600" />
+                  <span className="font-medium text-blue-900">Processing as: {userRole}</span>
+                </div>
+                <p className="text-sm text-blue-700">
+                  {userRole === 'admin' ? currentUser.adminName : `${currentUser.firstname} ${currentUser.lastname}`}
+                  {currentUser.email && ` (${currentUser.email})`}
+                </p>
+              </div>
+            )}
+
             {/* Transaction Search Section */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -231,7 +287,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
                       setSearchError('');
                     }}
                     onKeyPress={(e) => e.key === 'Enter' && handleSearchTransaction()}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                     placeholder="Enter transaction ID (e.g., ABTR64943)"
                     disabled={isSearching}
                   />
@@ -240,7 +296,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
                   type="button"
                   onClick={handleSearchTransaction}
                   disabled={isSearching || !transactionId.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors font-medium"
                 >
                   {isSearching ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -252,7 +308,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
               </div>
               
               {searchError && (
-                <div className="mt-2 flex items-center gap-2 text-red-600 text-sm">
+                <div className="mt-2 flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200">
                   <AlertTriangle size={16} />
                   {searchError}
                 </div>
@@ -263,12 +319,15 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
             {hasSearched && soldProducts.length > 0 && (
               <>
                 {/* Transaction Info */}
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-medium text-gray-900 mb-2">Transaction Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                    <Info size={16} className="text-gray-600" />
+                    Transaction Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <Hash size={14} className="text-gray-400" />
-                      <span className="text-gray-600">Transaction ID:</span>
+                      <span className="text-gray-600">ID:</span>
                       <span className="font-medium">{soldProducts[0]?.transactionId}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -285,7 +344,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
                       <div className="flex items-center gap-2">
                         <Mail size={14} className="text-gray-400" />
                         <span className="text-gray-600">Email:</span>
-                        <span className="font-medium">{soldProducts[0].clientEmail}</span>
+                        <span className="font-medium text-xs">{soldProducts[0].clientEmail}</span>
                       </div>
                     )}
                     {soldProducts[0]?.clientPhone && (
@@ -295,26 +354,82 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
                         <span className="font-medium">{soldProducts[0].clientPhone}</span>
                       </div>
                     )}
+                    <div className="flex items-center gap-2">
+                      <Package size={14} className="text-gray-400" />
+                      <span className="text-gray-600">Total Items:</span>
+                      <span className="font-medium">{soldProducts.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Return Reason Section */}
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                    <Info size={16} className="text-yellow-600" />
+                    Return Reason <span className="text-red-500">*</span>
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Please provide a reason for this return. This will apply to all returned items.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Common Reason
+                      </label>
+                      <select
+                        value={reason}
+                        onChange={(e) => {
+                          setReason(e.target.value);
+                          setSearchError('');
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      >
+                        <option value="">Select a reason...</option>
+                        {commonReasons.map((commonReason) => (
+                          <option key={commonReason} value={commonReason}>{commonReason}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Or Enter Custom Reason
+                      </label>
+                      <input
+                        type="text"
+                        value={reason}
+                        onChange={(e) => {
+                          setReason(e.target.value);
+                          setSearchError('');
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="Enter custom reason"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* Products List */}
                 <div className="mb-6">
-                  <h3 className="font-medium text-gray-900 mb-4">Select Products to Return</h3>
+                  <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <Package size={16} className="text-gray-600" />
+                    Select Items to Return
+                  </h3>
                   <div className="space-y-3">
                     {soldProducts.map((product) => {
-                      const isSelected = isProductSelected(product.id);
-                      const selectedProduct = getSelectedProduct(product.id);
+                      const isSelected = isItemSelected(product.id);
+                      const selectedItem = getSelectedItem(product.id);
                       const hasError = validationErrors[product.id];
+                      const unitPrice = product.soldPrice ? (product.soldPrice / product.quantity) : 0;
 
                       return (
                         <div
                           key={product.id}
-                          className={`border rounded-lg p-4 transition-colors ${
+                          className={`border rounded-lg p-4 transition-all duration-200 ${
                             isSelected 
-                              ? 'border-blue-300 bg-blue-50' 
-                              : 'border-gray-200 hover:border-gray-300'
-                          } ${hasError ? 'border-red-300' : ''}`}
+                              ? 'border-primary-300 bg-primary-50 shadow-sm' 
+                              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                          } ${hasError ? 'border-red-300 bg-red-50' : ''}`}
                         >
                           <div className="flex items-start gap-4">
                             {/* Checkbox */}
@@ -322,85 +437,78 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
                               <input
                                 type="checkbox"
                                 checked={isSelected}
-                                onChange={(e) => handleProductSelect(product.id, e.target.checked)}
-                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                onChange={(e) => handleItemSelect(product.id, e.target.checked)}
+                                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                               />
                             </div>
 
                             {/* Product Info */}
                             <div className="flex-1">
-                              <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
-                                    <Package size={16} />
+                                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white">
+                                    <Package size={18} />
                                   </div>
                                   <div>
-                                    <h4 className="font-medium text-gray-900">
+                                    <h4 className="font-medium text-gray-900 text-lg">
                                       {product.stockin?.product?.productName || 'Unknown Product'}
                                     </h4>
-                                    <p className="text-sm text-gray-500">
-                                      SKU: {product.stockin?.sku || 'N/A'}
-                                    </p>
+                                    <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                                      <span>SKU: {product.stockin?.product?.sku || 'N/A'}</span>
+                                      <span>•</span>
+                                      <span>Available: {product.quantity} units</span>
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <div className="font-semibold text-gray-900">
+                                  <div className="font-semibold text-gray-900 text-lg">
                                     {formatPrice(product.soldPrice)}
                                   </div>
                                   <div className="text-sm text-gray-500">
-                                    Qty: {product.quantity}
+                                    {formatPrice(unitPrice)} per unit
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Return Details (shown when selected) */}
-                              {isSelected && selectedProduct && (
-                                <div className="mt-4 p-3 bg-white rounded border border-gray-200">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Quantity Selection (shown when selected) */}
+                              {isSelected && selectedItem && (
+                                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                     {/* Quantity to Return */}
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Quantity to Return <span className="text-red-500">*</span>
                                       </label>
                                       <input
                                         type="number"
                                         min="1"
-                                        max={selectedProduct.maxQuantity}
-                                        value={selectedProduct.quantity}
+                                        max={selectedItem.maxQuantity}
+                                        value={selectedItem.quantity}
                                         onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 text-center font-medium ${
+                                          hasError
+                                            ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                                            : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'
+                                        }`}
                                       />
-                                      <p className="text-xs text-gray-500 mt-1">
-                                        Max returnable: {selectedProduct.maxQuantity}
+                                      <p className="text-xs text-gray-500 mt-1 text-center">
+                                        Max: {selectedItem.maxQuantity}
                                       </p>
                                     </div>
 
-                                    {/* Return Reason */}
+                                    {/* Refund Calculation */}
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Return Reason <span className="text-red-500">*</span>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Refund Amount
                                       </label>
-                                      <input
-                                        type="text"
-                                        value={selectedProduct.reason}
-                                        onChange={(e) => handleReasonChange(product.id, e.target.value)}
-                                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
-                                          hasError
-                                            ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                                            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                                        }`}
-                                        placeholder="e.g., Defective, Wrong size, Customer changed mind"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {/* Refund Calculation */}
-                                  <div className="mt-3 pt-3 border-t border-gray-100">
-                                    <div className="flex justify-between items-center text-sm">
-                                      <span className="text-gray-600">Refund Amount:</span>
-                                      <span className="font-semibold text-green-600">
-                                        {formatPrice((product.soldPrice / product.quantity) * selectedProduct.quantity)}
-                                      </span>
+                                      <div className="w-full px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-center">
+                                        <span className="font-bold text-green-600 text-lg">
+                                          {formatPrice(selectedItem.unitPrice * selectedItem.quantity)}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-gray-500 mt-1 text-center">
+                                        {formatPrice(selectedItem.unitPrice)} × {selectedItem.quantity}
+                                      </p>
                                     </div>
                                   </div>
                                 </div>
@@ -408,7 +516,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
 
                               {/* Validation Error */}
                               {hasError && (
-                                <div className="mt-2 flex items-center gap-2 text-red-600 text-sm">
+                                <div className="mt-3 flex items-center gap-2 text-red-600 text-sm bg-red-100 p-2 rounded-lg">
                                   <AlertTriangle size={14} />
                                   {hasError}
                                 </div>
@@ -422,30 +530,39 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
                 </div>
 
                 {/* Return Summary */}
-                {selectedReturns.length > 0 && (
+                {selectedItems.length > 0 && (
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <h4 className="font-medium text-green-900 mb-2 flex items-center gap-2">
+                    <h4 className="font-medium text-green-900 mb-3 flex items-center gap-2">
                       <Check size={16} />
                       Return Summary
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="text-green-700">Items to Return:</span>
-                        <span className="font-semibold ml-2">{selectedReturns.length}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                      <div className="text-center p-3 bg-white rounded-lg">
+                        <div className="text-2xl font-bold text-green-700">{selectedItems.length}</div>
+                        <div className="text-green-600">Items</div>
                       </div>
-                      <div>
-                        <span className="text-green-700">Total Quantity:</span>
-                        <span className="font-semibold ml-2">
-                          {selectedReturns.reduce((sum, item) => sum + item.quantity, 0)}
-                        </span>
+                      <div className="text-center p-3 bg-white rounded-lg">
+                        <div className="text-2xl font-bold text-green-700">{calculateTotalQuantity()}</div>
+                        <div className="text-green-600">Total Qty</div>
                       </div>
-                      <div>
-                        <span className="text-green-700">Total Refund:</span>
-                        <span className="font-semibold ml-2 text-green-800">
-                          {formatPrice(calculateTotalRefund())}
-                        </span>
+                      <div className="text-center p-3 bg-white rounded-lg">
+                        <div className="text-2xl font-bold text-green-700">{formatPrice(calculateTotalRefund())}</div>
+                        <div className="text-green-600">Total Refund</div>
+                      </div>
+                      <div className="text-center p-3 bg-white rounded-lg">
+                        <div className="text-2xl font-bold text-green-700">
+                          {formatPrice(calculateTotalRefund() / calculateTotalQuantity() || 0)}
+                        </div>
+                        <div className="text-green-600">Avg/Unit</div>
                       </div>
                     </div>
+                    
+                    {reason && (
+                      <div className="mt-4 p-3 bg-white rounded-lg border border-green-200">
+                        <div className="text-sm text-gray-600">Return Reason:</div>
+                        <div className="font-medium text-gray-900">{reason}</div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -453,11 +570,16 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
 
             {/* No Results Message */}
             {hasSearched && soldProducts.length === 0 && !searchError && (
-              <div className="text-center py-8">
-                <RotateCcw className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No Products Found</h3>
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <RotateCcw className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
                 <p className="text-gray-600">
-                  No sold products found for transaction ID: <strong>{transactionId}</strong>
+                  No returnable products found for transaction ID: <strong>{transactionId}</strong>
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  This could mean the transaction doesn't exist or all items have already been returned.
                 </p>
               </div>
             )}
@@ -470,14 +592,14 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              disabled={isLoading || selectedReturns.length === 0}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              disabled={isLoading || selectedItems.length === 0 || !reason.trim()}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 font-medium"
             >
               {isLoading ? (
                 <>
@@ -487,7 +609,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title })
               ) : (
                 <>
                   <RotateCcw size={16} />
-                  Process Return ({selectedReturns.length} items)
+                  Process Return ({selectedItems.length} items, {calculateTotalQuantity()} qty)
                 </>
               )}
             </button>
