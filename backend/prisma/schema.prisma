@@ -89,7 +89,7 @@ model Product {
 
 model StockIn {
   id           String     @id @default(uuid())
-  productId    String?
+  productId    String
   adminId      String?
   employeeId   String?
   quantity     Int?

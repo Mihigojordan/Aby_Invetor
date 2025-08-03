@@ -464,9 +464,9 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
                     {/* Product Selection */}
-                    <div className="md:col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Product <span className="text-red-500">*</span>
                       </label>
@@ -532,7 +532,10 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
 
                     {/* Price per Unit */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="md:hidden text-sm font-medium text-gray-700 mb-1">
+                        Price <span className="text-red-500">*</span>
+                      </label>
+                      <label className=" hidden md:block text-sm font-medium text-gray-700 mb-1">
                         Price per Unit <span className="text-red-500">*</span>
                       </label>
                       <input

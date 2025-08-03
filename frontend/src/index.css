@@ -49,3 +49,7 @@
     display: none !important;
   }
 }
+
+Body{
+  overflow-x:hidden;
+}

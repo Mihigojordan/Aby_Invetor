@@ -72,11 +72,6 @@ const Header = ({ onToggle, role }) => {
     return role === 'admin' ? 'Administrator' : 'Employee'
   }
 
-  // Get role-specific styling
-  const getRoleColor = () => {
-    return role === 'admin' ? 'primary' : 'blue'
-  }
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -107,14 +102,14 @@ const Header = ({ onToggle, role }) => {
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="px-6 py-4">
+      <div className="px-6 py-3">
         <div className="flex md:items-center flex-wrap justify-center gap-3 md:gap-0 md:justify-between">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
               <div className={`w-8 h-8 ${role === 'admin' ? 'bg-primary-600' : 'bg-blue-600'} rounded-lg lg:hidden flex items-center justify-center cursor-pointer`} onClick={onToggle}>
                 <Menu className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">Welcome to Umusingi</h1>
+              <h1 className="text-xl font-bold text-gray-900">Welcome  Umusingi Hardware</h1>
             </div>
           </div>
           

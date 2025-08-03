@@ -146,13 +146,6 @@ const CategoryManagement = ({role}) => {
 
 
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
 
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">

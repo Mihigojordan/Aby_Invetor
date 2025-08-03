@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Shield, Eye, EyeOff, Lock, Save, BarChart3, X, XCircle } from 'lucide-react';
-import useEmployeeAuth from '../../../context/EmployeeAuthContext';
 
 import GeneralInformation from './GeneralInformation';
 
