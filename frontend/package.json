@@ -7,10 +7,7 @@
         "dev": "vite",
         "build": "vite build",
         "lint": "eslint .",
-        "preview": "vite preview ",
-        "watch": "chokidar 'src/**' -c 'vite build'",
-        "livereload": "livereload dist --port 35729",
-        "prod-dev": "concurrently \"npm run preview\" \"npm run livereload\" \"npm run watch\""
+        "preview": "vite preview "
     },
     "dependencies": {
         "@lexical/react": "^0.33.1",
