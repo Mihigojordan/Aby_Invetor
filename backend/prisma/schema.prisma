@@ -144,7 +144,7 @@ model SalesReturn {
   id        String              @id @default(uuid())
   transactionId String?
   reason    String?
-  createdAt DateTime            @default(now())
+  createdAt DateTime           
   items     SalesReturnItem[]
 }
 

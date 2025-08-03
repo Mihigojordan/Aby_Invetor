@@ -94,6 +94,7 @@ export class AdminService {
   async adminLogin(data: { adminEmail: string; password: string }) {
     try {
       const { adminEmail, password } = data;
+     
 
       const admin = await this.findAdminByEmail(adminEmail);
 

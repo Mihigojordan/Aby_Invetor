@@ -1,32 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import stockOutService from '../../../services/stockoutService';
 import Swal from 'sweetalert2';
+import html2pdf from 'html2pdf.js';
+import salesReturnService from '../../../services/salesReturnService';
 import CompanyLogo from '../../../assets/images/applogo_rm_bg.png'
 import signature from '../../../assets/images/signature.webp'
-import html2pdf from 'html2pdf.js';
+import stockOutService from '../../../services/stockOutService';
 
-const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
-  const [invoiceData, setInvoiceData] = useState(null);
+const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
+  const [creditNoteData, setCreditNoteData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState({
     email: false,
     pdf: false
   });
 
-
-
   useEffect(() => {
-    const getInvoiceData = async () => {
+    const getCreditNoteData = async () => {
       try {
         setLoading(true);
-        const response = await stockOutService.getStockOutByTransactionId(transactionId);
-        setInvoiceData(response);
+        const response = await salesReturnService.getSalesReturnById(salesReturnId)
+        setCreditNoteData(response.data);
       } catch (error) {
         console.log(error.message);
         Swal.fire({
           icon: 'error',
-          title: 'Error Loading Invoice',
-          text: 'Failed to load invoice data. Please try again.',
+          title: 'Error Loading Credit Note',
+          text: 'Failed to load credit note data. Please try again.',
           confirmButtonColor: '#3b82f6'
         });
       } finally {
@@ -34,24 +33,13 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       }
     };
 
-    if (isOpen && transactionId) {
-      getInvoiceData();
+    if (isOpen && salesReturnId) {
+      getCreditNoteData();
     }
-  }, [transactionId, isOpen]);
+  }, [salesReturnId, isOpen]);
 
-  // Get user info from invoiceData
+  // Get user info (same as invoice)
   const getUserInfo = () => {
-    if (!invoiceData || invoiceData.length === 0) {
-      return {
-        name: 'Unknown User',
-        email: 'N/A',
-        title: '',
-        role: 'unknown'
-      };
-    }
-
-
-
     return {
       name: 'Sadiki Rukara',
       email: 'abyridellc@gmail.com',
@@ -66,16 +54,14 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const companyInfo = {
     logo: CompanyLogo,
     companyName: 'Umusingi Hardware',
-    companyAddress: 'Kigali,Rwanda',
+    companyAddress: 'Kigali, Rwanda',
+  };
 
-
-  }
-
-  // Extract client info from the first invoice item
-  const clientInfo = invoiceData?.length > 0 ? {
-    clientName: invoiceData[0].clientName || 'N/A',
-    clientEmail: invoiceData[0].clientEmail || 'N/A',
-    clientPhone: invoiceData[0].clientPhone || 'N/A'
+  // Extract client info from the first item
+  const clientInfo = creditNoteData?.items?.length > 0 ? {
+    clientName: creditNoteData.items[0].stockout.clientName || 'N/A',
+    clientEmail: creditNoteData.items[0].stockout.clientEmail || 'N/A',
+    clientPhone: creditNoteData.items[0].stockout.clientPhone || 'N/A'
   } : {
     clientName: 'N/A',
     clientEmail: 'N/A',
@@ -83,8 +69,8 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   };
 
   // Calculate totals
-  const subtotal = invoiceData?.reduce((sum, item) => sum + item.soldPrice, 0) || 0;
-  const vatRate = 0.05; // 5% VAT
+  const subtotal = creditNoteData?.items?.reduce((sum, item) => sum + item.stockout.soldPrice, 0) || 0;
+  const vatRate = 0.05; // 5% VAT (matching invoice)
   const vat = subtotal * vatRate;
   const total = subtotal + vat;
 
@@ -144,11 +130,20 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
     return 'Dollar ' + result.trim();
   };
 
+  const generateCreditNoteNumber = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+    return `CN-${year}-${month}${day}-${random}`;
+  };
+
   // Handle close with confirmation
   const handleClose = () => {
     Swal.fire({
-      title: 'Close Invoice?',
-      text: 'Are you sure you want to close this invoice? Any unsaved changes will be lost.',
+      title: 'Close Credit Note?',
+      text: 'Are you sure you want to close this credit note?',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
@@ -163,50 +158,20 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
     });
   };
 
-  // Handle email sending
-  const handleSendEmail = async () => {
-    setActionLoading(prev => ({ ...prev, email: true }));
-
-    try {
-      // Simulate API call - replace with your actual email service
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Email Sent!',
-        text: `Invoice has been sent to ${clientInfo.clientEmail}`,
-        confirmButtonColor: '#10b981',
-        timer: 3000,
-        timerProgressBar: true
-      });
-    // eslint-disable-next-line no-unused-vars
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Failed to Send Email',
-        text: 'Please try again later.',
-        confirmButtonColor: '#ef4444'
-      });
-    } finally {
-      setActionLoading(prev => ({ ...prev, email: false }));
-    }
-  };
-
-  // Handle PDF generation with html2pdf.js
+  // Handle PDF generation
   const handleGeneratePDF = async () => {
     setActionLoading(prev => ({ ...prev, pdf: true }));
 
     try {
-      const element = document.getElementById('print-section');
+      const element = document.getElementById('credit-note-print-section');
 
       if (!element) {
         throw new Error('Print section not found');
       }
 
-      // Configure html2pdf options
       const options = {
         margin: [10, 10, 10, 10],
-        filename: `Invoice-${transactionId}-${new Date().toDateString()}.pdf`,
+        filename: `Credit-Note-${creditNoteData?.transactionId}-${new Date().toDateString()}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
           scale: 2,
@@ -221,18 +186,16 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
         }
       };
 
-      // Generate and download PDF
       await html2pdf().set(options).from(element).save();
 
       Swal.fire({
         icon: 'success',
         title: 'PDF Generated!',
-        text: 'Invoice PDF has been downloaded successfully.',
+        text: 'Credit Note PDF has been downloaded successfully.',
         confirmButtonColor: '#3b82f6',
         timer: 3000,
         timerProgressBar: true
       });
-    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       console.error('PDF generation error:', error);
       Swal.fire({
@@ -246,10 +209,6 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
     }
   };
 
-  // Get transaction ID and creation date from first item
-  const transactionIdDisplay = invoiceData?.[0]?.transactionId || 'N/A';
-  const createdAt = invoiceData?.[0]?.createdAt || new Date().toISOString();
-
   if (!isOpen) {
     return null;
   }
@@ -260,23 +219,23 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Loading Invoice</h3>
-            <p className="text-gray-600">Please wait while we fetch your invoice data...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Loading Credit Note</h3>
+            <p className="text-gray-600">Please wait while we fetch your credit note data...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!invoiceData || invoiceData.length === 0) {
+  if (!creditNoteData) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <div className="text-red-500 text-5xl mb-4">⚠️</div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">No Invoice Data</h3>
-            <p className="text-gray-600 mb-4">Unable to load invoice information.</p>
+            <div className="text-primary-500 text-5xl mb-4">⚠️</div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">No Credit Note Data</h3>
+            <p className="text-gray-600 mb-4">Unable to load credit note information.</p>
             <button
               onClick={onClose}
               className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -289,42 +248,22 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
     );
   }
 
+  const creditNoteNumber = generateCreditNoteNumber();
+  const originalInvoiceDate = creditNoteData.items[0]?.stockout?.createdAt || creditNoteData.createdAt;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         {/* Action Bar */}
-        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
+        <div className="sticky top-0 bg-gradient-to-r from-primary-600 to-orange-600 z-[10] text-white p-4 rounded-t-lg">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Invoice #{transactionIdDisplay}</h2>
+            <h2 className="text-xl font-bold">Credit Note #{creditNoteNumber}</h2>
             <div className="flex gap-3">
-              {/* Email Button */}
-              {/*               
-              <button 
-                onClick={handleSendEmail}
-                disabled={actionLoading.email || actionLoading.pdf}
-                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg"
-              >
-                {actionLoading.email ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    Send Email
-                  </>
-                )}
-              </button>  
-              */}
-
               {/* PDF Button */}
               <button
                 onClick={handleGeneratePDF}
-                disabled={actionLoading.email || actionLoading.pdf}
-                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg"
+                disabled={actionLoading.pdf}
+                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg"
               >
                 {actionLoading.pdf ? (
                   <>
@@ -355,9 +294,9 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
           </div>
         </div>
 
-        {/* Invoice Content */}
+        {/* Credit Note Content */}
         <div
-          id="print-section"
+          id="credit-note-print-section"
           className="p-8 bg-white font-sans"
         >
           {/* Header */}
@@ -365,7 +304,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
             <div className="flex flex-col">
               <img
                 src={companyInfo.logo}
-                className="  w-44 h-44 scale-125 flex items-center justify-center font-bold text-xl mr-4"
+                className="w-44 h-44 scale-125 flex items-center justify-center font-bold text-xl mr-4"
               />
 
               <div className="mb-4">
@@ -374,12 +313,12 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               </div>
             </div>
             <div className="text-right">
-              <div className="bg-blue-500 text-white px-3 py-2 flex justify-end rounded text-sm font-semibold mb-2">
-                <p>INVOICE</p>
+              <div className="bg-primary-500 text-white px-3 py-2 flex justify-end rounded text-sm font-semibold mb-2">
+                <p>CREDIT NOTE</p>
               </div>
               <div className="text-sm text-gray-600">
-                <p className="font-semibold">Invoice No #{transactionIdDisplay}</p>
-                <p>Due Date: {formatDate(createdAt)}</p>
+                <p className="font-semibold">Credit Note No #{creditNoteNumber}</p>
+                <p>Issue Date: {formatDate(creditNoteData.createdAt)}</p>
               </div>
             </div>
           </div>
@@ -392,7 +331,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                 <p className="font-semibold text-lg">{userInfo.name}</p>
                 <p className="text-sm">Email: {userInfo.email}</p>
                 <p className="text-sm">Phone: {userInfo.phone}</p>
-                <p className="text-sm text-blue-600 font-medium">{userInfo.title}</p>
+                <p className="text-sm text-primary-600 font-medium">{userInfo.title}</p>
               </div>
             </div>
 
@@ -405,27 +344,33 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               </div>
             </div>
 
-
             <div className="flex items-center">
-              <img src={stockOutService.getBarCodeUrlImage(transactionId)} className='h-20 object-contain' alt="" />
+              <div className="bg-primary-100 p-4 rounded-lg">
+                <p className="text-sm text-primary-600 font-semibold">Original Invoice</p>
+                <p className="text-xs text-gray-600">{formatDate(originalInvoiceDate)}</p>
+                 <div className="py-3">
+                    <img src={stockOutService.getBarCodeUrlImage(creditNoteData.transactionId)} className='h-20 object-contain' alt="" />
+                 </div>
+              </div>
             </div>
           </div>
 
-          {/* Payment Status */}
+          {/* Return Information */}
           <div className="flex justify-between items-center mb-8">
             <div>
               <p className="text-gray-700">
-                <span className="font-semibold">Invoice For:</span> Product Sales Transaction
+                <span className="font-semibold">Credit Note For:</span> Product Return Transaction
+              </p>
+              <p className="text-gray-700">
+                <span className="font-semibold">Return Reason:</span> {creditNoteData.reason}
               </p>
             </div>
-
-
           </div>
 
-          {/* Invoice Table */}
+          {/* Credit Note Table */}
           <div className="mb-8">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-primary-50">
                 <tr>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Product</th>
                   <th className="text-center py-3 px-4 font-semibold text-gray-700">Qty</th>
@@ -434,17 +379,20 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
                 </tr>
               </thead>
               <tbody>
-                {invoiceData.map((item) => (
+                {creditNoteData.items.map((item) => (
                   <tr key={item.id} className="border-b border-gray-200">
                     <td className="py-3 px-4 text-gray-700">
-                      {item.stockin?.product?.productName || 'Product'}
+                      <div>
+                        <p className="font-medium">{item.stockout.stockin.product.productName}</p>
+                        <p className="text-xs text-gray-500">Brand: {item.stockout.stockin.product.brand}</p>
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-center text-gray-700">{item.quantity}</td>
                     <td className="py-3 px-4 text-right text-gray-700">
-                      {formatCurrency(item.soldPrice / item.quantity)}
+                      {formatCurrency(item.stockout.soldPrice / item.quantity)}
                     </td>
                     <td className="py-3 px-4 text-right text-gray-700 font-semibold">
-                      {formatCurrency(item.soldPrice)}
+                      {formatCurrency(item.stockout.soldPrice)}
                     </td>
                   </tr>
                 ))}
@@ -465,8 +413,8 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               </div>
               <div className="border-t border-gray-300 pt-2 mt-2">
                 <div className="flex justify-between py-2">
-                  <span className="text-lg font-bold text-gray-800">Total Amount</span>
-                  <span className="text-lg font-bold text-gray-800">{formatCurrency(total)}</span>
+                  <span className="text-lg font-bold text-primary-600">Total Credit Amount</span>
+                  <span className="text-lg font-bold text-primary-600">{formatCurrency(total)}</span>
                 </div>
                 <p className="text-sm text-gray-600 mt-2">
                   Amount in Words: {numberToWords(Math.floor(total))}
@@ -477,15 +425,15 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
 
           {/* Terms and Signature */}
           <div className="grid grid-cols-2 gap-8">
-            <div className=''>
+            <div>
+             
             </div>
 
             <div className="text-right">
-
               <div className='flex items-end flex-col'>
-
                 <img src={signature} className='object-contain h-32' alt="" />
                 <p className="font-semibold text-gray-800">{userInfo.name}</p>
+                <p className="text-sm text-gray-600">Authorized Signature</p>
               </div>
             </div>
           </div>
@@ -495,4 +443,4 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   );
 };
 
-export default InvoiceComponent;
+export default CreditNoteComponent;

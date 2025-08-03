@@ -10,8 +10,8 @@ class TaskService {
   // Create task (works offline)
   async createTask(taskData) {
     try {
-      const user = useem
-      const employeeId = user;
+      
+      
       const validation = this.validateTaskData(taskData);
       if (!validation.isValid) throw new Error(validation.errors.join(', '));
       
