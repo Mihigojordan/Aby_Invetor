@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ActivityManagementService } from '../activity-managament/activity.service';
+import { generateSKU, generateStockSKU } from 'src/common/utils/generate-sku.util';
 
 @Injectable()
 export class SalesReturnService {
@@ -48,12 +49,15 @@ export class SalesReturnService {
     const success: { stockoutId: string; itemId: string }[] = [];
     const errors: { stockoutId: string; error: string }[] = [];
 
+    const creditnoteId = await generateStockSKU('credit','inventory')
+
     // Create SalesReturn first
     const salesReturn = await this.prisma.salesReturn.create({
       data: {
         transactionId,
         reason,
-        createdAt: createdAt ? createdAt : new Date().toISOString()
+        creditnoteId: creditnoteId,
+        createdAt: createdAt ? createdAt : new Date().toISOString() ,
       },
     });
 

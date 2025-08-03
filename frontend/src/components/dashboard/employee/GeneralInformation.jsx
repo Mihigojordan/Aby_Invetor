@@ -99,9 +99,7 @@ const GeneralInformation = ({ employee, formatDate, getStatusBadge }) => {
               <p className="text-primary-100 text-lg mb-3">{employee.email}</p>
               <div className="flex items-center space-x-4">
                 {getStatusBadge(employee.status)}
-                <span className="text-primary-100 text-sm">
-                  Employee ID: {employee.id?.split('-')[0]}
-                </span>
+               
               </div>
             </div>
           </div>
@@ -150,19 +148,26 @@ const GeneralInformation = ({ employee, formatDate, getStatusBadge }) => {
 
             {/* Assigned Tasks */}
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <Shield size={20} className="mr-2 text-primary-600" />
-                Assigned Tasks
-              </h3>
-              <div className="space-y-2">
-                {employee.tasks.map((task) => (
-                  <div key={task.id} className="bg-primary-50 rounded-lg p-3 border border-primary-100">
-                    <p className="font-medium text-primary-900 capitalize">{task.taskname}</p>
-                    <p className="text-sm text-primary-700 mt-1">{task.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+  <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+    <Shield size={20} className="mr-2 text-primary-600" />
+    Assigned Tasks
+  </h3>
+  
+  {employee.tasks && employee.tasks.length > 0 ? (
+    <div className="space-y-2">
+      {employee.tasks.map((task) => (
+        <div key={task.id} className="bg-primary-50 rounded-lg p-3 border border-primary-100">
+          <p className="font-medium text-primary-900 capitalize">{task.taskname}</p>
+          <p className="text-sm text-primary-700 mt-1">{task.description}</p>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="bg-gray-50 rounded-lg p-6 text-center border border-gray-200">
+      <p className="text-gray-500 text-sm">No tasks assigned yet</p>
+    </div>
+  )}
+</div>
           </div>
         </div>
       </div>

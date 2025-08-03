@@ -21,7 +21,7 @@ import {
 import employeeService from "../../services/employeeService";
 import productService from "../../services/productService";
 import salesReturnService from "../../services/salesReturnService";
-import stockOutService from "../../services/stockOutService";
+import stockOutService from "../../services/stockoutService";
 import stockinService from "../../services/stockinService";
 import categoryService from "../../services/categoryService";
 

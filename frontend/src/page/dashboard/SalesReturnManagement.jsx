@@ -72,8 +72,8 @@ const SalesReturnManagement = ({ role }) => {
 
   const handleCloseCreditModal = () => {
     setIsCreditNoteOpen(false);
-    setTransactionId(null);
-    updateSearchParam("setSalesReturnId");
+    setSalesReturnId(null);
+    updateSearchParam("salesReturnId");
   };
 
   const fetchSalesReturns = async () => {

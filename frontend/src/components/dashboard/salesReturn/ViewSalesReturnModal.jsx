@@ -87,7 +87,7 @@ const ViewSalesReturnModal = ({ isOpen, onClose, salesReturn }) => {
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-white">Sales Return Details</h2>
-                <p className="text-red-100 text-sm">Return ID: {truncateId(salesReturn.id)}</p>
+                <p className="text-red-100 text-sm">Credit Note ID: {salesReturn.creditnoteId}</p>
               </div>
             </div>
             <button
@@ -276,11 +276,18 @@ const ViewSalesReturnModal = ({ isOpen, onClose, salesReturn }) => {
                   </div>
                   
                   <div className="p-6 space-y-4">
-                    <div className="flex items-start justify-between py-2">
+
+                         <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm font-medium text-gray-600">Credit Note Id</span>
+                      <span className="text-sm text-gray-900">
+                        {salesReturn.creditnoteId}
+                      </span>
+                    </div>
+                    <div className="flex items-start flex-wrap justify-between py-2">
                       <span className="text-sm font-medium text-gray-600">Return Reason</span>
                       <div className="text-right max-w-xs">
                         {salesReturn.reason ? (
-                          <span className="text-sm text-gray-900 bg-orange-50 px-3 py-1 rounded-full">
+                          <span className="text-sm text-gray-900 bg-orange-50 px-3 py-1 rounded-full ">
                             {salesReturn.reason}
                           </span>
                         ) : (
@@ -344,9 +351,7 @@ const ViewSalesReturnModal = ({ isOpen, onClose, salesReturn }) => {
                   <h4 className="font-medium text-blue-900 mb-1">Return Processing Information</h4>
                   <p className="text-sm text-blue-700 leading-relaxed">
                     This return was processed on <strong>{formatDate(salesReturn.createdAt)}</strong>
-                    {processedBy && (
-                      <> by {processedBy.type}</>
-                    )}. 
+                    . 
                     The total refund amount of <strong>{formatPrice(calculateTotalRefundAmount())}</strong> 
                     covers {salesReturn.items?.length || 0} items and should be processed according to your return policy.
                   </p>

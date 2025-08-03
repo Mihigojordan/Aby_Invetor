@@ -41,14 +41,45 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     { key: 'returning', label: 'Sales Returns', icon: RotateCcw, path: '/admin/dashboard/sales-return' },
   ];
 
-  const employeeItems = [
-    { key: 'dashboard', label: 'Dashboard Summary', icon: Home, path: '/employee/dashboard', alwaysShow: true },
-    { key: 'category_receiving_returning', label: 'Category Management', taskname: ['receiving', 'returning'], icon: Layers, path: '/employee/dashboard/category' },
-    { key: 'product_receiving_returning', label: 'Product Management', taskname: ['receiving', 'returning'], icon: Package, path: '/employee/dashboard/product' },
-    { key: 'stockin_receiving', label: 'Stock In Management', taskname: ['receiving'], icon: ArrowDown, path: '/employee/dashboard/stockin' },
-    { key: 'stockout', label: 'Stock Out Management', taskname: ['saling'], icon: ShoppingCart, path: '/employee/dashboard/stockout' },
-    { key: 'returning', label: 'Sales Returns', taskname: ['returning'], icon: RotateCcw, path: '/employee/dashboard/sales-return' },
-  ];
+const employeeItems = [
+ { key: 'dashboard', label: 'Dashboard Summary', icon: Home, path: '/employee/dashboard', alwaysShow: true },
+  {
+    key: 'category_receiving_returning',
+    label: 'Category Management',
+    taskname: ['receiving', 'returning','return','stockin'],
+    icon: Layers, // Good choice, keep as is
+    path: '/employee/dashboard/category'
+  },
+  {
+    key: 'product_receiving_returning',
+    label: 'Product Management',
+    taskname: ['receiving', 'returning','return','stockin'],
+    icon: Package, // Better than TagIcon for products
+    path: '/employee/dashboard/product'
+  },
+  {
+    key: 'stockin_receiving',
+    label: 'Stock In Management',
+    taskname: ['receiving','stockin'],
+    icon: ArrowDown, // Clear indication of incoming stock
+    path: '/employee/dashboard/stockin'
+  },
+  {
+    key: 'stockout',
+    label: 'Stock Out Management',
+    taskname: ['saling','selling','sales','stockout'],
+    icon: ShoppingCart, // More specific for sales than generic ArrowUp
+    path: '/employee/dashboard/stockout'
+  },
+  {
+    key: 'returning',
+    label: 'Sales Returns Management',
+    taskname: ['returning','return'],
+    icon: RotateCcw, // Better than Undo2Icon for returns
+    path: '/employee/dashboard/sales-return'
+  },
+];
+ 
 
   const getProfileRoute = () => role === 'admin' ? '/admin/dashboard/profile' : '/employee/dashboard/profile';
 
@@ -153,7 +184,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={onToggle} />
       )}
 
-      <div className={`fixed left-0 top-0 min-h-screen bg-white flex flex-col shadow-lg transform transition-transform duration-300 z-50 lg:relative lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} xl:w-/12`}>
+      <div className={`fixed left-0 top-0 min-h-screen bg-white flex flex-col shadow-lg transform transition-transform duration-300 z-50 lg:relative lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:w-3/12 xl:w-2/12`}>
 
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
