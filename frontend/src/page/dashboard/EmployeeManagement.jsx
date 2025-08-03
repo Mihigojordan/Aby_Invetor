@@ -502,9 +502,9 @@ const EmployeeManagement = ({role}) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tasks</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documents</th>
+ 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -561,18 +561,7 @@ const EmployeeManagement = ({role}) => {
                   </div>
                 </td>
                 
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    employee.status === 'ACTIVE' 
-                      ? 'bg-green-100 text-green-800' 
-                      : employee.status === 'INACTIVE'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {employee.status || 'Unknown'}
-                  </span>
-                </td>
-                
+            
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <ClipboardList size={14} className="text-gray-400" />
@@ -582,19 +571,6 @@ const EmployeeManagement = ({role}) => {
                   </div>
                 </td>
 
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-1">
-                    {employee.identityCard && (
-                      <Badge className="w-4 h-4 text-blue-600" />
-                    )}
-                    {employee.cv && (
-                      <FileText className="w-4 h-4 text-green-600" />
-                    )}
-                    {!employee.identityCard && !employee.cv && (
-                      <span className="text-xs text-gray-500">None</span>
-                    )}
-                  </div>
-                </td>
                
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">

@@ -11,6 +11,7 @@ import { StockoutModule } from './modules/stockout-management/stockout.module';
 import { EmailModule } from './global/email/email.module';
 import { ActivityManagmentModule } from './modules/activity-managament/activity.module';
 import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.module';
+import { SummaryModule } from './modules/Summary/summary.module';
 
 
 @Module({
@@ -25,7 +26,8 @@ import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.
     StockoutModule,
     EmailModule,
     ActivityManagmentModule,
-    SalesReturnModule
+    SalesReturnModule,
+    SummaryModule
   ],
   controllers: [AppController],
   providers: [],
