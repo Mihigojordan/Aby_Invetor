@@ -57,7 +57,7 @@ export class SalesReturnService {
         transactionId,
         reason,
         creditnoteId: creditnoteId,
-        createdAt: createdAt ? createdAt : String(new Date().toISOString) ,
+        createdAt: createdAt ? createdAt : new Date().toISOString() ,
       },
     });
 

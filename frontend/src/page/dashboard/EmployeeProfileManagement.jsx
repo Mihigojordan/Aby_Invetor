@@ -7,7 +7,7 @@ import ChangePassword from '../../components/dashboard/employee/ChangePassword';
 import WorkPerformance from '../../components/dashboard/employee/WorkPerformance';
 
 const EmployeeProfile = ({}) => {
-  const [activeTab, setActiveTab] = useState('password');
+  const [activeTab, setActiveTab] = useState('general');
   const { user: employee } = useEmployeeAuth();
 
   // Get tab from URL params on component mount

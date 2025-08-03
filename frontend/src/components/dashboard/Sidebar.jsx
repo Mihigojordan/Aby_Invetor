@@ -126,35 +126,35 @@ const employeeItems = [
   {
     key: 'category_receiving_returning',
     label: 'Category',
-    taskname: ['receiving', 'returning'],
+    taskname: ['receiving', 'returning','return','stockin'],
     icon: Layers, // Good choice, keep as is
     path: '/employee/dashboard/category'
   },
   {
     key: 'product_receiving_returning',
     label: 'Product',
-    taskname: ['receiving', 'returning'],
+    taskname: ['receiving', 'returning','return','stockin'],
     icon: Package, // Better than TagIcon for products
     path: '/employee/dashboard/product'
   },
   {
     key: 'stockin_receiving',
     label: 'Stock In (Purchase)',
-    taskname: ['receiving'],
+    taskname: ['receiving','stockin'],
     icon: ArrowDown, // Clear indication of incoming stock
     path: '/employee/dashboard/stockin'
   },
   {
     key: 'stockout',
     label: 'Stock Out (Sale)',
-    taskname: ['saling'],
+    taskname: ['saling','selling','sales','stockout'],
     icon: ShoppingCart, // More specific for sales than generic ArrowUp
     path: '/employee/dashboard/stockout'
   },
   {
     key: 'returning',
     label: 'Sales Returns',
-    taskname: ['returning'],
+    taskname: ['returning','return'],
     icon: RotateCcw, // Better than Undo2Icon for returns
     path: '/employee/dashboard/sales-return'
   },

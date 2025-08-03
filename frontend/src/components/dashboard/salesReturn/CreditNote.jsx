@@ -4,7 +4,7 @@ import html2pdf from 'html2pdf.js';
 import salesReturnService from '../../../services/salesReturnService';
 import CompanyLogo from '../../../assets/images/applogo_rm_bg.png'
 import signature from '../../../assets/images/signature.webp'
-import stockOutService from '../../../services/stockOutService';
+import stockOutService from '../../../services/stockoutService';
 
 const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
   const [creditNoteData, setCreditNoteData] = useState(null);
@@ -257,7 +257,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
         {/* Action Bar */}
         <div className="sticky top-0 bg-gradient-to-r from-primary-600 to-orange-600 z-[10] text-white p-4 rounded-t-lg">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Credit Note #{creditNoteNumber}</h2>
+            <h2 className="text-xl font-bold">Credit Note #{creditNoteData.creditnoteId}</h2>
             <div className="flex gap-3">
               {/* PDF Button */}
               <button
@@ -317,7 +317,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
                 <p>CREDIT NOTE</p>
               </div>
               <div className="text-sm text-gray-600">
-                <p className="font-semibold">Credit Note No #{creditNoteNumber}</p>
+                <p className="font-semibold">Credit Note No #{creditNoteData.creditnoteId}</p>
                 <p>Issue Date: {formatDate(creditNoteData.createdAt)}</p>
               </div>
             </div>
@@ -349,8 +349,9 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
                 <p className="text-sm text-primary-600 font-semibold">Original Invoice</p>
                 <p className="text-xs text-gray-600">{formatDate(originalInvoiceDate)}</p>
                  <div className="py-3">
-                    <img src={stockOutService.getBarCodeUrlImage(creditNoteData.transactionId)} className='h-20 object-contain' alt="" />
+                    <img src={stockOutService.getBarCodeUrlImage(creditNoteData.transactionId)} className='h-20  object-contain' alt="" />
                  </div>
+                
               </div>
             </div>
           </div>
