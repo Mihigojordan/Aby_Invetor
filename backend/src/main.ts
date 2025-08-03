@@ -12,27 +12,28 @@ async function bootstrap() {
   app.use(cookieParser());
   
   // Enhanced CORS configuration
-  app.enableCors({
-    origin: [
-      process.env.CORS_ORIGIN,
-      'http://localhost:5173',
-      'http://localhost:4173',
-      'https://abyinventory.com'
-    ].filter(Boolean), // Remove undefined values
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Origin',
-      'X-Requested-With',
-      'Content-Type',
-      'Accept',
-      'Authorization',
-      'Cache-Control',
-      'X-HTTP-Method-Override'
-    ],
-    credentials: true,
-    preflightContinue: false,
-    optionsSuccessStatus: 204
-  });
+app.enableCors({
+  origin: [
+    process.env.CORS_ORIGIN,
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'https://abyinventory.com',
+    'https://www.abyinventory.com'  // Add this
+  ].filter(Boolean),
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Cache-Control',
+    'X-HTTP-Method-Override'
+  ],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+});
 
   // Extended JSON parsing
   app.use(json({ limit: '10mb' }));
