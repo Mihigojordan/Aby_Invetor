@@ -24,6 +24,7 @@ import salesReturnService from "../../services/salesReturnService";
 import stockOutService from "../../services/stockoutService";
 import stockinService from "../../services/stockinService";
 import categoryService from "../../services/categoryService";
+import { API_URL } from '../../api/api';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -43,7 +44,7 @@ const Dashboard = () => {
 
   const fetchSummaryCounts = async () => {
     try {
-      const response = await fetch("http://localhost:3000/summary");
+      const response = await fetch(`${API_URL}/summary`);
       if (!response.ok) throw new Error('Failed to fetch summary counts');
       return await response.json();
     } catch (error) {
