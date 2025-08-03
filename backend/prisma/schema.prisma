@@ -143,6 +143,7 @@ model Activity {
 model SalesReturn {
   id        String              @id @default(uuid())
   transactionId String?
+  creditnoteId  String?
   reason    String?
   createdAt DateTime            @default(now())
   items     SalesReturnItem[]
