@@ -53,7 +53,7 @@ export class SalesReturnService {
       data: {
         transactionId,
         reason,
-        createdAt: createdAt ? createdAt : String(new Date().toISOString) ,
+        createdAt: createdAt ? createdAt : new Date().toISOString()
       },
     });
 
@@ -120,6 +120,7 @@ export class SalesReturnService {
     return {
       message: 'Sales return processed',
       transactionId: transactionId,
+      salesReturn,
       success,
       errors,
     };
@@ -129,6 +130,21 @@ export class SalesReturnService {
   async findAll() {
     try {
       const returns = await this.prisma.salesReturn.findMany({
+        include:{
+          items: {
+            include:{
+              stockout: {
+                include:{
+                  stockin:{
+                    include:{
+                      product:true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       });
 
       return {
@@ -152,7 +168,11 @@ export class SalesReturnService {
             include:{
               stockout: {
                 include:{
-                  stockin:true
+                  stockin:{
+                    include:{
+                      product:true
+                    }
+                  }
                 }
               }
             }
