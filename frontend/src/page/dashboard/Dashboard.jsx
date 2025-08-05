@@ -17,6 +17,16 @@ import {
   AlertCircle,
   BarChart2
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 import employeeService from "../../services/employeeService";
 import productService from "../../services/productService";
@@ -41,6 +51,8 @@ const Dashboard = () => {
   const [stats, setStats] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [chartData, setChartData] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState('6months');
 
   const fetchSummaryCounts = async () => {
     try {
@@ -95,6 +107,7 @@ const Dashboard = () => {
 
       prepareInventoryData(data);
       prepareRecentActivities(data);
+      prepareChartData(data, selectedPeriod);
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -121,14 +134,14 @@ const Dashboard = () => {
         color: 'text-amber-600',
         bgColor: 'bg-amber-50'
       },
-      {
-        title: 'Total Stock Out',
-        value: summary.totalStockOut.toString(),
-        icon: ArrowDownRight,
-        change: `${summary.totalSalesReturns} sales returns`,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50'
-      },
+      // {
+      //   title: 'Total Stock Out',
+      //   value: summary.totalStockOut.toString(),
+      //   icon: ArrowDownRight,
+      //   change: `${summary.totalSalesReturns} sales returns`,
+      //   color: 'text-green-600',
+      //   bgColor: 'bg-green-50'
+      // },
       {
         title: 'Total Employees',
         value: summary.totalEmployees.toString(),
@@ -300,9 +313,117 @@ const Dashboard = () => {
     setRecentActivities(activities.slice(0, 8));
   };
 
+  const prepareChartData = (data, period = '6months') => {
+    if (!data || !data.stockIns || !data.stockOuts) {
+      setChartData([]);
+      return;
+    }
+
+    const now = new Date();
+    let periods = [];
+    
+    if (period === '30days') {
+      // Last 30 days - group by day
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dayName = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        
+        const stockInThisDay = data.stockIns.filter(item => {
+          if (!item.createdAt) return false;
+          const itemDate = new Date(item.createdAt);
+          return itemDate.toDateString() === date.toDateString();
+        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        
+        const stockOutThisDay = data.stockOuts.filter(item => {
+          if (!item.createdAt) return false;
+          const itemDate = new Date(item.createdAt);
+          return itemDate.toDateString() === date.toDateString();
+        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        
+        periods.push({
+          period: dayName,
+          stockIn: stockInThisDay,
+          stockOut: stockOutThisDay
+        });
+      }
+    } else if (period === '6months') {
+      // Last 6 months - group by month
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        
+        const stockInThisMonth = data.stockIns.filter(item => {
+          if (!item.createdAt) return false;
+          const itemDate = new Date(item.createdAt);
+          return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
+        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        
+        const stockOutThisMonth = data.stockOuts.filter(item => {
+          if (!item.createdAt) return false;
+          const itemDate = new Date(item.createdAt);
+          return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
+        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        
+        periods.push({
+          period: monthName,
+          stockIn: stockInThisMonth,
+          stockOut: stockOutThisMonth
+        });
+      }
+    } else if (period === '1year') {
+      // Last 12 months - group by month
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        
+        const stockInThisMonth = data.stockIns.filter(item => {
+          if (!item.createdAt) return false;
+          const itemDate = new Date(item.createdAt);
+          return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
+        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        
+        const stockOutThisMonth = data.stockOuts.filter(item => {
+          if (!item.createdAt) return false;
+          const itemDate = new Date(item.createdAt);
+          return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
+        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        
+        periods.push({
+          period: monthName,
+          stockIn: stockInThisMonth,
+          stockOut: stockOutThisMonth
+        });
+      }
+    }
+    
+    console.log('Chart data prepared:', periods); // Debug log
+    setChartData(periods);
+  };
+
+  const handlePeriodChange = (period) => {
+    setSelectedPeriod(period);
+    // The useEffect will handle the data update
+  };
+
+  const getPeriodLabel = () => {
+    switch (selectedPeriod) {
+      case '30days': return 'Last 30 days';
+      case '6months': return 'Last 6 months';
+      case '1year': return 'Last 12 months';
+      default: return 'Last 6 months';
+    }
+  };
+
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (dashboardData.stockIns.length > 0 || dashboardData.stockOuts.length > 0) {
+      prepareChartData(dashboardData, selectedPeriod);
+    }
+  }, [selectedPeriod, dashboardData]);
 
   const formatTimeAgo = (date) => {
     const now = new Date();
@@ -331,7 +452,7 @@ const Dashboard = () => {
       <div className="bg-white border-b border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Umusindi Hardware Inventory Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Umusingi Hardware Inventory Management</h1>
             <p className="text-gray-600">Real-time inventory management and analytics</p>
           </div>
         </div>
@@ -509,6 +630,124 @@ const Dashboard = () => {
                   <p className="text-gray-500">No recent activities</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stock In vs Stock Out Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <BarChart2 className="w-5 h-5 mr-2 text-blue-600" />
+                Stock In vs Stock Out Trends
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">{getPeriodLabel()} comparison of stock movements</p>
+            </div>
+            
+            {/* Period Selector */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => handlePeriodChange('30days')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  selectedPeriod === '30days'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                30 Days
+              </button>
+              <button
+                onClick={() => handlePeriodChange('6months')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  selectedPeriod === '6months'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                6 Months
+              </button>
+              <button
+                onClick={() => handlePeriodChange('1year')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  selectedPeriod === '1year'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                1 Year
+              </button>
+            </div>
+          </div>
+          
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{
+                  top: 20,
+                  right: 30,
+                  left: 20,
+                  bottom: 5,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="period" 
+                  stroke="#6b7280"
+                  fontSize={12}
+                  angle={selectedPeriod === '30days' ? -45 : 0}
+                  textAnchor={selectedPeriod === '30days' ? 'end' : 'middle'}
+                  height={selectedPeriod === '30days' ? 80 : 60}
+                />
+                <YAxis 
+                  stroke="#6b7280"
+                  fontSize={12}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                  labelStyle={{ color: '#374151' }}
+                />
+                <Legend />
+                <Bar 
+                  dataKey="stockIn" 
+                  fill="#10b981" 
+                  name="Stock In"
+                  radius={[2, 2, 0, 0]}
+                />
+                <Bar 
+                  dataKey="stockOut" 
+                  fill="#3b82f6" 
+                  name="Stock Out"
+                  radius={[2, 2, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {chartData.reduce((sum, item) => sum + item.stockIn, 0)}
+              </div>
+              <div className="text-sm text-gray-500">Total Stock In ({getPeriodLabel().toLowerCase()})</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {chartData.reduce((sum, item) => sum + item.stockOut, 0)}
+              </div>
+              <div className="text-sm text-gray-500">Total Stock Out ({getPeriodLabel().toLowerCase()})</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">
+                {chartData.reduce((sum, item) => sum + (item.stockIn - item.stockOut), 0)}
+              </div>
+              <div className="text-sm text-gray-500">Net Stock Change</div>
             </div>
           </div>
         </div>

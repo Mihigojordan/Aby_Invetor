@@ -116,9 +116,14 @@ export class StockoutService {
     try {
       return await this.prisma.stockOut.findMany({
         include: {
-          stockin: true,
+          stockin: {
+            include:{
+              product:true
+            }
+          },
           admin: true,
           employee: true,
+         
         },
       });
     } catch (error) {
