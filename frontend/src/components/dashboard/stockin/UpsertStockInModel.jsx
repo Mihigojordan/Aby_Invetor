@@ -12,6 +12,13 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
     purchases: []
   });
 
+    const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'RWF'
+    }).format(amount);
+  };
+
   const [validationErrors, setValidationErrors] = useState({
     productId: '',
     quantity: '',
@@ -600,14 +607,14 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-medium text-gray-700">Total Cost:</span>
                         <span className="font-bold text-blue-600">
-                          ${(Number(purchase.quantity) * Number(purchase.price)).toFixed(2)}
+                          {formatCurrency((Number(purchase.quantity) * Number(purchase.price)).toFixed(2))}
                         </span>
                       </div>
                       {purchase.sellingPrice && (
                         <div className="flex justify-between items-center text-sm mt-1">
                           <span className="font-medium text-gray-700">Potential Revenue:</span>
                           <span className="font-bold text-green-600">
-                            ${(Number(purchase.quantity) * Number(purchase.sellingPrice)).toFixed(2)}
+                            {formatCurrency((Number(purchase.quantity) * Number(purchase.sellingPrice)).toFixed(2))}
                           </span>
                         </div>
                       )}

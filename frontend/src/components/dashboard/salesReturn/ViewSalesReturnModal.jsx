@@ -8,7 +8,7 @@ const ViewSalesReturnModal = ({ isOpen, onClose, salesReturn }) => {
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'RWF'
     }).format(price || 0);
   };
 

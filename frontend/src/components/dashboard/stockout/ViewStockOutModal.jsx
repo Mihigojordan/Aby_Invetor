@@ -19,7 +19,7 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'RWF'
     }).format(price || 0);
   };
 
@@ -81,16 +81,7 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Sale Information */}
             <div className="space-y-6">
-              {/* Stock Out Entry ID */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Hash className="w-5 h-5 text-gray-500" />
-                  <h3 className="font-semibold text-gray-900">Stock Out ID</h3>
-                </div>
-                <p className="font-mono text-sm text-gray-600 bg-white p-2 rounded border break-all">
-                  {truncateId(stockOut.id)}
-                </p>
-              </div>
+             
 
               {/* Sale Summary */}
               <div className="bg-green-50 rounded-lg p-4">
@@ -171,12 +162,7 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
                     <h3 className="font-semibold text-gray-900">Related Stock Entry</h3>
                   </div>
                   <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Stock-In ID</label>
-                      <p className="font-mono text-sm text-gray-600 bg-white p-2 rounded border break-all">
-                        {truncateId(stockOut.stockin.id)}
-                      </p>
-                    </div>
+                   
                     {stockOut.stockin.product && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>

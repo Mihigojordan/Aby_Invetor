@@ -65,6 +65,12 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     return '';
   };
 
+    const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'RWF'
+    }).format(amount);
+  };
   const validateQuantity = (quantity, stockinId) => {
     if (!quantity) {
       return 'Quantity is required';
@@ -342,7 +348,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                     <option key={stockIn.id} value={stockIn.id}>
                       {stockIn.product?.productName || 'Unknown Product'} -
                       Quantity: #{stockIn.quantity} -
-                      Price: ${stockIn.sellingPrice}
+                      Price: {formatCurrency(stockIn.sellingPrice)}
                     </option>
                   ))}
                 </select>
@@ -420,7 +426,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                           <option key={stockIn.id} value={stockIn.id}>
                             {stockIn.product?.productName || 'Unknown Product'} -
                             Qty: #{stockIn.quantity} -
-                            Price: ${stockIn.sellingPrice}
+                            Price: {formatCurrency(stockIn.sellingPrice)}
                           </option>
                         ))}
                       </select>

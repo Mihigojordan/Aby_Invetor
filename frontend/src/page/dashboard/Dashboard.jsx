@@ -331,7 +331,7 @@ const Dashboard = () => {
       <div className="bg-white border-b border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">ABY Inventory Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Umusindi Hardware Inventory Management</h1>
             <p className="text-gray-600">Real-time inventory management and analytics</p>
           </div>
         </div>

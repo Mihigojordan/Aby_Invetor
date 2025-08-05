@@ -91,7 +91,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'RWF'
     }).format(amount);
   };
 

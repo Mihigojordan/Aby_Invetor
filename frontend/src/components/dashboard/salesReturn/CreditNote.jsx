@@ -77,7 +77,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'RWF'
     }).format(amount);
   };
 
