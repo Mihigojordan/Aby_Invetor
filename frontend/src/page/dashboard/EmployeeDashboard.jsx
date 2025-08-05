@@ -34,6 +34,7 @@ import {
   Layers,
   Box
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 import productService from "../../services/productService";
 import salesReturnService from "../../services/salesReturnService";
@@ -65,6 +66,10 @@ const Dashboard = () => {
   const [categoryData, setCategoryData] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
   const [topPerformers, setTopPerformers] = useState([]);
+  
+  // New chart data states
+  const [stockInChartData, setStockInChartData] = useState([]);
+  const [stockOutChartData, setStockOutChartData] = useState([]);
 
   // Permission checks based on user tasks
   const userTasks = user?.tasks || [];
@@ -105,6 +110,69 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error fetching summary counts:', error);
       return null;
+    }
+  };
+
+  // Prepare chart data for stock in/out
+  const prepareChartData = (data) => {
+    if (canViewReceiving) {
+      // Group stock ins by month
+      const stockInsByMonth = data.stockIns.reduce((acc, stockIn) => {
+        const date = new Date(stockIn.createdAt);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const monthName = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        
+        if (!acc[monthKey]) {
+          acc[monthKey] = {
+            month: monthName,
+            stockIn: 0,
+            stockInValue: 0,
+            count: 0
+          };
+        }
+        
+        acc[monthKey].stockIn += stockIn.quantity || 0;
+        acc[monthKey].stockInValue += (stockIn.quantity || 0) * (stockIn.price || 0);
+        acc[monthKey].count += 1;
+        
+        return acc;
+      }, {});
+
+      const stockInChart = Object.values(stockInsByMonth)
+        .sort((a, b) => new Date(a.month + ' 1') - new Date(b.month + ' 1'))
+        .slice(-6); // Last 6 months
+
+      setStockInChartData(stockInChart);
+    }
+
+    if (canViewSales) {
+      // Group stock outs by month
+      const stockOutsByMonth = data.stockOuts.reduce((acc, stockOut) => {
+        const date = new Date(stockOut.createdAt);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const monthName = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        
+        if (!acc[monthKey]) {
+          acc[monthKey] = {
+            month: monthName,
+            stockOut: 0,
+            stockOutValue: 0,
+            count: 0
+          };
+        }
+        
+        acc[monthKey].stockOut += stockOut.quantity || 0;
+        acc[monthKey].stockOutValue += (stockOut.quantity || 0) * (stockOut.soldPrice || 0);
+        acc[monthKey].count += 1;
+        
+        return acc;
+      }, {});
+
+      const stockOutChart = Object.values(stockOutsByMonth)
+        .sort((a, b) => new Date(a.month + ' 1') - new Date(b.month + ' 1'))
+        .slice(-6); // Last 6 months
+
+      setStockOutChartData(stockOutChart);
     }
   };
 
@@ -166,6 +234,9 @@ const Dashboard = () => {
       } else {
         calculateStatsFromData(data);
       }
+
+      // Prepare chart data
+      prepareChartData(data);
 
       if (canViewReceiving) {
         prepareInventoryData(data);
@@ -512,6 +583,30 @@ const Dashboard = () => {
     });
   };
 
+  // Custom tooltip for charts
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-900 mb-2">{label}</p>
+          {payload.map((entry, index) => (
+            <div key={index} className="flex items-center space-x-2">
+              <div 
+                className="w-3 h-3 rounded-full" 
+                style={{ backgroundColor: entry.color }}
+              ></div>
+              <span className="text-sm text-gray-600">{entry.name}:</span>
+              <span className="font-medium text-gray-900">
+                {entry.dataKey.includes('Value') ? formatCurrency(entry.value) : entry.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   // Load data on component mount
   useEffect(() => {
     loadDashboardData();
@@ -584,7 +679,7 @@ const Dashboard = () => {
         <div className="p-4 sm:p-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Umusindi Hardware Inventory Dashboard</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Umusingi Hardware Inventory Dashboard</h1>
               <p className="text-gray-600 mt-1 text-sm sm:text-base">Welcome, {user?.firstname} {user?.lastname} - Role-based inventory access</p>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -653,6 +748,101 @@ const Dashboard = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Stock In/Out Charts - Show based on permissions */}
+        {(canViewReceiving || canViewSales) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            {/* Stock In Chart */}
+            {canViewReceiving && stockInChartData.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
+                    <ArrowDownRight className="w-4 sm:w-5 h-4 sm:h-5 mr-2 text-blue-600" />
+                    Stock In Trends (Last 6 Months)
+                  </h3>
+                  <div className="text-xs text-gray-500">
+                    Total: {stockInChartData.reduce((sum, item) => sum + item.stockIn, 0)} units
+                  </div>
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stockInChartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12 }} 
+                        stroke="#6b7280"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }} 
+                        stroke="#6b7280"
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend />
+                      <Bar 
+                        dataKey="stockIn" 
+                        fill="#3b82f6" 
+                        name="Units Received"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar 
+                        dataKey="stockInValue" 
+                        fill="#1d4ed8" 
+                        name="Value (RWF)"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Stock Out Chart */}
+            {canViewSales && stockOutChartData.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
+                    <ArrowUpRight className="w-4 sm:w-5 h-4 sm:h-5 mr-2 text-green-600" />
+                    Stock Out Trends (Last 6 Months)
+                  </h3>
+                  <div className="text-xs text-gray-500">
+                    Total: {stockOutChartData.reduce((sum, item) => sum + item.stockOut, 0)} units
+                  </div>
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stockOutChartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12 }} 
+                        stroke="#6b7280"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }} 
+                        stroke="#6b7280"
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend />
+                      <Bar 
+                        dataKey="stockOut" 
+                        fill="#10b981" 
+                        name="Units Sold"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar 
+                        dataKey="stockOutValue" 
+                        fill="#059669" 
+                        name="Revenue (RWF)"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -758,6 +948,8 @@ const Dashboard = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
@@ -1021,4 +1213,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard
+export default Dashboard;

@@ -38,7 +38,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     { key: 'products', label: 'Products Management', icon: Package, path: '/admin/dashboard/product' },
     { key: 'stockin', label: 'Stock In Movement', icon: ArrowDown, path: '/admin/dashboard/stockin' },
     { key: 'stockout', label: 'Stock Out Movement', icon: ArrowUp, path: '/admin/dashboard/stockout' },
-    { key: 'returning', label: 'Sales Returns', icon: RotateCcw, path: '/admin/dashboard/sales-return' },
+    // { key: 'returning', label: 'Sales Returns', icon: RotateCcw, path: '/admin/dashboard/sales-return' },
   ];
 
 const employeeItems = [
@@ -71,13 +71,13 @@ const employeeItems = [
     icon: ShoppingCart, // More specific for sales than generic ArrowUp
     path: '/employee/dashboard/stockout'
   },
-  {
-    key: 'returning',
-    label: 'Sales Returns Management',
-    taskname: ['returning','return'],
-    icon: RotateCcw, // Better than Undo2Icon for returns
-    path: '/employee/dashboard/sales-return'
-  },
+  // {
+  //   key: 'returning',
+  //   label: 'Sales Returns Management',
+  //   taskname: ['returning','return'],
+  //   icon: RotateCcw, // Better than Undo2Icon for returns
+  //   path: '/employee/dashboard/sales-return'
+  // },
 ];
  
 

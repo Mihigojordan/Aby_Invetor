@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 import stockInService from '../../services/stockinService';
 import productService from '../../services/productService';
 import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockInModel';
@@ -8,6 +8,7 @@ import ViewStockInModal from '../../components/dashboard/stockin/ViewStockInModa
 import { API_URL } from '../../api/api';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
+import stockOutService from '../../services/stockoutService';
 
 const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
@@ -50,6 +51,54 @@ const StockInManagement = ({ role }) => {
 
     fetchData();
   }, []);
+
+   const handlePrint = (item) => {
+  const imgUrl = stockOutService.getBarCodeUrlImage(item.sku);
+
+  // Create a hidden iframe to handle printing
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+  iframeDoc.write(`
+    <html>
+      <head>
+        <title>Print Barcode</title>
+        <style>
+          body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+          }
+          img {
+            max-width: 100%;
+          }
+        </style>
+      </head>
+      <body>
+        <img src="${imgUrl}" alt="Barcode" />
+      </body>
+    </html>
+  `);
+  iframeDoc.close();
+
+  // Wait for the image to load before printing
+  const img = iframeDoc.querySelector('img');
+  img.onload = () => {
+    iframe.contentWindow.print();
+    // Remove the iframe after printing
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000); // Delay to ensure print dialog appears
+  };
+  img.onerror = () => {
+    showNotification('Failed to load barcode image', 'error');
+    document.body.removeChild(iframe);
+  };
+};
 
   useEffect(() => {
     const filtered = stockIns.filter(stockIn =>
@@ -348,6 +397,13 @@ const StockInManagement = ({ role }) => {
                   >
                     <Eye size={16} />
                   </button>
+                       <button
+                      onClick={() => handlePrint(stockIn)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <Printer size={16} />
+                    </button>
                   <button
                     onClick={() => openEditModal(stockIn)}
                     className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -498,6 +554,13 @@ const StockInManagement = ({ role }) => {
                       title="View Details"
                     >
                       <Eye size={16} />
+                    </button>
+                    <button
+                      onClick={() => handlePrint(stockIn)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <Printer size={16} />
                     </button>
                     <button
                       onClick={() => openEditModal(stockIn)}
