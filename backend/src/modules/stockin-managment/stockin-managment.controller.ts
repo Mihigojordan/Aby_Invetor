@@ -1,9 +1,9 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpException, Param, Post, Put } from '@nestjs/common';
 import { StockinManagmentService } from './stockin-managment.service';
 
 @Controller('stockin')
 export class StockinManagmentController {
-    constructor(private readonly stockInService: StockinManagmentService) {}
+  constructor(private readonly stockInService: StockinManagmentService) { }
 
   @Post('create')
   async createStockIn(
@@ -40,8 +40,18 @@ export class StockinManagmentController {
   }
 
   @Delete('delete/:id')
-  async deleteStockIn(@Param('id') id: string, @Body() data ) {
+  async deleteStockIn(@Param('id') id: string, @Body() data) {
     await this.stockInService.delete(id, data);
     return { message: 'StockIn deleted successfully' };
+  }
+
+  @Get('sku/:id')
+  async getStockInBysku(@Param('sku') sku: string) {
+    try {
+      return await this.stockInService.getStockInBysku(sku)
+    } catch (error) {
+      console.log('error getting stockinbysku:', error.message)
+      throw new HttpException(error.message, error.status)
+    }
   }
 }
