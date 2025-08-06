@@ -66,7 +66,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const companyInfo = {
     logo: CompanyLogo,
     companyName: 'Umusingi Hardware',
-    companyAddress: 'Kigali,Rwanda',
+    companyAddress: 'Nyamata ,Bugesera , Rwanda',
 
 
   }

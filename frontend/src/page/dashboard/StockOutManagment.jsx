@@ -59,7 +59,7 @@ const StockOutManagement = ({ role }) => {
       stockOut.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stockOut.clientEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stockOut.clientPhone?.includes(searchTerm) ||
-      stockOut.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+      stockOut.transactionId?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredStockOuts(filtered);
     setCurrentPage(1); // Reset to first page when filtering
