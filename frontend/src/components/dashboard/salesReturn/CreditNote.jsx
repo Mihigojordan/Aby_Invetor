@@ -42,9 +42,9 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
   const getUserInfo = () => {
     return {
       name: 'Sadiki Rukara',
-      email: 'abyridellc@gmail.com',
+      email: 'umusingihardware7@gmail.com',
       title: '',
-      phone: '+1 (616) 633-7026',
+      phone: '250 787487953',
       role: 'unknown'
     };
   };
@@ -248,7 +248,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
     );
   }
 
-  const creditNoteNumber = generateCreditNoteNumber();
+
   const originalInvoiceDate = creditNoteData.items[0]?.stockout?.createdAt || creditNoteData.createdAt;
 
   return (

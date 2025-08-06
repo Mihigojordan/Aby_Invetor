@@ -467,8 +467,8 @@ setIsInvoiceNoteOpen(true);
                       <div className="font-medium text-gray-900">
                         {stockOut.stockin?.product?.productName || 'Sale Transaction'}
                       </div>
-                      {stockOut.sku && (
-                        <div className="text-xs text-gray-500 font-mono">{stockOut.sku}</div>
+                      {stockOut.transactionId && (
+                        <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
                       )}
                       {stockOut.stockin?.product?.brand && (
                         <div className="text-sm text-gray-500">{stockOut.stockin.product.brand}</div>

@@ -56,7 +56,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       name: 'Umusingi Hardware',
       email: 'umusingihardware7@gmail.com',
       title: '',
-      phone: '+1 (616) 633-7026',
+      phone: '+250 787 487 953',
       role: 'unknown'
     };
   };
