@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-
 import { XIcon } from "lucide-react";
-
+import stockInService from "../../../services/stockinService";
 
 // Modal Component for StockOut
 const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, isLoading, title }) => {
@@ -16,13 +15,16 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     salesEntries: []
   });
 
-  
   const [validationErrors, setValidationErrors] = useState({
     stockinId: '',
     quantity: '',
     clientEmail: '',
     salesEntries: []
   });
+
+  // New states for SKU functionality
+  const [skuLoadingStates, setSkuLoadingStates] = useState({});
+  const [skuErrors, setSkuErrors] = useState({});
 
   const isUpdateMode = !!stockOut;
 
@@ -45,17 +47,19 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         clientName: '',
         clientEmail: '',
         clientPhone: '',
-        salesEntries: [{ stockinId: '', quantity: '' }]
+        salesEntries: [{ stockinId: '', quantity: '', sku: '' }]
       });
     }
     
-    // Clear validation errors when modal opens/closes
+    // Clear validation errors and SKU states when modal opens/closes
     setValidationErrors({
       stockinId: '',
       quantity: '',
       clientEmail: '',
       salesEntries: []
     });
+    setSkuLoadingStates({});
+    setSkuErrors({});
   }, [stockOut, isOpen]);
 
   const validateStockInId = (stockinId) => {
@@ -65,12 +69,13 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     return '';
   };
 
-    const formatCurrency = (amount) => {
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'RWF'
     }).format(amount);
   };
+
   const validateQuantity = (quantity, stockinId) => {
     if (!quantity) {
       return 'Quantity is required';
@@ -101,6 +106,131 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     if (!email) return ''; // Email is optional
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email) ? '' : 'Please enter a valid email address';
+  };
+
+  // Calculate suggested quantity (half of available stock, minimum 1)
+  const calculateSuggestedQuantity = (availableQuantity) => {
+    if (!availableQuantity || availableQuantity <= 0) return 1;
+    const halfQuantity = Math.floor(availableQuantity / 2);
+    return halfQuantity > 0 ? halfQuantity : 1;
+  };
+
+  // SKU search functionality
+  const handleSkuSearch = async (index, sku) => {
+    if (!sku.trim()) {
+      // Clear selection if SKU is empty
+      const updatedEntries = [...formData.salesEntries];
+      updatedEntries[index] = { ...updatedEntries[index], stockinId: '', sku: '', quantity: '' };
+      setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+      
+      // Clear SKU error for this index
+      setSkuErrors(prev => ({ ...prev, [index]: '' }));
+      return;
+    }
+
+    // Set loading state for this specific entry
+    setSkuLoadingStates(prev => ({ ...prev, [index]: true }));
+    setSkuErrors(prev => ({ ...prev, [index]: '' }));
+
+    try {
+      // Use the stockInService to fetch by SKU
+      const response = await stockInService.getStockInBySku(sku.trim());
+      
+      if (response) {
+        const stockInData = response;
+        
+        // Check if this stock is already selected in other entries
+        const isAlreadySelected = formData.salesEntries.some((entry, i) => 
+          i !== index && entry.stockinId === stockInData.id
+        );
+
+        if (isAlreadySelected) {
+          setSkuErrors(prev => ({ 
+            ...prev, 
+            [index]: 'This stock item is already selected in another entry' 
+          }));
+          
+          // Clear the selection
+          const updatedEntries = [...formData.salesEntries];
+          updatedEntries[index] = { ...updatedEntries[index], stockinId: '', quantity: '' };
+          setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+        } else {
+          // Calculate suggested quantity (half of available stock)
+          const suggestedQuantity = calculateSuggestedQuantity(stockInData.quantity);
+          
+          // Update the sales entry with the found stock and suggested quantity
+          const updatedEntries = [...formData.salesEntries];
+          updatedEntries[index] = { 
+            ...updatedEntries[index], 
+            stockinId: stockInData.id,
+            sku: sku.trim(),
+            quantity: suggestedQuantity.toString()
+          };
+          setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+          
+          // Clear any validation errors for stockinId and quantity
+          const updatedErrors = [...validationErrors.salesEntries];
+          if (updatedErrors[index]) {
+            updatedErrors[index] = { 
+              ...updatedErrors[index], 
+              stockinId: '', 
+              quantity: '' 
+            };
+            setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
+          }
+          
+          // Show success message in console (optional)
+          console.log(`Auto-filled quantity: ${suggestedQuantity} (half of available ${stockInData.quantity})`);
+        }
+      } else {
+        setSkuErrors(prev => ({ 
+          ...prev, 
+          [index]: 'No stock found with this SKU' 
+        }));
+        
+        // Clear the selection
+        const updatedEntries = [...formData.salesEntries];
+        updatedEntries[index] = { ...updatedEntries[index], stockinId: '', quantity: '' };
+        setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+      }
+    } catch (error) {
+      console.error('Error searching by SKU:', error);
+      setSkuErrors(prev => ({ 
+        ...prev, 
+        [index]: 'Error searching for SKU. Please try again.' 
+      }));
+      
+      // Clear the selection
+      const updatedEntries = [...formData.salesEntries];
+      updatedEntries[index] = { ...updatedEntries[index], stockinId: '', quantity: '' };
+      setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+    } finally {
+      setSkuLoadingStates(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+  // Debounced SKU search
+  const handleSkuChange = (index, value) => {
+    // Update the SKU value immediately
+    const updatedEntries = [...formData.salesEntries];
+    updatedEntries[index] = { ...updatedEntries[index], sku: value };
+    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+
+    // Clear previous timeout if exists
+    if (window.skuSearchTimeout) {
+      clearTimeout(window.skuSearchTimeout);
+    }
+
+    // Set new timeout for search
+    window.skuSearchTimeout = setTimeout(() => {
+      handleSkuSearch(index, value);
+    }, 500); // 500ms delay
+  };
+
+  // Get stock information for display
+  const getStockInfo = (stockinId) => {
+    if (!stockinId || !stockIns) return null;
+    return stockIns.find(stock => stock.id === stockinId);
   };
 
   // Single entry handlers (for update mode)
@@ -134,7 +264,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
   const addSalesEntry = () => {
     setFormData(prev => ({
       ...prev,
-      salesEntries: [...prev.salesEntries, { stockinId: '', quantity: '' }]
+      salesEntries: [...prev.salesEntries, { stockinId: '', quantity: '', sku: '' }]
     }));
     
     setValidationErrors(prev => ({
@@ -154,6 +284,19 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         ...prev,
         salesEntries: prev.salesEntries.filter((_, i) => i !== index)
       }));
+      
+      // Clean up SKU states for this index
+      setSkuLoadingStates(prev => {
+        const newState = { ...prev };
+        delete newState[index];
+        return newState;
+      });
+      
+      setSkuErrors(prev => {
+        const newState = { ...prev };
+        delete newState[index];
+        return newState;
+      });
     }
   };
 
@@ -180,6 +323,33 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         quantity: quantityError 
       };
       setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
+      
+      // Update SKU and auto-fill quantity when manually selecting from dropdown
+      if (value && stockIns) {
+        const selectedStock = stockIns.find(stock => stock.id === value);
+        if (selectedStock) {
+          // Update SKU if available
+          if (selectedStock.sku) {
+            updatedEntries[index].sku = selectedStock.sku;
+          }
+          
+          // Auto-fill quantity if not already set
+          if (!updatedEntries[index].quantity) {
+            const suggestedQuantity = calculateSuggestedQuantity(selectedStock.quantity);
+            updatedEntries[index].quantity = suggestedQuantity.toString();
+            
+            // Clear quantity validation error since we're setting a valid value
+            const updatedErrors = [...validationErrors.salesEntries];
+            if (updatedErrors[index]) {
+              updatedErrors[index] = { ...updatedErrors[index], quantity: '' };
+              setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
+            }
+          }
+          
+          setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+        }
+      }
+      
     } else if (field === 'quantity') {
       error = validateQuantity(value, updatedEntries[index].stockinId);
       
@@ -187,6 +357,18 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       updatedErrors[index] = { ...updatedErrors[index], quantity: error };
       setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
     }
+  };
+
+  // Helper function to set suggested quantity for a specific entry
+  const setSuggestedQuantity = (index) => {
+    const entry = formData.salesEntries[index];
+    if (!entry.stockinId) return;
+    
+    const stockInfo = getStockInfo(entry.stockinId);
+    if (!stockInfo) return;
+    
+    const suggestedQuantity = calculateSuggestedQuantity(stockInfo.quantity);
+    handleSalesEntryChange(index, 'quantity', suggestedQuantity.toString());
   };
 
   const handleEmailChange = (e) => {
@@ -248,8 +430,9 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       // Check if there are any validation errors
       const hasEmailError = !!emailError;
       const hasSalesErrors = salesErrors.some(error => error.stockinId || error.quantity);
+      const hasSkuErrors = Object.values(skuErrors).some(error => !!error);
       
-      if (hasEmailError || hasSalesErrors) {
+      if (hasEmailError || hasSalesErrors || hasSkuErrors) {
         return;
       }
       
@@ -284,7 +467,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       clientName: '',
       clientEmail: '',
       clientPhone: '',
-      salesEntries: [{ stockinId: '', quantity: '' }]
+      salesEntries: [{ stockinId: '', quantity: '', sku: '' }]
     });
     
     setValidationErrors({
@@ -293,6 +476,9 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       clientEmail: '',
       salesEntries: []
     });
+    
+    setSkuLoadingStates({});
+    setSkuErrors({});
   };
 
   const isFormValid = () => {
@@ -309,7 +495,9 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         !error.stockinId && !error.quantity
       );
       
-      return allEntriesValid && !validationErrors.clientEmail;
+      const noSkuErrors = !Object.values(skuErrors).some(error => !!error);
+      
+      return allEntriesValid && !validationErrors.clientEmail && noSkuErrors;
     }
   };
 
@@ -317,10 +505,10 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold mb-4">{title}</h2>
-          <div className="" onClick={onClose}>
+          <div className="cursor-pointer" onClick={onClose}>
             <XIcon size={24} />
           </div>
         </div>
@@ -391,85 +579,170 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                 <h3 className="text-lg font-medium text-gray-800">Sales Entries</h3>
               </div>
 
-              {formData.salesEntries.map((entry, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-medium text-gray-700">Entry #{index + 1}</h4>
-                    {formData.salesEntries.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSalesEntry(index)}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Stock-In Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Stock-In Entry <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={entry.stockinId}
-                        onChange={(e) => handleSalesEntryChange(index, 'stockinId', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
-                          validationErrors.salesEntries[index]?.stockinId
-                            ? 'border-red-300 focus:ring-red-500'
-                            : 'border-gray-300 focus:ring-blue-500'
-                        }`}
-                      >
-                        <option value="">Select a stock-in entry</option>
-                        {stockIns?.map(stockIn => (
-                          <option key={stockIn.id} value={stockIn.id}>
-                            {stockIn.product?.productName || 'Unknown Product'} -
-                            Qty: #{stockIn.quantity} -
-                            Price: {formatCurrency(stockIn.sellingPrice)}
-                          </option>
-                        ))}
-                      </select>
-                      {validationErrors.salesEntries[index]?.stockinId && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {validationErrors.salesEntries[index].stockinId}
-                        </p>
+              {formData.salesEntries.map((entry, index) => {
+                const stockInfo = getStockInfo(entry.stockinId);
+                const isSkuLoading = skuLoadingStates[index];
+                const skuError = skuErrors[index];
+                
+                return (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="font-medium text-gray-700">Entry #{index + 1}</h4>
+                      {formData.salesEntries.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSalesEntry(index)}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          Remove
+                        </button>
                       )}
                     </div>
 
-                    {/* Quantity */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Quantity Sold <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={entry.quantity}
-                        onChange={(e) => handleSalesEntryChange(index, 'quantity', e.target.value)}
-                        min="1"
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
-                          validationErrors.salesEntries[index]?.quantity
-                            ? 'border-red-300 focus:ring-red-500'
-                            : 'border-gray-300 focus:ring-blue-500'
-                        }`}
-                        placeholder="Enter quantity sold"
-                      />
-                      {validationErrors.salesEntries[index]?.quantity && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {validationErrors.salesEntries[index].quantity}
-                        </p>
-                      )}
-                      {entry.stockinId && stockIns && (
-                        <p className="text-gray-500 text-xs mt-1">
-                          Available stock: {stockIns.find(stock => stock.id === entry.stockinId)?.quantity || 0}
-                        </p>
-                      )}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      {/* SKU Input */}
+                      <div className="md:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          SKU <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={entry.sku || ''}
+                            onChange={(e) => handleSkuChange(index, e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                              skuError
+                                ? 'border-red-300 focus:ring-red-500'
+                                : entry.stockinId
+                                ? 'border-green-300 focus:ring-green-500'
+                                : 'border-gray-300 focus:ring-blue-500'
+                            }`}
+                            placeholder="Enter SKU"
+                          />
+                          {isSkuLoading && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                            </div>
+                          )}
+                        </div>
+                        {skuError && (
+                          <p className="text-red-500 text-xs mt-1">{skuError}</p>
+                        )}
+                        {entry.stockinId && !skuError && (
+                          <p className="text-green-600 text-xs mt-1">✓ Stock found & quantity auto-filled</p>
+                        )}
+                      </div>
+
+                      {/* Stock-In Selection */}
+                      <div className="md:col-span-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Stock-In Entry <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={entry.stockinId}
+                          onChange={(e) => handleSalesEntryChange(index, 'stockinId', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                            validationErrors.salesEntries[index]?.stockinId
+                              ? 'border-red-300 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
+                        >
+                          <option value="">Select a stock-in entry</option>
+                          {stockIns?.map(stockIn => (
+                            <option key={stockIn.id} value={stockIn.id}>
+                              SKU: {stockIn.sku} - {stockIn.product?.productName || 'Unknown Product'} -
+                              Qty: #{stockIn.quantity} -
+                              Price: {formatCurrency(stockIn.sellingPrice)}
+                            </option>
+                          ))}
+                        </select>
+                        {validationErrors.salesEntries[index]?.stockinId && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {validationErrors.salesEntries[index].stockinId}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Quantity */}
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Quantity Sold <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={entry.quantity}
+                            onChange={(e) => handleSalesEntryChange(index, 'quantity', e.target.value)}
+                            min="1"
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                              validationErrors.salesEntries[index]?.quantity
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-gray-300 focus:ring-blue-500'
+                            }`}
+                            placeholder="Qty"
+                          />
+                          {entry.stockinId && (
+                            <button
+                              type="button"
+                              onClick={() => setSuggestedQuantity(index)}
+                              className="absolute right-1 top-1 bottom-1 px-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-600 rounded transition-colors"
+                              title="Fill half quantity"
+                            >
+                              ½
+                            </button>
+                          )}
+                        </div>
+                        {validationErrors.salesEntries[index]?.quantity && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {validationErrors.salesEntries[index].quantity}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Stock Information Display */}
+                      <div className="md:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Stock Information
+                        </label>
+                        {stockInfo ? (
+                          <div className="bg-gray-50 rounded-lg p-2 text-xs space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Available:</span>
+                              <span className="font-medium">{stockInfo.quantity}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Suggested:</span>
+                              <span className="font-medium text-blue-600">
+                                {calculateSuggestedQuantity(stockInfo.quantity)} (½)
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Price:</span>
+                              <span className="font-medium text-green-600">
+                                {formatCurrency(stockInfo.sellingPrice)}
+                              </span>
+                            </div>
+                            {entry.quantity && (
+                              <div className="flex justify-between border-t pt-1">
+                                <span className="text-gray-600">Total:</span>
+                                <span className="font-bold text-blue-600">
+                                  {formatCurrency(stockInfo.sellingPrice * Number(entry.quantity || 0))}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50 rounded-lg p-2 text-xs text-gray-500">
+                            Select a stock item
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
-              {/* Add Sales Entry Button - Now at the bottom */}
+              {/* Add Sales Entry Button */}
               <div className="flex justify-center mb-4">
                 <button
                   type="button"
@@ -561,7 +834,11 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         {/* Help Text */}
         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
           <p className="text-xs text-blue-700">
-            <strong>Required fields:</strong> Stock-In Entry and Quantity Sold are required for each entry.
+            <strong>SKU Search:</strong> Enter a SKU to automatically find and select the corresponding stock item with auto-filled quantity (half of available stock).
+            <br />
+            <strong>Auto Quantity:</strong> When a stock is found, quantity is automatically set to half of available stock. Use the "½" button to reset to this value.
+            <br />
+            <strong>Required fields:</strong> SKU (or Stock-In Entry) and Quantity Sold are required for each entry.
             <br />
             {!isUpdateMode && (
               <>
@@ -569,7 +846,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                 <br />
               </>
             )}
-            <strong>Note:</strong> The transaction ID will be generated automatically.
+            <strong>Note:</strong> The transaction ID will be generated automatically. Stock information updates in real-time.
           </p>
         </div>
       </div>

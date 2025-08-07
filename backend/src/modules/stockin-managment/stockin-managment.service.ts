@@ -232,6 +232,8 @@ export class StockinManagmentService {
             product:true,
           }
         })
+        console.log(stockin);
+        
         return stockin
       } catch (error) {
         throw new HttpException(error.message, error.status)
