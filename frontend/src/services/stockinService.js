@@ -120,6 +120,26 @@ async createMultipleStockIn(purchasesArray, userInfo = {}) {
       throw new Error(error.response?.data?.message || error.message || 'Failed to fetch stock-in');
     }
   }
+  /**
+   * Get a single stock-in entry by sku
+   * @param {string} sku - Stock-sku entry sku
+   * @returns {Promise<Object>} Stock-in entry details
+   */
+  async getStockInBySku(sku) {
+    try {
+      if (!sku) {
+        throw new Error('Stock-in sku is required');
+      }
+
+      const response = await api.get(`/stockin/sku/${sku}`);
+      console.log(response.data);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching stock-in by Sku :', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to fetch stock-in');
+    }
+  }
 
   /**
    * Update a stock-in entry

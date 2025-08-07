@@ -46,8 +46,10 @@ export class StockinManagmentController {
   }
 
   @Get('sku/:id')
-  async getStockInBysku(@Param('sku') sku: string) {
+  async getStockInBysku(@Param('id') sku: string) {
     try {
+      console.log(sku);
+      
       return await this.stockInService.getStockInBysku(sku)
     } catch (error) {
       console.log('error getting stockinbysku:', error.message)
