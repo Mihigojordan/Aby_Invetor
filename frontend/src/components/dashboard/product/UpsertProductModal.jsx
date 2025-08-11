@@ -135,10 +135,6 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
         const plainTextDescription = formData.description.replace(/<[^>]*>/g, '').trim();
         if (!plainTextDescription) newErrors.description = 'Description is required';
 
-        // Validate images for new products
-        if (!product && images.length === 0) {
-            newErrors.images = 'At least one image is required';
-        }
 
         // Check total images (existing + new) don't exceed limit
         const totalImages = existingImages.length + images.length;

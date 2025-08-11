@@ -14,47 +14,83 @@ import {
   Download
 } from 'lucide-react';
 
-// PWA Install Button Component
+// PWA Install Button Component - FIXED VERSION
 const PWAInstallButton = ({ className = "", isScrolled = false }) => {
     const [isInstallable, setIsInstallable] = useState(false);
     const [isInstalled, setIsInstalled] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
     const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
+    // Fixed iOS detection function
+    const detectIOS = () => {
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        return /iphone|ipad|ipod/.test(userAgent) && !window.MSStream;
+    };
+
+    // Fixed PWA installation detection
+    const detectPWAInstalled = () => {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+               window.navigator.standalone === true ||
+               document.referrer.includes('android-app://');
+    };
+
     useEffect(() => {
+        console.log('PWA Button initializing...');
+        
+        // Check iOS status
+        const iosDevice = detectIOS();
+        setIsIOS(iosDevice);
+        console.log('Is iOS device:', iosDevice);
+
         // Check if already installed
-        if (window.isPWAInstalled && window.isPWAInstalled()) {
-            setIsInstalled(true);
-            return;
+        const alreadyInstalled = detectPWAInstalled();
+        setIsInstalled(alreadyInstalled);
+        console.log('Is PWA installed:', alreadyInstalled);
+
+        // For iOS devices that aren't already installed, show install button
+        if (iosDevice && !alreadyInstalled) {
+            console.log('iOS device detected, showing install button');
+            setIsInstallable(true);
         }
 
-        // Check if iOS
-        if (window.isIOSDevice && window.isIOSDevice()) {
-            setIsIOS(true);
-        }
+        // Listen for PWA events from the main index.html
+        const handlePWAStatus = (e) => {
+            console.log('PWA Status event:', e.detail);
+            const { installed, canInstall, isIOS: isIOSFromEvent } = e.detail;
+            
+            setIsInstalled(installed);
+            setIsIOS(isIOSFromEvent);
+            setIsInstallable(canInstall || isIOSFromEvent);
+        };
 
-        // Listen for PWA install events
-        const handleInstallable = () => {
+        const handleInstallable = (e) => {
+            console.log('PWA installable event:', e.detail);
             setIsInstallable(true);
         };
 
         const handleInstalled = () => {
+            console.log('PWA installed event');
             setIsInstalled(true);
             setIsInstallable(false);
         };
 
+        // Listen for events from index.html
+        window.addEventListener('pwa-status', handlePWAStatus);
         window.addEventListener('pwa-installable', handleInstallable);
         window.addEventListener('pwa-installed', handleInstalled);
 
-        // Also check for the old way (fallback)
+        // Also listen for beforeinstallprompt (Android/Desktop)
         const handleBeforeInstallPrompt = (e) => {
+            console.log('beforeinstallprompt event');
             e.preventDefault();
             setIsInstallable(true);
         };
         
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+        // Cleanup
         return () => {
+            window.removeEventListener('pwa-status', handlePWAStatus);
             window.removeEventListener('pwa-installable', handleInstallable);
             window.removeEventListener('pwa-installed', handleInstalled);
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -62,17 +98,30 @@ const PWAInstallButton = ({ className = "", isScrolled = false }) => {
     }, []);
 
     const handleInstall = async () => {
+        console.log('Install button clicked', { isIOS, isInstallable });
+        
         if (isIOS) {
+            console.log('Showing iOS instructions');
             setShowIOSInstructions(true);
             return;
         }
 
-        if (window.installPWA) {
+        // Try to use the global install function from index.html
+        if (window.PWAUtils && window.PWAUtils.installPWA) {
+            const installed = await window.PWAUtils.installPWA();
+            if (installed) {
+                setIsInstalled(true);
+                setIsInstallable(false);
+            }
+        } else if (window.installPWA) {
+            // Fallback to direct function
             const installed = await window.installPWA();
             if (installed) {
                 setIsInstalled(true);
                 setIsInstallable(false);
             }
+        } else {
+            console.log('PWA install function not available');
         }
     };
 
@@ -110,7 +159,11 @@ const PWAInstallButton = ({ className = "", isScrolled = false }) => {
                     </div>
                 </div>
                 <button
-                    onClick={() => setShowIOSInstructions(false)}
+                    onClick={() => {
+                        setShowIOSInstructions(false);
+                        // Mark as dismissed so we don't show auto-prompt again
+                        sessionStorage.setItem('ios-install-dismissed', 'true');
+                    }}
                     className="mt-4 w-full bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 transition-colors"
                 >
                     Got it!
@@ -119,18 +172,22 @@ const PWAInstallButton = ({ className = "", isScrolled = false }) => {
         </div>
     );
 
-    // if (isInstalled) {
-    //     return (
-    //         <div className={`flex items-center space-x-2 text-primary-600 text-sm ${className}`}>
-    //             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-    //                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-    //             </svg>
-    //             <span>App Installed</span>
-    //         </div>
-    //     );
-    // }
+    // Debug logging
+    console.log('PWA Button state:', {
+        isIOS,
+        isInstalled,
+        isInstallable,
+        shouldShow: (isInstallable || isIOS) && !isInstalled
+    });
 
+    // Don't show if installed
+    if (isInstalled) {
+        return null; // Or return installed status if you want
+    }
+
+    // Show button if installable OR if iOS (and not installed)
     if (!isInstallable && !isIOS) {
+        console.log('Button not showing: not installable and not iOS');
         return null;
     }
 
@@ -142,7 +199,7 @@ const PWAInstallButton = ({ className = "", isScrolled = false }) => {
                 id="install-button"
             >
                 <Download className="h-5 w-5" />
-                <span>{isIOS ? 'Install App' : 'Install App'}</span>
+                <span>Install App</span>
             </button>
 
             {showIOSInstructions && <IOSInstructions />}
