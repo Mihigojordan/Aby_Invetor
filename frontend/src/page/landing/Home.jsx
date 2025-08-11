@@ -13,45 +13,159 @@ import {
   Settings,
   Download
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+
+// PWA Install Button Component
+const PWAInstallButton = ({ className = "", isScrolled = false }) => {
+    const [isInstallable, setIsInstallable] = useState(false);
+    const [isInstalled, setIsInstalled] = useState(false);
+    const [isIOS, setIsIOS] = useState(false);
+    const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+
+    useEffect(() => {
+        // Check if already installed
+        if (window.isPWAInstalled && window.isPWAInstalled()) {
+            setIsInstalled(true);
+            return;
+        }
+
+        // Check if iOS
+        if (window.isIOSDevice && window.isIOSDevice()) {
+            setIsIOS(true);
+        }
+
+        // Listen for PWA install events
+        const handleInstallable = () => {
+            setIsInstallable(true);
+        };
+
+        const handleInstalled = () => {
+            setIsInstalled(true);
+            setIsInstallable(false);
+        };
+
+        window.addEventListener('pwa-installable', handleInstallable);
+        window.addEventListener('pwa-installed', handleInstalled);
+
+        // Also check for the old way (fallback)
+        const handleBeforeInstallPrompt = (e) => {
+            e.preventDefault();
+            setIsInstallable(true);
+        };
+        
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => {
+            window.removeEventListener('pwa-installable', handleInstallable);
+            window.removeEventListener('pwa-installed', handleInstalled);
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
+    }, []);
+
+    const handleInstall = async () => {
+        if (isIOS) {
+            setShowIOSInstructions(true);
+            return;
+        }
+
+        if (window.installPWA) {
+            const installed = await window.installPWA();
+            if (installed) {
+                setIsInstalled(true);
+                setIsInstallable(false);
+            }
+        }
+    };
+
+    const IOSInstructions = () => (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg p-6 max-w-sm mx-auto">
+                <h3 className="text-lg font-semibold mb-4 text-primary-900">Install ABY Inventory</h3>
+                <div className="space-y-3 text-sm">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-semibold">
+                            1
+                        </div>
+                        <span>Tap the Share button in Safari</span>
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                        </svg>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-semibold">
+                            2
+                        </div>
+                        <span>Scroll down and tap "Add to Home Screen"</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-semibold">
+                            3
+                        </div>
+                        <span>Tap "Add" to install the app</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                </div>
+                <button
+                    onClick={() => setShowIOSInstructions(false)}
+                    className="mt-4 w-full bg-primary-500 text-white py-2 px-4 rounded-lg hover:bg-primary-600 transition-colors"
+                >
+                    Got it!
+                </button>
+            </div>
+        </div>
+    );
+
+    // if (isInstalled) {
+    //     return (
+    //         <div className={`flex items-center space-x-2 text-primary-600 text-sm ${className}`}>
+    //             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+    //                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+    //             </svg>
+    //             <span>App Installed</span>
+    //         </div>
+    //     );
+    // }
+
+    if (!isInstallable && !isIOS) {
+        return null;
+    }
+
+    return (
+        <>
+            <button
+                onClick={handleInstall}
+                className={`flex items-center space-x-2 px-4 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-medium ${className}`}
+                id="install-button"
+            >
+                <Download className="h-5 w-5" />
+                <span>{isIOS ? 'Install App' : 'Install App'}</span>
+            </button>
+
+            {showIOSInstructions && <IOSInstructions />}
+        </>
+    );
+};
 
 export default function LandingPage() {
-     const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showInstallButton, setShowInstallButton] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    // Handle PWA install prompt
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowInstallButton(true);
-    };
-
     // Handle scroll for button visibility
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 100);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('scroll', handleScroll);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setShowInstallButton(false);
-      }
-      setDeferredPrompt(null);
-    }
-  };
   const features = [
     {
       icon: <Package className="h-8 w-8" />,
@@ -94,19 +208,12 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100">
-         {showInstallButton && (
-        <div className={`fixed right-6 z-50 transition-all duration-300 ${
-          isScrolled ? 'bottom-6' : 'top-24'
-        }`}>
-          <button
-            onClick={handleInstallClick}
-            className="flex items-center space-x-2 px-4 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-          >
-            <Download className="h-5 w-5" />
-            <span className="font-medium">Install App</span>
-          </button>
-        </div>
-      )}
+      {/* Floating PWA Install Button */}
+      <div className={`fixed right-6 z-50 transition-all duration-300 ${
+        isScrolled ? 'bottom-6' : 'top-24'
+      }`}>
+        <PWAInstallButton />
+      </div>
 
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-primary-200">
@@ -116,18 +223,16 @@ export default function LandingPage() {
               <div className="bg-primary-500 p-2 rounded-lg">
                 <Warehouse className="h-6 w-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-primary-900">Aby Inventory Management</h1>
+              <h1 className="text-xl font-bold text-primary-900">ABY Inventory Management</h1>
             </div>
             <nav className="hidden md:flex space-x-8">
               <a href="#features" className="text-primary-700 hover:text-primary-900 font-medium">Features</a>
               <a href="#about" className="text-primary-700 hover:text-primary-900 font-medium">About</a>
               <a href="#contact" className="text-primary-700 hover:text-primary-900 font-medium">Contact</a>
             </nav>
-            <div className="flex space-x-3">
-                <Link to={'/auth/'}>
-              <button className="px-4 py-2 text-primary-600 hover:text-primary-800 font-medium">Login</button>
-                </Link>
-             
+            <div className="flex items-center space-x-3">
+              <PWAInstallButton className="hidden sm:flex text-sm" />
+              <a href="/auth/" className="px-4 py-2 text-primary-600 hover:text-primary-800 font-medium">Login</a>
             </div>
           </div>
         </div>
@@ -145,14 +250,14 @@ export default function LandingPage() {
               Complete inventory solution with admin controls, employee access, and real-time product tracking. 
               Manage your stock levels efficiently with our powerful dashboard.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-           <Link to={'/auth/admin/'}>
-              <button className="px-8 py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center">
-                Get Started Now
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </button>
-              </Link>
-            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <a href="/auth/admin/">
+                <button className="px-8 py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center">
+                  Get Started Now
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </button>
+              </a>
+              <PWAInstallButton className="sm:hidden" />
             </div>
           </div>
         </div>
@@ -223,6 +328,9 @@ export default function LandingPage() {
                   </div>
                 </div>
               </div>
+              <div className="mt-6 text-center">
+                <PWAInstallButton className="inline-flex" />
+              </div>
             </div>
           </div>
         </div>
@@ -237,9 +345,12 @@ export default function LandingPage() {
           <p className="text-xl text-primary-200 mb-8">
             Start your free trial today and see the difference professional inventory management makes.
           </p>
-          <button className="px-8 py-4 bg-primary-400 hover:bg-primary-300 text-primary-950 rounded-xl font-semibold text-lg transition-all transform hover:scale-105">
-            Get Started Now
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <button className="px-8 py-4 bg-primary-400 hover:bg-primary-300 text-primary-950 rounded-xl font-semibold text-lg transition-all transform hover:scale-105">
+              Get Started Now
+            </button>
+            <PWAInstallButton />
+          </div>
         </div>
       </section>
 
@@ -252,7 +363,7 @@ export default function LandingPage() {
                 <div className="bg-primary-500 p-2 rounded-lg">
                   <Warehouse className="h-5 w-5 text-white" />
                 </div>
-                <h4 className="text-white font-bold">Aby Inventory Management</h4>
+                <h4 className="text-white font-bold">ABY Inventory Management</h4>
               </div>
               <p className="text-primary-300 text-sm">
                 Professional inventory management solution for modern businesses.
@@ -285,7 +396,7 @@ export default function LandingPage() {
           </div>
           <div className="border-t border-primary-800 mt-8 pt-8 text-center">
             <p className="text-primary-400 text-sm">
-              © 2025 Aby Inventory Management. All rights reserved.
+              © 2025 ABY Inventory Management. All rights reserved.
             </p>
           </div>
         </div>
