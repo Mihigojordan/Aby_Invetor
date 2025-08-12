@@ -133,7 +133,7 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
         
         // Check if description has content (strip HTML tags for validation)
         const plainTextDescription = formData.description.replace(/<[^>]*>/g, '').trim();
-        if (!plainTextDescription) newErrors.description = 'Description is required';
+        // if (!plainTextDescription) newErrors.description = 'Description is required';
 
 
         // Check total images (existing + new) don't exceed limit
@@ -238,6 +238,7 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
                             <X size={20} />
                         </button>
                     </div>
+                    
 
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

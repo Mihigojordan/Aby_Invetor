@@ -117,7 +117,14 @@ const ProductManagement = ({ role }) => {
     setIsDeleteModalOpen(true);
   };
   const handleViewProduct = (product) => {
-    navigate(`${product.id}`)
+    if(!product.id) return null
+    if(role == 'admin'){
+      navigate(`/admin/dashboard/product/${product.id}`)
+
+    }
+    else if(role == 'employee'){
+      navigate(`/employee/dashboard/product/${product.id}`)
+    }
     setIsViewModalOpen(true);
   };
 
