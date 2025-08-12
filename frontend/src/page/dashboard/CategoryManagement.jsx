@@ -94,8 +94,6 @@ const CategoryManagement = ({role}) => {
       if(role == 'employee'){
         categoryData.employeeId = employeeData.id
       }
-
-      alert(JSON.stringify(categoryData))
       const response = await categoryService.updateCategory(selectedCategory.id, categoryData);
       setCategories(prev =>
         prev.map(cat => (cat.id === selectedCategory.id ? response.category : cat))
@@ -120,7 +118,7 @@ const CategoryManagement = ({role}) => {
       if(role == 'employee'){
         categoryData.employeeId = employeeData.id
       }
-      await categoryService.deleteCategory(selectedCategory.id);
+      await categoryService.deleteCategory(selectedCategory.id,categoryData);
       setCategories(prev => prev.filter(cat => cat.id !== selectedCategory.id));
       setIsDeleteModalOpen(false);
       setSelectedCategory(null);

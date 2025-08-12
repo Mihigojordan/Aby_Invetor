@@ -101,7 +101,19 @@ export class ProductManagmentService {
   async getProductById(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: { category: true },
+      include: { 
+        category: true,
+        stockIn:{
+          include:{
+            employee:true,
+            product:true,
+            admin:true,
+            stockout:true
+          }
+        },
+        admin:true,
+        employee:true
+       },
     });
 
     if (!product) {

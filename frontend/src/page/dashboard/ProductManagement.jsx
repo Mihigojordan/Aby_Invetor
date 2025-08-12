@@ -5,7 +5,8 @@ import DeleteProductModal from '../../components/dashboard/product/DeleteProduct
 import productService from '../../services/productService';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
-import ViewProductModal from '../../components/dashboard/product/ViewProductModal';
+import { useNavigate } from 'react-router-dom';
+
 
 const ProductManagement = ({ role }) => {
   const [products, setProducts] = useState([]);
@@ -21,6 +22,7 @@ const ProductManagement = ({ role }) => {
   const [notification, setNotification] = useState(null);
 
 
+  const navigate = useNavigate()
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -115,7 +117,7 @@ const ProductManagement = ({ role }) => {
     setIsDeleteModalOpen(true);
   };
   const handleViewProduct = (product) => {
-    setSelectedProduct(product);
+    navigate(`${product.id}`)
     setIsViewModalOpen(true);
   };
 
@@ -685,11 +687,6 @@ const ProductManagement = ({ role }) => {
           title={isEditModalOpen ? 'Edit Product' : 'Add New Product'}
         />
 
-        <ViewProductModal 
-  isOpen={isViewModalOpen}
-  onClose={() => setIsViewModalOpen(false)}
-  product={selectedProduct}
-/>
 
         {/* Delete Product Modal */}
         <DeleteProductModal
