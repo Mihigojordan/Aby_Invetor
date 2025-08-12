@@ -20,7 +20,7 @@ export class ProductManagmentService {
     productName?: string;
     brand?: string;
     categoryId: string;
-    description?: string; // HTML string from frontend
+    description?; // HTML string from frontend
     adminId?: string;
     employeeId?: string;
     imageurls?: Express.Multer.File[];
