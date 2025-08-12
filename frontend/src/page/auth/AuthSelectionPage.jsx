@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Shield, 
   Users, 
@@ -139,6 +139,8 @@ const AuthSelectionPage = () => {
             </div>
             <div className="w-px h-4 bg-gray-300"></div>
             <span className="text-xs text-gray-500">Version 2.0</span>
+            <div className="w-px h-4 bg-gray-300"></div>
+            <Link to={'/'} className="text-xs text-gray-500 capitalize">home page</Link>
           </div>
         </div>
       </div>
