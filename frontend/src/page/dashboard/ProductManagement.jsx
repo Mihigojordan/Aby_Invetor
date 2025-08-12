@@ -6,6 +6,7 @@ import productService from '../../services/productService';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
 import { useNavigate } from 'react-router-dom';
+import { testProducts } from '../../services/test';
 
 
 const ProductManagement = ({ role }) => {
@@ -288,6 +289,39 @@ const ProductManagement = ({ role }) => {
     setIsDeleteModalOpen(false);
     setSelectedProduct(null);
   };
+
+  const handleMultipleProduct = async()=>{
+    try {
+      testProducts.map(async(productData)=>{
+
+        if (role == 'admin') {
+          // Create new product
+          await productService.createProduct({
+            productName: productData.productName,
+          
+            categoryId: productData.categoryId,
+            description: productData.description,
+           
+            adminId: adminData.id
+          });
+        }
+        if (role == 'employee') {
+            // Create new product
+          await productService.createProduct({
+            productName: productData.productName,
+          
+            categoryId: productData.categoryId,
+            description: productData.description,
+            
+            employeeId: employeeData.id
+          });
+        }
+        
+      })
+    } catch (error) {
+      
+    }
+  }
 
   // Pagination handlers
   const handlePageChange = (page) => {
@@ -703,6 +737,7 @@ const ProductManagement = ({ role }) => {
           product={selectedProduct}
           isLoading={isLoading}
         />
+       
       </div>
     </div>
   );
