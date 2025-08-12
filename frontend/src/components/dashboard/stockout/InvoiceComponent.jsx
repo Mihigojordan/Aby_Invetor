@@ -53,10 +53,10 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
 
 
     return {
-      name: 'Sadiki Rukara',
-      email: 'abyridellc@gmail.com',
+      name: 'Umusingi Hardware',
+      email: 'umusingihardware7@gmail.com',
       title: '',
-      phone: '+1 (616) 633-7026',
+      phone: '+250 787 487 953',
       role: 'unknown'
     };
   };
@@ -66,7 +66,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const companyInfo = {
     logo: CompanyLogo,
     companyName: 'Umusingi Hardware',
-    companyAddress: 'Kigali,Rwanda',
+    companyAddress: 'Nyamata ,Bugesera , Rwanda',
 
 
   }
@@ -86,7 +86,9 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const subtotal = invoiceData?.reduce((sum, item) => sum + item.soldPrice, 0) || 0;
   const vatRate = 0.05; // 5% VAT
   const vat = subtotal * vatRate;
-  const total = subtotal + vat;
+  const total = subtotal ;
+
+  'ABTR34665'
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -141,7 +143,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       thousandIndex++;
     }
 
-    return 'Dollar ' + result.trim();
+    return result.trim() + ' RWANDA FRANCS ';
   };
 
   // Handle close with confirmation
@@ -293,7 +295,7 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         {/* Action Bar */}
-        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
+        <div className="sticky z-40 top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">Invoice #{transactionIdDisplay}</h2>
             <div className="flex gap-3">
@@ -385,9 +387,9 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
           </div>
 
           {/* From and To Section */}
-          <div className="grid grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-3 gap-4 mb-8">
             <div>
-              <h3 className="font-semibold text-gray-800 mb-2">From</h3>
+              <h3 className="font-semibold  text-gray-800 mb-2">From</h3>
               <div className="text-gray-700">
                 <p className="font-semibold text-lg">{userInfo.name}</p>
                 <p className="text-sm">Email: {userInfo.email}</p>
@@ -455,16 +457,10 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
           {/* Totals Section */}
           <div className="flex justify-end mb-8">
             <div className="w-80">
-              <div className="flex justify-between py-2">
-                <span className="text-gray-700">Sub Total</span>
-                <span className="font-semibold">{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-700">VAT (5%)</span>
-                <span className="font-semibold">{formatCurrency(vat)}</span>
-              </div>
-              <div className="border-t border-gray-300 pt-2 mt-2">
-                <div className="flex justify-between py-2">
+            
+             
+              <div className="   pt-2 mt-2">
+                <div className="flex border-b border-gray-300 justify-between py-2">
                   <span className="text-lg font-bold text-gray-800">Total Amount</span>
                   <span className="text-lg font-bold text-gray-800">{formatCurrency(total)}</span>
                 </div>
@@ -484,8 +480,8 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
 
               <div className='flex items-end flex-col'>
 
-                <img src={signature} className='object-contain h-32' alt="" />
-                <p className="font-semibold text-gray-800">{userInfo.name}</p>
+              
+                <p className="font-semibold text-lg capitalize text-gray-800">{userInfo.name}</p>
               </div>
             </div>
           </div>

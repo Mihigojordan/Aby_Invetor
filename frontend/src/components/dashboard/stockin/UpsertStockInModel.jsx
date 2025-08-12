@@ -623,17 +623,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                 </div>
               ))}
 
-              {/* Add Purchase Button - Now at the bottom */}
-              <div className="flex justify-center mb-4">
-                <button
-                  type="button"
-                  onClick={addPurchase}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <span className="text-lg">+</span>
-                  Add Another Purchase
-                </button>
-              </div>
+            
             </div>
           )}
 

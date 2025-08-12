@@ -114,15 +114,6 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                              {
-                                path: "sales-return",
-                                element: (
-                                    <SuspenseWrapper>
-                                        <SalesReturnManagement role={'admin'} />
-                                    </SuspenseWrapper>
-                                )
-
-                            },
                             {
                                 path:"profile",
                                  element: (
@@ -198,15 +189,7 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                            {
-                                path: "sales-return",
-                                element: (
-                                    <SuspenseWrapper>
-                                        <SalesReturnManagement role={'employee'} />
-                                    </SuspenseWrapper>
-                                )
-
-                            },
+                            
                           
                         ]
                     }

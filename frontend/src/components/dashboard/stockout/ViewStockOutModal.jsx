@@ -1,7 +1,8 @@
 import React from 'react';
-import { X, Package, Hash, DollarSign, User, Calendar, ShoppingCart, Phone, Mail, Receipt, Clock, TrendingUp } from 'lucide-react';
+import { X, Package, Hash, DollarSign, User, Calendar, ShoppingCart, Phone, Mail, Receipt, Clock, TrendingUp, Barcode } from 'lucide-react';
 import { API_URL } from '../../../api/api';
 import productService from '../../../services/productService';
+import stockOutService from '../../../services/stockoutService';
 
 const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
   if (!isOpen || !stockOut) return null;
@@ -81,7 +82,7 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Sale Information */}
             <div className="space-y-6">
-             
+
 
               {/* Sale Summary */}
               <div className="bg-green-50 rounded-lg p-4">
@@ -162,7 +163,7 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
                     <h3 className="font-semibold text-gray-900">Related Stock Entry</h3>
                   </div>
                   <div className="space-y-3">
-                   
+
                     {stockOut.stockin.product && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
@@ -187,6 +188,31 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
 
             {/* Right Column - Client & Additional Information */}
             <div className="space-y-6">
+              {/* Barcode & SKU */}
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Barcode className="w-5 h-5 text-purple-600" />
+                  <h3 className="font-semibold text-gray-900">Barcode </h3>
+                </div>
+                <div className="space-y-4">
+
+                  {stockOut.transactionId && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Barcode</label>
+                      <div className="bg-white p-4 rounded border flex justify-center">
+                        <img
+                          src={`${stockOutService.getBarCodeUrlImage(stockOut.transactionId)}`}
+                          alt="Barcode"
+                          className="max-h-16 object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {!stockOut.transactionId && (
+                    <p className="text-gray-500 italic">No barcode  information available</p>
+                  )}
+                </div>
+              </div>
               {/* Client Information */}
               {(stockOut.clientName || stockOut.clientEmail || stockOut.clientPhone) && (
                 <div className="bg-orange-50 rounded-lg p-4">
@@ -206,7 +232,7 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                         <div className="flex items-center gap-2">
                           <Mail className="w-4 h-4 text-gray-500" />
-                          <a 
+                          <a
                             href={`mailto:${stockOut.clientEmail}`}
                             className="text-blue-600 hover:text-blue-800 transition-colors"
                           >
@@ -220,7 +246,7 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4 text-gray-500" />
-                          <a 
+                          <a
                             href={`tel:${stockOut.clientPhone}`}
                             className="text-blue-600 hover:text-blue-800 transition-colors"
                           >
@@ -257,23 +283,35 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
                 </div>
               </div>
 
+
+              {/* Empty State for No Additional Info */}
+              {!stockOut.clientName && !stockOut.clientEmail && !stockOut.clientPhone &&
+                !stockOut.stockin?.product?.imageUrls && !stockOut.stockin?.product?.description && (
+                  <div className="bg-gray-50 rounded-lg p-6 text-center">
+                    <div className="text-gray-400 mb-2">
+                      <Package size={48} className="mx-auto" />
+                    </div>
+                    <p className="text-gray-500">No additional information available</p>
+                  </div>
+                )}
+            </div>
               {/* Product Images */}
               {stockOut.stockin?.product?.imageUrls && (
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-blue-50  col-span-2 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Package className="w-5 h-5 text-blue-600" />
                     <h3 className="font-semibold text-gray-900">Product Images</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {Array.isArray(stockOut.stockin.product.imageUrls) 
+                    {Array.isArray(stockOut.stockin.product.imageUrls)
                       ? stockOut.stockin.product.imageUrls.slice(0, 4).map((url, index) => (
-                          <img 
-                            key={index}
-                            src={`${API_URL}${url}`} 
-                            alt={`Product ${index + 1}`}
-                            className="w-full h-20 object-cover rounded border"
-                          />
-                        ))
+                        <img
+                          key={index}
+                          src={`${API_URL}${url}`}
+                          alt={`Product ${index + 1}`}
+                          className="w-full h-20 object-cover rounded border"
+                        />
+                      ))
                       : <p className="text-gray-500 italic col-span-2">No images available</p>
                     }
                   </div>
@@ -282,28 +320,16 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
 
               {/* Product Description */}
               {stockOut.stockin?.product?.description && (
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-blue-50  md:col-span-2 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Package className="w-5 h-5 text-blue-600" />
                     <h3 className="font-semibold text-gray-900">Product Description</h3>
                   </div>
-                  <div className="text-gray-600 text-sm" 
-                    dangerouslySetInnerHTML={{__html : productService.parseDescription(stockOut.stockin.product.description)}} 
+                  <div className="text-gray-600 text-sm"
+                    dangerouslySetInnerHTML={{ __html: productService.parseDescription(stockOut.stockin.product.description) }}
                   />
                 </div>
               )}
-
-              {/* Empty State for No Additional Info */}
-              {!stockOut.clientName && !stockOut.clientEmail && !stockOut.clientPhone && 
-               !stockOut.stockin?.product?.imageUrls && !stockOut.stockin?.product?.description && (
-                <div className="bg-gray-50 rounded-lg p-6 text-center">
-                  <div className="text-gray-400 mb-2">
-                    <Package size={48} className="mx-auto" />
-                  </div>
-                  <p className="text-gray-500">No additional information available</p>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
