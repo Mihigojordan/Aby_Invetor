@@ -40,6 +40,8 @@ const ProductManagement = ({ role }) => {
 
     try {
       const data = await productService.getAllProducts();
+      console.log('response from baceknd', data);
+      
       setProducts(data);
       setFilteredProducts(data);
 
@@ -209,7 +211,20 @@ const ProductManagement = ({ role }) => {
 
     setIsLoading(true);
     try {
-      await productService.deleteProduct(selectedProduct.id);
+
+      if(role == 'admin'){
+
+        await productService.deleteProduct(selectedProduct.id,{
+          adminId: adminData.id
+        });
+      }
+      
+      if(role == 'employee'){
+        await productService.deleteProduct(selectedProduct.id,{
+          employeeId: employeeData.id
+        });
+
+      }
 
       // Update local state immediately for better UX
       setProducts(prev => prev.filter(product => product.id !== selectedProduct.id));
