@@ -24,10 +24,17 @@ export class ProductManagmentService {
     adminId?: string;
     employeeId?: string;
     imageurls?: Express.Multer.File[];
-    createdAt:Date
+    createdAt: Date;
   }) {
     try {
-      const { productName, brand, categoryId, description, imageurls,createdAt } = data;
+      const {
+        productName,
+        brand,
+        categoryId,
+        description,
+        imageurls,
+        createdAt,
+      } = data;
 
       const imageUrls =
         imageurls?.map((file) => `/uploads/product_images/${file.filename}`) ||
@@ -48,13 +55,13 @@ export class ProductManagmentService {
           imageUrls,
           employeeId: data.employeeId ? String(data.employeeId) : null,
           categoryId: categoryId,
-          createdAt: createdAt ? createdAt : new Date().toISOString()
+          createdAt: createdAt ? createdAt : new Date().toISOString(),
         },
       });
 
       // 🔍 Log activity
       if (data.adminId) {
-        console.log('adminID:', data.adminId)
+        console.log('adminID:', data.adminId);
         const admin = await this.prisma.admin.findUnique({
           where: { id: data.adminId },
         });
@@ -68,7 +75,7 @@ export class ProductManagmentService {
         });
       }
       if (data.employeeId) {
-        console.log('employeeiD:', data.employeeId)
+        console.log('employeeiD:', data.employeeId);
         const employee = await this.prisma.employee.findUnique({
           where: { id: data.employeeId },
         });
@@ -150,7 +157,20 @@ export class ProductManagmentService {
       }
     }
 
-    const keepImages = JSON.parse(data?.keepImages);
+    // Parse keepImages safely
+    let keepImages:string[] = [];
+    try {
+      keepImages = data?.keepImages ? JSON.parse(data.keepImages) : [];
+      if (!Array.isArray(keepImages)) {
+        throw new Error('Not an array');
+      }
+    } catch (error) {
+      throw new BadRequestException(
+        'Invalid keepImages format - must be a valid JSON array',
+      );
+    }
+
+    // keepImages = JSON.parse(data?.keepImages);
     console.log('keepimages', keepImages);
     const newImages =
       data.imageurls?.map(
@@ -232,7 +252,10 @@ export class ProductManagmentService {
     };
   }
 
-  async deleteProduct(id: string, data?: { adminId?: string; employeeId?: string }) {
+  async deleteProduct(
+    id: string,
+    data?: { adminId?: string; employeeId?: string },
+  ) {
     const product = await this.getProductById(id);
 
     // Delete all image files from disk
@@ -251,27 +274,33 @@ export class ProductManagmentService {
     await this.prisma.product.delete({ where: { id } });
 
     // 🔍 Log activity
-  if (data?.adminId) {
-    const admin = await this.prisma.admin.findUnique({ where: { id: data.adminId } });
-    if (!admin) throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+    if (data?.adminId) {
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: data.adminId },
+      });
+      if (!admin)
+        throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
 
-    await this.activityService.createActivity({
-      activityName: 'Product Deleted',
-      description: `${admin.adminName} deleted product: ${product.productName}`,
-      adminId: admin.id,
-    });
-  }
+      await this.activityService.createActivity({
+        activityName: 'Product Deleted',
+        description: `${admin.adminName} deleted product: ${product.productName}`,
+        adminId: admin.id,
+      });
+    }
 
-  if (data?.employeeId) {
-    const employee = await this.prisma.employee.findUnique({ where: { id: data.employeeId } });
-    if (!employee) throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+    if (data?.employeeId) {
+      const employee = await this.prisma.employee.findUnique({
+        where: { id: data.employeeId },
+      });
+      if (!employee)
+        throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
 
-    await this.activityService.createActivity({
-      activityName: 'Product Deleted',
-      description: `${employee.firstname} deleted product: ${product.productName}`,
-      employeeId: employee.id,
-    });
-  }
+      await this.activityService.createActivity({
+        activityName: 'Product Deleted',
+        description: `${employee.firstname} deleted product: ${product.productName}`,
+        employeeId: employee.id,
+      });
+    }
 
     return { message: 'Product deleted successfully' };
   }
