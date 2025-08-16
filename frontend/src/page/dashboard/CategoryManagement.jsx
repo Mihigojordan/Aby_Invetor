@@ -111,17 +111,14 @@ const CategoryManagement = ({role}) => {
   const handleDeleteCategory = async (categoryData) => {
     setIsLoading(true);
     try {
-       const validation = categoryService.validateCategoryData(categoryData);
-      if (!validation.isValid) {
-        throw new Error(validation.errors.join(', '));
-      }
+      
       if(role == 'admin'){
         categoryData.adminId = adminData.id
       }
       if(role == 'employee'){
         categoryData.employeeId = employeeData.id
       }
-      await categoryService.deleteCategory(selectedCategory.id);
+      await categoryService.deleteCategory(selectedCategory.id,categoryData);
       setCategories(prev => prev.filter(cat => cat.id !== selectedCategory.id));
       setIsDeleteModalOpen(false);
       setSelectedCategory(null);

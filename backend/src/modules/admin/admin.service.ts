@@ -104,7 +104,7 @@ export class AdminService {
 
       if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
-      const token = this.jwtServices.sign({ id: admin.id });
+      const token = this.jwtServices.sign({ id: admin.id })
 
       // Track the login activity
       await this.activityService.createActivity({

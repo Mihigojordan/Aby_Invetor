@@ -5,7 +5,9 @@ import DeleteProductModal from '../../components/dashboard/product/DeleteProduct
 import productService from '../../services/productService';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
-import ViewProductModal from '../../components/dashboard/product/ViewProductModal';
+import { useNavigate } from 'react-router-dom';
+import { testProducts } from '../../services/test';
+
 
 const ProductManagement = ({ role }) => {
   const [products, setProducts] = useState([]);
@@ -21,6 +23,7 @@ const ProductManagement = ({ role }) => {
   const [notification, setNotification] = useState(null);
 
 
+  const navigate = useNavigate()
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,6 +43,8 @@ const ProductManagement = ({ role }) => {
 
     try {
       const data = await productService.getAllProducts();
+      console.log('response from baceknd', data);
+      
       setProducts(data);
       setFilteredProducts(data);
 
@@ -113,7 +118,14 @@ const ProductManagement = ({ role }) => {
     setIsDeleteModalOpen(true);
   };
   const handleViewProduct = (product) => {
-    setSelectedProduct(product);
+    if(!product.id) return null
+    if(role == 'admin'){
+      navigate(`/admin/dashboard/product/${product.id}`)
+
+    }
+    else if(role == 'employee'){
+      navigate(`/employee/dashboard/product/${product.id}`)
+    }
     setIsViewModalOpen(true);
   };
 
@@ -209,7 +221,20 @@ const ProductManagement = ({ role }) => {
 
     setIsLoading(true);
     try {
-      await productService.deleteProduct(selectedProduct.id);
+
+      if(role == 'admin'){
+
+        await productService.deleteProduct(selectedProduct.id,{
+          adminId: adminData.id
+        });
+      }
+      
+      if(role == 'employee'){
+        await productService.deleteProduct(selectedProduct.id,{
+          employeeId: employeeData.id
+        });
+
+      }
 
       // Update local state immediately for better UX
       setProducts(prev => prev.filter(product => product.id !== selectedProduct.id));
@@ -264,6 +289,39 @@ const ProductManagement = ({ role }) => {
     setIsDeleteModalOpen(false);
     setSelectedProduct(null);
   };
+
+  const handleMultipleProduct = async()=>{
+    try {
+      testProducts.map(async(productData)=>{
+
+        if (role == 'admin') {
+          // Create new product
+          await productService.createProduct({
+            productName: productData.productName,
+          
+            categoryId: productData.categoryId,
+            description: productData.description,
+           
+            adminId: adminData.id
+          });
+        }
+        if (role == 'employee') {
+            // Create new product
+          await productService.createProduct({
+            productName: productData.productName,
+          
+            categoryId: productData.categoryId,
+            description: productData.description,
+            
+            employeeId: employeeData.id
+          });
+        }
+        
+      })
+    } catch (error) {
+      
+    }
+  }
 
   // Pagination handlers
   const handlePageChange = (page) => {
@@ -670,11 +728,6 @@ const ProductManagement = ({ role }) => {
           title={isEditModalOpen ? 'Edit Product' : 'Add New Product'}
         />
 
-        <ViewProductModal 
-  isOpen={isViewModalOpen}
-  onClose={() => setIsViewModalOpen(false)}
-  product={selectedProduct}
-/>
 
         {/* Delete Product Modal */}
         <DeleteProductModal
@@ -684,6 +737,7 @@ const ProductManagement = ({ role }) => {
           product={selectedProduct}
           isLoading={isLoading}
         />
+       
       </div>
     </div>
   );

@@ -158,7 +158,7 @@ export class CategoryManagementService {
       }
 
       return {
-        message: 'Category updated successfully',
+        message: 'Category was updated successfully',
         category: updated,
       };
     } catch (error) {
