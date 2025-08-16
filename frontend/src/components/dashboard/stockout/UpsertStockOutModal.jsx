@@ -11,6 +11,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     clientName: '',
     clientEmail: '',
     clientPhone: '',
+    paymentMethod:'',
     // Multiple entries fields (for create mode)
     salesEntries: []
   });
@@ -37,6 +38,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         clientName: stockOut.clientName || '',
         clientEmail: stockOut.clientEmail || '',
         clientPhone: stockOut.clientPhone || '',
+        paymentMethod: stockOut.paymentMethod || '', 
         salesEntries: []
       });
     } else {
@@ -47,6 +49,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         clientName: '',
         clientEmail: '',
         clientPhone: '',
+        paymentMethod:'',
         salesEntries: [{ stockinId: '', quantity: '', sku: '' }]
       });
     }
@@ -56,6 +59,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       stockinId: '',
       quantity: '',
       clientEmail: '',
+      paymentMethod:'',
       salesEntries: []
     });
     setSkuLoadingStates({});
@@ -403,13 +407,14 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         return;
       }
       
-      // Prepare single entry data
+      // Prepare single entry data - FIXED: Include paymentMethod
       const submitData = {};
       if (formData.stockinId) submitData.stockinId = formData.stockinId;
       if (formData.quantity) submitData.quantity = Number(formData.quantity);
       if (formData.clientName.trim()) submitData.clientName = formData.clientName.trim();
       if (formData.clientEmail.trim()) submitData.clientEmail = formData.clientEmail.trim();
       if (formData.clientPhone.trim()) submitData.clientPhone = formData.clientPhone.trim();
+      if (formData.paymentMethod) submitData.paymentMethod = formData.paymentMethod; // ADDED THIS LINE
       
       onSubmit(submitData);
     } else {
@@ -450,10 +455,12 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         quantity: Number(entry.quantity)
       }));
       
+      // FIXED: Include paymentMethod in clientInfo
       const clientInfo = {};
       if (formData.clientName.trim()) clientInfo.clientName = formData.clientName.trim();
       if (formData.clientEmail.trim()) clientInfo.clientEmail = formData.clientEmail.trim();
       if (formData.clientPhone.trim()) clientInfo.clientPhone = formData.clientPhone.trim();
+      if (formData.paymentMethod) clientInfo.paymentMethod = formData.paymentMethod; // ADDED THIS LINE
       
       onSubmit({ salesArray, clientInfo });
     }
@@ -467,6 +474,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       clientName: '',
       clientEmail: '',
       clientPhone: '',
+      paymentMethod:'',
       salesEntries: [{ stockinId: '', quantity: '', sku: '' }]
     });
     
@@ -760,7 +768,8 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
           <div className="border-t pt-4">
             <h3 className="text-lg font-medium text-gray-800 mb-3">Client Information</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* FIXED: Better layout for client info inputs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Client Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -808,6 +817,23 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter client phone number"
                 />
+              </div>
+
+              {/* Payment Method - FIXED: Better styling and label */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Method
+                </label>
+                <select
+                  value={formData.paymentMethod}
+                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="" disabled>Choose payment method</option>
+                  <option value="CARD">Card</option>
+                  <option value="MOMO">Mobile Money</option>
+                  <option value="CASH">Cash</option>
+                </select>
               </div>
             </div>
           </div>

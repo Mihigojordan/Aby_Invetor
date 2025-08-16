@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Package, Hash, DollarSign, User, Calendar, ShoppingCart, Phone, Mail, Receipt, Clock, TrendingUp, Barcode } from 'lucide-react';
+import { X, Package, Hash, DollarSign, User, Calendar, ShoppingCart, Phone, Mail, Receipt, Clock, TrendingUp, Barcode, CreditCard } from 'lucide-react';
 import { API_URL } from '../../../api/api';
 import productService from '../../../services/productService';
 import stockOutService from '../../../services/stockoutService';
@@ -252,6 +252,15 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
                           >
                             {formatPhoneNumber(stockOut.clientPhone)}
                           </a>
+                        </div>
+                      </div>
+                    )}
+                    {stockOut.paymentMethod && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-gray-500" />
+                            {formatPhoneNumber(stockOut.paymentMethod)}
                         </div>
                       </div>
                     )}

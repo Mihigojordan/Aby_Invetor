@@ -14,6 +14,7 @@ class StockOutService {
  * @param {number} stockOutData.quantity - Quantity sold (required)
  * @param {string} [stockOutData.clientName] - Client name (optional)
  * @param {string} [stockOutData.clientEmail] - Client email (optional)
+ * @param {string} [stockOutData.paymentMethod] - Payment method (optional)
  * @param {string} [stockOutData.clientPhone] - Client phone (optional)
  * @param {string} [stockOutData.adminId] - Admin ID (optional)
  * @param {string} [stockOutData.employeeId] - Employee ID (optional)
@@ -38,7 +39,8 @@ async createStockOut(stockOutData) {
       clientEmail: stockOutData.clientEmail || undefined,
       clientPhone: stockOutData.clientPhone || undefined,
       adminId: stockOutData.adminId || undefined,
-      employeeId: stockOutData.employeeId || undefined
+      employeeId: stockOutData.employeeId || undefined,
+      paymentMethod: stockOutData.paymentMethod || undefined
     };
 
     const response = await api.post('/stockout/create', requestData);
@@ -56,6 +58,7 @@ async createStockOut(stockOutData) {
  * @param {string} [clientInfo.clientName] - Client name
  * @param {string} [clientInfo.clientEmail] - Client email
  * @param {string} [clientInfo.clientPhone] - Client phone
+ * @param {string} [clientInfo.paymentMethod] - Payment method
  * @param {Object} userInfo - User information
  * @param {string} [userInfo.adminId] - Admin ID
  * @param {string} [userInfo.employeeId] - Employee ID
@@ -86,6 +89,7 @@ async createMultipleStockOut(salesArray, clientInfo = {}, userInfo = {}) {
       clientName: clientInfo.clientName || undefined,
       clientEmail: clientInfo.clientEmail || undefined,
       clientPhone: clientInfo.clientPhone || undefined,
+      paymentMethod: clientInfo.paymentMethod || undefined, // FIXED: Added this line
       adminId: userInfo.adminId || undefined,
       employeeId: userInfo.employeeId || undefined
     };
@@ -161,6 +165,7 @@ async createMultipleStockOut(salesArray, clientInfo = {}, userInfo = {}) {
    * @param {string} [updateData.clientName] - Updated client name
    * @param {string} [updateData.clientEmail] - Updated client email
    * @param {string} [updateData.clientPhone] - Updated client phone
+   * @param {string} [updateData.paymentMethod] - Updated payment method
    * @param {string} [updateData.adminId] - Admin ID for activity tracking
    * @param {string} [updateData.employeeId] - Employee ID for activity tracking
    * @returns {Promise<Object>} Updated stock-out entry
