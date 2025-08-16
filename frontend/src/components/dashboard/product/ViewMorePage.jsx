@@ -201,7 +201,7 @@ const ProductViewPage = ({role}) => {
           {/* Tabs */}
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-8">
-              {['overview', 'stock', 'history'].map((tab) => (
+              {['overview', 'stock'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -323,45 +323,7 @@ const ProductViewPage = ({role}) => {
             )}
 
            
-            {activeTab === 'history' && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-900">Product Activity History</h3>
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-4 p-6 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-lg font-medium text-green-900">Stock Added</p>
-                      <p className="text-green-700 mb-2">25 units added by John Smith from Apple Inc.</p>
-                      <p className="text-sm text-green-600">{formatDate(product.stockIn[0].createdAt)}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-4 p-6 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-lg font-medium text-green-900">Stock Added</p>
-                      <p className="text-green-700 mb-2">15 units added by Sarah Johnson from Tech Distributor</p>
-                      <p className="text-sm text-green-600">{formatDate(product.stockIn[1].createdAt)}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-4 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-lg font-medium text-blue-900">Product Created</p>
-                      <p className="text-blue-700 mb-2">Product was created and added to the inventory system</p>
-                      <p className="text-sm text-blue-600">{formatDate(product.createdAt)}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+        
           </div>
         </div>
       </div>

@@ -52,52 +52,74 @@ const StockInManagement = ({ role }) => {
     fetchData();
   }, []);
 
-   const handlePrint = (item) => {
+const handlePrint = (item) => {
   const imgUrl = stockOutService.getBarCodeUrlImage(item.sku);
 
   // Create a hidden iframe to handle printing
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
+  const iframe = document.createElement("iframe");
+  iframe.style.display = "none";
   document.body.appendChild(iframe);
 
   const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+  // Generate multiple barcode <img> elements based on quantity
+  let barcodeImages = "";
+  for (let i = 0; i < item.quantity; i++) {
+    barcodeImages += `<div class="barcode"><img src="${imgUrl}" alt="Barcode" /></div>`;
+  }
+
   iframeDoc.write(`
     <html>
       <head>
         <title>Print Barcode</title>
         <style>
           body {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            padding: 20px;
+            margin: 0;
+          }
+          .barcode {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            border: 1px dashed #ccc; /* optional for alignment preview */
+            padding: 10px;
           }
           img {
             max-width: 100%;
+            height: auto;
           }
         </style>
       </head>
       <body>
-        <img src="${imgUrl}" alt="Barcode" />
+        ${barcodeImages}
       </body>
     </html>
   `);
   iframeDoc.close();
 
-  // Wait for the image to load before printing
-  const img = iframeDoc.querySelector('img');
-  img.onload = () => {
-    iframe.contentWindow.print();
-    // Remove the iframe after printing
-    setTimeout(() => {
+  // Wait for images to load before printing
+  const images = iframeDoc.querySelectorAll("img");
+  let loadedCount = 0;
+
+  images.forEach((img) => {
+    img.onload = () => {
+      loadedCount++;
+      if (loadedCount === images.length) {
+        iframe.contentWindow.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }
+    };
+
+    img.onerror = () => {
+      showNotification("Failed to load barcode image", "error");
       document.body.removeChild(iframe);
-    }, 1000); // Delay to ensure print dialog appears
-  };
-  img.onerror = () => {
-    showNotification('Failed to load barcode image', 'error');
-    document.body.removeChild(iframe);
-  };
+    };
+  });
 };
 
   useEffect(() => {
