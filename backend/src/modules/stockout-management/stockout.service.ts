@@ -25,10 +25,12 @@ export class StockoutService {
   clientName?: string;
   clientEmail?: string;
   clientPhone?: string;
+  paymentMethod?;
   adminId?: string;
   employeeId?: string;
 }) {
-  const { sales, adminId, employeeId , clientEmail,clientName,clientPhone } = data;
+  const { sales, adminId, employeeId , clientEmail,clientName,clientPhone , paymentMethod } = data;
+  console.log('recieved data:', data)
 
   if (!Array.isArray(sales) || sales.length === 0) {
     throw new BadRequestException('At least one sale is required');
@@ -80,6 +82,7 @@ export class StockoutService {
         adminId,
         employeeId,
         transactionId,
+        paymentMethod
       },
     });
 

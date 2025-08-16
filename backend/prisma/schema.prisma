@@ -118,12 +118,20 @@ model StockOut {
   clientName  String?
   clientEmail String?
   clientPhone String?
+  paymentMethod PaymentMethod?
   stockin     StockIn?  @relation(fields: [stockinId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sales   SalesReturnItem[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+
+enum PaymentMethod {
+  MOMO
+  CARD
+  CASH
 }
 
 
