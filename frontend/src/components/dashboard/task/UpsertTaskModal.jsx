@@ -9,6 +9,22 @@ const UpsertTaskModal = ({ isOpen, onClose, onSubmit, task, isLoading, title }) 
     });
     const [errors, setErrors] = useState({});
 
+    // Define the task type options
+    const taskOptions = [
+        {
+            value: 'saling',
+            title: 'Saling',
+            fullName: 'saling',
+            description: 'Permission to record items leaving inventory due to sales, transfers, or other stock-out activities. Reduces available stock levels.'
+        },
+        {
+            value: 'receiving',
+            title: 'Receiving', 
+            fullName: 'receiving',
+            description: 'Permission to record items entering inventory through purchases, returns, or other stock-in activities. Increases available stock levels.'
+        }
+    ];
+
     useEffect(() => {
         if (task) {
             setFormData({
@@ -37,7 +53,20 @@ const UpsertTaskModal = ({ isOpen, onClose, onSubmit, task, isLoading, title }) 
     };
 
     const handleChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        if (field === 'taskname') {
+            // Find the selected option and auto-populate description
+            const selectedOption = taskOptions.find(option => option.value === value);
+            if (selectedOption) {
+                setFormData(prev => ({ 
+                    ...prev, 
+                    taskname: selectedOption.fullName,
+                    description: selectedOption.description
+                }));
+            }
+        } else {
+            setFormData(prev => ({ ...prev, [field]: value }));
+        }
+        
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: '' }));
         }
@@ -62,17 +91,22 @@ const UpsertTaskModal = ({ isOpen, onClose, onSubmit, task, isLoading, title }) 
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Postion Name
+                                Position Type *
                             </label>
-                            <input
-                                type="text"
-                                value={formData.taskname}
+                            <select
+                                value={taskOptions.find(option => option.fullName === formData.taskname)?.value || ''}
                                 onChange={(e) => handleChange('taskname', e.target.value)}
                                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
                                     errors.taskname ? 'border-red-500' : 'border-gray-300'
                                 }`}
-                                placeholder="Enter position name"
-                            />
+                            >
+                                <option value="">Select position type</option>
+                                {taskOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.title}
+                                    </option>
+                                ))}
+                            </select>
                             {errors.taskname && <p className="text-red-500 text-xs mt-1">{errors.taskname}</p>}
                         </div>
 
@@ -87,7 +121,8 @@ const UpsertTaskModal = ({ isOpen, onClose, onSubmit, task, isLoading, title }) 
                                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors resize-none ${
                                     errors.description ? 'border-red-500' : 'border-gray-300'
                                 }`}
-                                placeholder="Enter Position description"
+                                placeholder="Description will be auto-filled based on selection"
+                                readOnly
                             />
                             {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
                         </div>
