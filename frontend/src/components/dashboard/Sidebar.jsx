@@ -10,7 +10,8 @@ import {
   ShoppingCart,
   ChevronRight,
   User,
-  X
+  X,
+  ReceiptPoundSterling
 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -38,6 +39,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     { key: 'products', label: 'Products Management', icon: Package, path: '/admin/dashboard/product' },
     { key: 'stockin', label: 'Stock In Movement', icon: ArrowDown, path: '/admin/dashboard/stockin' },
     { key: 'stockout', label: 'Stock Out Movement', icon: ArrowUp, path: '/admin/dashboard/stockout' },
+    { key: 'sales-report', label: 'Sales Report', icon: ReceiptPoundSterling, path: '/admin/dashboard/sales-report' },
     // { key: 'returning', label: 'Sales Returns', icon: RotateCcw, path: '/admin/dashboard/sales-return' },
   ];
 

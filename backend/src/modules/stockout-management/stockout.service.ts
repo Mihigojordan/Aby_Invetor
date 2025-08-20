@@ -139,7 +139,11 @@ export class StockoutService {
       const stockout = await this.prisma.stockOut.findUnique({
         where: { id },
         include: {
-          stockin: true,
+    stockin: {
+      include: {
+        product: true, // include product via stockin
+      },
+    },
           admin: true,
           employee: true,
         },

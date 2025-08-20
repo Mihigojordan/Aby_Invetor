@@ -27,6 +27,9 @@ import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
 import AdminProfile from "../page/dashboard/AdminProfile";
 import EmployeeDashboard from "../page/dashboard/EmployeeDashboard";
 import ProductViewPage from "../components/dashboard/product/ViewMorePage";
+import SalesReportPage from "../page/dashboard/SalesReportPage";
+import ViewStockoutReport from "../components/dashboard/salesReport/ViewStockoutReport";
+import StockOutAnalysisPage from "../components/dashboard/salesReport/StockOutAnalysisPage";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -129,6 +132,30 @@ const routes = createBrowserRouter([
                                  element: (
                                     <SuspenseWrapper>
                                         <AdminProfile role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <SalesReportPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/stockout/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <ViewStockoutReport role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/stockout-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <StockOutAnalysisPage role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             }
