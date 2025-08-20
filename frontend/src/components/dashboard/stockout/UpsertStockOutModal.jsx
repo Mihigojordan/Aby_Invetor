@@ -1,6 +1,166 @@
-import { useEffect, useState } from "react";
-import { XIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
 import stockInService from "../../../services/stockinService";
+
+import { ChevronDownIcon, SearchIcon , XIcon} from 'lucide-react';
+
+// Searchable Stock-In Dropdown Component
+const SearchableStockInDropdown = ({ 
+  stockIns, 
+  value, 
+  onChange, 
+  placeholder = "Select a stock-in entry",
+  error = false,
+  formatCurrency 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Filter stock items based on search term
+  const filteredStockIns = stockIns?.filter(stockIn => {
+    const searchLower = searchTerm.toLowerCase();
+    const productName = stockIn.product?.productName?.toLowerCase() || '';
+    const sku = stockIn.sku?.toLowerCase() || '';
+    const quantity = stockIn.quantity?.toString() || '';
+    const price = stockIn.sellingPrice?.toString() || '';
+    
+    return productName.includes(searchLower) || 
+           sku.includes(searchLower) || 
+           quantity.includes(searchLower) || 
+           price.includes(searchLower);
+  }) || [];
+
+  // Get selected stock info for display
+  const selectedStock = stockIns?.find(stock => stock.id === value);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const handleSelect = (stockId) => {
+    onChange({ target: { value: stockId } });
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  const toggleDropdown = () => {
+    setIsOpen(!isOpen);
+    if (!isOpen) {
+      setSearchTerm('');
+    }
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* Dropdown trigger */}
+      <div
+        onClick={toggleDropdown}
+        className={`w-full px-3 py-2 border rounded-lg cursor-pointer flex items-center justify-between ${
+          error
+            ? 'border-red-300 focus:ring-red-500'
+            : 'border-gray-300 focus:ring-blue-500'
+        } ${isOpen ? 'ring-2 ring-blue-500 border-blue-500' : 'hover:border-gray-400'}`}
+      >
+        <span className={`${selectedStock ? 'text-gray-900' : 'text-gray-500'} truncate`}>
+          {selectedStock ? (
+            `${selectedStock.product?.productName || 'Unknown Product'} - Qty: #${selectedStock.quantity} - Price: ${formatCurrency(selectedStock.sellingPrice)}`
+          ) : (
+            placeholder
+          )}
+        </span>
+        <ChevronDownIcon 
+          size={20} 
+          className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        />
+      </div>
+
+      {/* Dropdown menu */}
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          {/* Search input */}
+          <div className="p-2 border-b border-gray-200">
+            <div className="relative">
+              <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by product name, SKU, quantity, or price..."
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+
+          {/* Options list */}
+          <div className="overflow-y-auto max-h-40">
+            {filteredStockIns.length > 0 ? (
+              <>
+                {/* Empty option */}
+                <div
+                  onClick={() => handleSelect('')}
+                  className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                >
+                  {placeholder}
+                </div>
+                
+                {/* Stock options */}
+                {filteredStockIns.map(stockIn => (
+                  <div
+                    key={stockIn.id}
+                    onClick={() => handleSelect(stockIn.id)}
+                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                      value === stockIn.id ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
+                          {stockIn.product?.productName || 'Unknown Product'}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          SKU: {stockIn.sku} • Qty: #{stockIn.quantity}
+                        </div>
+                      </div>
+                      <div className="ml-2 text-right">
+                        <div className="text-sm font-medium text-green-600">
+                          {formatCurrency(stockIn.sellingPrice)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <div className="px-3 py-4 text-sm text-gray-500 text-center">
+                {searchTerm ? 'No matching stock items found' : 'No stock items available'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Modal Component for StockOut
 const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, isLoading, title }) => {
@@ -530,24 +690,13 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Stock-In Entry <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.stockinId}
-                  onChange={handleStockInChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
-                    validationErrors.stockinId
-                      ? 'border-red-300 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                >
-                  <option value="">Select a stock-in entry</option>
-                  {stockIns?.map(stockIn => (
-                    <option key={stockIn.id} value={stockIn.id}>
-                      {stockIn.product?.productName || 'Unknown Product'} -
-                      Quantity: #{stockIn.quantity} -
-                      Price: {formatCurrency(stockIn.sellingPrice)}
-                    </option>
-                  ))}
-                </select>
+               <SearchableStockInDropdown
+  stockIns={stockIns}
+  value={formData.stockinId}
+  onChange={handleStockInChange}
+  error={!!validationErrors.stockinId}
+  formatCurrency={formatCurrency}
+/>
                 {validationErrors.stockinId && (
                   <p className="text-red-500 text-xs mt-1">{validationErrors.stockinId}</p>
                 )}
@@ -646,24 +795,14 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Stock-In Entry <span className="text-red-500">*</span>
                         </label>
-                        <select
-                          value={entry.stockinId}
-                          onChange={(e) => handleSalesEntryChange(index, 'stockinId', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
-                            validationErrors.salesEntries[index]?.stockinId
-                              ? 'border-red-300 focus:ring-red-500'
-                              : 'border-gray-300 focus:ring-blue-500'
-                          }`}
-                        >
-                          <option value="">Select a stock-in entry</option>
-                          {stockIns?.map(stockIn => (
-                            <option key={stockIn.id} value={stockIn.id}>
-                              SKU: {stockIn.sku} - {stockIn.product?.productName || 'Unknown Product'} -
-                              Qty: #{stockIn.quantity} -
-                              Price: {formatCurrency(stockIn.sellingPrice)}
-                            </option>
-                          ))}
-                        </select>
+<SearchableStockInDropdown
+  stockIns={stockIns}
+  value={entry.stockinId}
+  onChange={(e) => handleSalesEntryChange(index, 'stockinId', e.target.value)}
+  error={!!validationErrors.salesEntries[index]?.stockinId}
+  formatCurrency={formatCurrency}
+  placeholder="Select a stock-in entry"
+/>
                         {validationErrors.salesEntries[index]?.stockinId && (
                           <p className="text-red-500 text-xs mt-1">
                             {validationErrors.salesEntries[index].stockinId}

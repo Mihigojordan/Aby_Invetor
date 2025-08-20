@@ -1,5 +1,142 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
+// Searchable Product Select Component
+const SearchableProductSelect = ({ 
+  value, 
+  onChange, 
+  products, 
+  error, 
+  placeholder = "Select a product",
+  className = "" 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredProducts, setFilteredProducts] = useState(products || []);
+  const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Filter products based on search term
+  useEffect(() => {
+    if (!products) return;
+    
+    if (!searchTerm.trim()) {
+      setFilteredProducts(products);
+    } else {
+      const filtered = products.filter(product =>
+        product.productName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [searchTerm, products]);
+
+  // Get selected product name
+  const selectedProduct = products?.find(p => p.id === value);
+  const displayText = selectedProduct ? selectedProduct.productName : '';
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleInputClick = () => {
+    setIsOpen(true);
+    setSearchTerm('');
+  };
+
+  const handleProductSelect = (product) => {
+    onChange({ target: { value: product.id } });
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+      setSearchTerm('');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredProducts.length === 1) {
+        handleProductSelect(filteredProducts[0]);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      }
+    }
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={isOpen ? searchTerm : displayText}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClick={handleInputClick}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 ${
+            error
+              ? 'border-red-300 focus:ring-red-500'
+              : 'border-gray-300 focus:ring-blue-500'
+          } ${className}`}
+          autoComplete="off"
+        />
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+          <svg 
+            className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {filteredProducts.length > 0 ? (
+            <>
+              {searchTerm && (
+                <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border-b">
+                  {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+                </div>
+              )}
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  onClick={() => handleProductSelect(product)}
+                  className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${
+                    value === product.id ? 'bg-blue-100 text-blue-800' : 'text-gray-900'
+                  }`}
+                >
+                  {product.productName}
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="px-3 py-2 text-gray-500 text-center">
+              {searchTerm ? 'No products found' : 'No products available'}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Updated UpsertStockInModal with SearchableProductSelect
 const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLoading, title }) => {
   const [formData, setFormData] = useState({
     // Single entry fields (for update mode)
@@ -12,7 +149,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
     purchases: []
   });
 
-    const formatCurrency = (amount) => {
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'RWF'
@@ -327,32 +464,23 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">{title}</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           
           {isUpdateMode ? (
-            // Single entry form for update mode
+            // Single entry fields for update mode
             <>
               {/* Product Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Product <span className="text-red-500">*</span>
                 </label>
-                <select
+                <SearchableProductSelect
                   value={formData.productId}
                   onChange={handleProductChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
-                    validationErrors.productId
-                      ? 'border-red-300 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                >
-                  <option value="">Select a product</option>
-                  {products?.map(product => (
-                    <option key={product.id} value={product.id}>
-                      {product.productName}
-                    </option>
-                  ))}
-                </select>
+                  products={products}
+                  error={validationErrors.productId}
+                  placeholder="Search and select a product"
+                />
                 {validationErrors.productId && (
                   <p className="text-red-500 text-xs mt-1">{validationErrors.productId}</p>
                 )}
@@ -450,10 +578,17 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
               </div>
             </>
           ) : (
-            // Multiple entries form for create mode
+            // Multiple entries fields for create mode
             <div className="min-h-[50vh] max-h-96 overflow-y-auto">
-              <div className="mb-4">
+              <div className="mb-4 flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-800">Stock Purchases</h3>
+                {/* <button
+                  type="button"
+                  onClick={addPurchase}
+                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Add Purchase
+                </button> */}
               </div>
 
               {formData.purchases.map((purchase, index) => (
@@ -477,22 +612,13 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Product <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <SearchableProductSelect
                         value={purchase.productId}
                         onChange={(e) => handlePurchaseChange(index, 'productId', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
-                          validationErrors.purchases[index]?.productId
-                            ? 'border-red-300 focus:ring-red-500'
-                            : 'border-gray-300 focus:ring-blue-500'
-                        }`}
-                      >
-                        <option value="">Select a product</option>
-                        {products?.map(product => (
-                          <option key={product.id} value={product.id}>
-                            {product.productName}
-                          </option>
-                        ))}
-                      </select>
+                        products={products}
+                        error={validationErrors.purchases[index]?.productId}
+                        placeholder="Search and select a product"
+                      />
                       {validationErrors.purchases[index]?.productId && (
                         <p className="text-red-500 text-xs mt-1">
                           {validationErrors.purchases[index].productId}
@@ -500,19 +626,20 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                       )}
                     </div>
 
-                        {/* Supplier */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Supplier
-                          </label>
-                          <input
-                            type="text"
-                            value={purchase.supplier}
-                            onChange={(e) => handlePurchaseChange(index, 'supplier', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="Enter supplier name (optional)"
-                          />
-                        </div>
+                    {/* Supplier */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Supplier
+                      </label>
+                      <input
+                        type="text"
+                        value={purchase.supplier}
+                        onChange={(e) => handlePurchaseChange(index, 'supplier', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter supplier name (optional)"
+                      />
+                    </div>
+
                     {/* Quantity */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -542,7 +669,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                       <label className="md:hidden text-sm font-medium text-gray-700 mb-1">
                         Price <span className="text-red-500">*</span>
                       </label>
-                      <label className=" hidden md:block text-sm font-medium text-gray-700 mb-1">
+                      <label className="hidden md:block text-sm font-medium text-gray-700 mb-1">
                         Price per Unit <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -598,7 +725,6 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                         </p>
                       )}
                     </div>
-
                   </div>
 
                   {/* Purchase Summary */}
@@ -622,12 +748,10 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                   )}
                 </div>
               ))}
-
-            
             </div>
           )}
 
-          {/* Form Buttons */}
+          {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
@@ -637,19 +761,22 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
               Cancel
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={isLoading || !isFormValid()}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? 'Processing...' : stockIn ? 'Update' : `Create ${formData.purchases?.length || 1} Purchase${formData.purchases?.length > 1 ? 's' : ''}`}
             </button>
           </div>
-        </form>
+        </div>
 
         {/* Help Text */}
         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
           <p className="text-xs text-blue-700">
             <strong>Required fields:</strong> Product, Quantity, Price per Unit, and Selling Price are required for each purchase.
+            <br />
+            <strong>Product Search:</strong> Click on the product field and start typing to search for products by name.
             <br />
             {!isUpdateMode && (
               <>
