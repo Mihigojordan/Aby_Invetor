@@ -11,7 +11,8 @@ import {
   ChevronRight,
   User,
   X,
-  ReceiptPoundSterling
+  ReceiptPoundSterling,
+  FileText
 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -39,6 +40,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     { key: 'products', label: 'Products Management', icon: Package, path: '/admin/dashboard/product' },
     { key: 'stockin', label: 'Stock In Movement', icon: ArrowDown, path: '/admin/dashboard/stockin' },
     { key: 'stockout', label: 'Stock Out Movement', icon: ArrowUp, path: '/admin/dashboard/stockout' },
+    { key: 'report', label: 'Employee Report', icon: FileText, path: '/admin/dashboard/employee-report' },
     { key: 'sales-report', label: 'Sales Report', icon: ReceiptPoundSterling, path: '/admin/dashboard/sales-report' },
     // { key: 'returning', label: 'Sales Returns', icon: RotateCcw, path: '/admin/dashboard/sales-return' },
   ];
@@ -73,13 +75,13 @@ const employeeItems = [
     icon: ShoppingCart, // More specific for sales than generic ArrowUp
     path: '/employee/dashboard/stockout'
   },
-  // {
-  //   key: 'returning',
-  //   label: 'Sales Returns Management',
-  //   taskname: ['returning','return'],
-  //   icon: RotateCcw, // Better than Undo2Icon for returns
-  //   path: '/employee/dashboard/sales-return'
-  // },
+  {
+    key: 'report',
+    label: 'Report Management',
+    taskname:['saling','selling','sales','stockout','receiving','stockin'],
+    icon: FileText, // Better than Undo2Icon for returns
+    path: '/employee/dashboard/report'
+  },
 ];
  
 
