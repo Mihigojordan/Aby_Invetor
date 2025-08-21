@@ -274,8 +274,8 @@ class StockOutService {
      */
     isValidPhone(phone) {
         // Basic phone validation - adjust regex based on your requirements
-        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-        return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+        const phoneRegex = /^[+]?[1-9][\d]{0,15}$/;
+        return phoneRegex.test(phone.replace(/[\s\-()]/g, ''));
     }
 
     /**
