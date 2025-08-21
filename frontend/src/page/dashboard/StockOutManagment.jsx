@@ -59,7 +59,7 @@ const StockOutManagement = ({ role }) => {
       stockOut.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stockOut.clientEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stockOut.clientPhone?.includes(searchTerm) ||
-      stockOut.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+      stockOut.transactionId?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredStockOuts(filtered);
     setCurrentPage(1); // Reset to first page when filtering
@@ -239,7 +239,7 @@ setIsInvoiceNoteOpen(true);
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'RWF'
     }).format(price || 0);
   };
 
@@ -467,8 +467,8 @@ setIsInvoiceNoteOpen(true);
                       <div className="font-medium text-gray-900">
                         {stockOut.stockin?.product?.productName || 'Sale Transaction'}
                       </div>
-                      {stockOut.sku && (
-                        <div className="text-xs text-gray-500 font-mono">{stockOut.sku}</div>
+                      {stockOut.transactionId && (
+                        <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
                       )}
                       {stockOut.stockin?.product?.brand && (
                         <div className="text-sm text-gray-500">{stockOut.stockin.product.brand}</div>

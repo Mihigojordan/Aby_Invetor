@@ -125,7 +125,7 @@ export class CategoryManagementService {
         where: { id },
         data: {
           name: data.name ?? existing.name,
-          description: data.name ?? existing.description
+          description: data.description ?? existing.description
         }
       });
 
@@ -158,7 +158,7 @@ export class CategoryManagementService {
       }
 
       return {
-        message: 'Category updated successfully',
+        message: 'Category was updated successfully',
         category: updated,
       };
     } catch (error) {

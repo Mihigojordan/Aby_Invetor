@@ -2,18 +2,13 @@ import React, { useEffect, useState } from 'react';
 import stockOutService from '../../../services/stockoutService';
 import Swal from 'sweetalert2';
 import CompanyLogo from '../../../assets/images/applogo_rm_bg.png'
-import signature from '../../../assets/images/signature.webp'
-import html2pdf from 'html2pdf.js';
 
 const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const [invoiceData, setInvoiceData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState({
-    email: false,
-    pdf: false
+    print: false
   });
-
-
 
   useEffect(() => {
     const getInvoiceData = async () => {
@@ -39,216 +34,64 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
     }
   }, [transactionId, isOpen]);
 
-  // Get user info from invoiceData
-  const getUserInfo = () => {
-    if (!invoiceData || invoiceData.length === 0) {
-      return {
-        name: 'Unknown User',
-        email: 'N/A',
-        title: '',
-        role: 'unknown'
-      };
-    }
-
-
-
-    return {
-      name: 'Sadiki Rukara',
-      email: 'abyridellc@gmail.com',
-      title: '',
-      phone: '+1 (616) 633-7026',
-      role: 'unknown'
-    };
-  };
-
-  const userInfo = getUserInfo();
-
   const companyInfo = {
     logo: CompanyLogo,
-    companyName: 'Umusingi Hardware',
-    companyAddress: 'Kigali,Rwanda',
-
-
-  }
+    companyName: 'UMUSINGI HARDWARE',
+    address: 'NYAMATA, BUGESERA',
+    phone: '+250 787 487 953',
+    email: 'umusingihardware7@gmail.com'
+  };
 
   // Extract client info from the first invoice item
   const clientInfo = invoiceData?.length > 0 ? {
-    clientName: invoiceData[0].clientName || 'N/A',
-    clientEmail: invoiceData[0].clientEmail || 'N/A',
+    clientName: invoiceData[0].clientName || 'WALK-IN CUSTOMER',
     clientPhone: invoiceData[0].clientPhone || 'N/A'
   } : {
-    clientName: 'N/A',
-    clientEmail: 'N/A',
+    clientName: 'WALK-IN CUSTOMER',
     clientPhone: 'N/A'
   };
 
   // Calculate totals
-  const subtotal = invoiceData?.reduce((sum, item) => sum + item.soldPrice, 0) || 0;
-  const vatRate = 0.05; // 5% VAT
-  const vat = subtotal * vatRate;
-  const total = subtotal + vat;
+  const total = invoiceData?.reduce((sum, item) => sum + item.soldPrice, 0) || 0;
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
+    return new Intl.NumberFormat('en-RW', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount);
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     });
   };
 
-  const numberToWords = (num) => {
-    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    const thousands = ['', 'Thousand', 'Million', 'Billion'];
-
-    if (num === 0) return 'Zero';
-
-    const convertHundreds = (n) => {
-      let result = '';
-      if (n >= 100) {
-        result += ones[Math.floor(n / 100)] + ' Hundred ';
-        n %= 100;
-      }
-      if (n >= 20) {
-        result += tens[Math.floor(n / 10)] + ' ';
-        n %= 10;
-      } else if (n >= 10) {
-        result += teens[n - 10] + ' ';
-        return result;
-      }
-      if (n > 0) {
-        result += ones[n] + ' ';
-      }
-      return result;
-    };
-
-    let result = '';
-    let thousandIndex = 0;
-
-    while (num > 0) {
-      if (num % 1000 !== 0) {
-        result = convertHundreds(num % 1000) + thousands[thousandIndex] + ' ' + result;
-      }
-      num = Math.floor(num / 1000);
-      thousandIndex++;
-    }
-
-    return 'Dollar ' + result.trim();
-  };
-
-  // Handle close with confirmation
-  const handleClose = () => {
-    Swal.fire({
-      title: 'Close Invoice?',
-      text: 'Are you sure you want to close this invoice? Any unsaved changes will be lost.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, close it',
-      cancelButtonText: 'Cancel',
-      reverseButtons: true
-    }).then((result) => {
-      if (result.isConfirmed) {
-        onClose();
-      }
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-GB', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
     });
   };
 
-  // Handle email sending
-  const handleSendEmail = async () => {
-    setActionLoading(prev => ({ ...prev, email: true }));
-
-    try {
-      // Simulate API call - replace with your actual email service
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Email Sent!',
-        text: `Invoice has been sent to ${clientInfo.clientEmail}`,
-        confirmButtonColor: '#10b981',
-        timer: 3000,
-        timerProgressBar: true
-      });
-    // eslint-disable-next-line no-unused-vars
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Failed to Send Email',
-        text: 'Please try again later.',
-        confirmButtonColor: '#ef4444'
-      });
-    } finally {
-      setActionLoading(prev => ({ ...prev, email: false }));
-    }
+  // Handle print
+  const handlePrint = () => {
+    setActionLoading(prev => ({ ...prev, print: true }));
+    setTimeout(() => {
+      window.print();
+      setActionLoading(prev => ({ ...prev, print: false }));
+    }, 100);
   };
 
-  // Handle PDF generation with html2pdf.js
-  const handleGeneratePDF = async () => {
-    setActionLoading(prev => ({ ...prev, pdf: true }));
-
-    try {
-      const element = document.getElementById('print-section');
-
-      if (!element) {
-        throw new Error('Print section not found');
-      }
-
-      // Configure html2pdf options
-      const options = {
-        margin: [10, 10, 10, 10],
-        filename: `Invoice-${transactionId}-${new Date().toDateString()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          letterRendering: true
-        },
-        jsPDF: {
-          unit: 'mm',
-          format: 'a4',
-          orientation: 'portrait'
-        }
-      };
-
-      // Generate and download PDF
-      await html2pdf().set(options).from(element).save();
-
-      Swal.fire({
-        icon: 'success',
-        title: 'PDF Generated!',
-        text: 'Invoice PDF has been downloaded successfully.',
-        confirmButtonColor: '#3b82f6',
-        timer: 3000,
-        timerProgressBar: true
-      });
-    // eslint-disable-next-line no-unused-vars
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Failed to Generate PDF',
-        text: 'Please try again later.',
-        confirmButtonColor: '#ef4444'
-      });
-    } finally {
-      setActionLoading(prev => ({ ...prev, pdf: false }));
-    }
-  };
-
-  // Get transaction ID and creation date from first item
-  const transactionIdDisplay = invoiceData?.[0]?.transactionId || 'N/A';
+  const transactionIdDisplay = invoiceData?.[0]?.transactionId || transactionId;
   const createdAt = invoiceData?.[0]?.createdAt || new Date().toISOString();
+  const itemCount = invoiceData?.length || 0;
 
   if (!isOpen) {
     return null;
@@ -290,208 +133,158 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-        {/* Action Bar */}
-        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Invoice #{transactionIdDisplay}</h2>
-            <div className="flex gap-3">
-              {/* Email Button */}
-              {/*               
-              <button 
-                onClick={handleSendEmail}
-                disabled={actionLoading.email || actionLoading.pdf}
-                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg"
-              >
-                {actionLoading.email ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    Send Email
-                  </>
-                )}
-              </button>  
-              */}
+    <>
+      {/* Print styles */}
+      <style jsx>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #print-invoice, #print-invoice * {
+            visibility: visible;
+          }
+          #print-invoice {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 80mm;
+            font-size: 12px;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .print-header {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          .print-divider {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+          }
+        }
+      `}</style>
 
-              {/* PDF Button */}
-              <button
-                onClick={handleGeneratePDF}
-                disabled={actionLoading.email || actionLoading.pdf}
-                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg"
-              >
-                {actionLoading.pdf ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Save PDF
-                  </>
-                )}
-              </button>
-
-              {/* Close Button */}
-              <button
-                onClick={handleClose}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 shadow-lg"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Close
-              </button>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+          {/* Action Bar - No Print */}
+          <div className="no-print sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold">Invoice #{transactionIdDisplay}</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePrint}
+                  disabled={actionLoading.print}
+                  className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-4 py-2 rounded text-sm font-semibold transition-all flex items-center gap-1"
+                >
+                  {actionLoading.print ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                      Printing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Print
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm font-semibold transition-all flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Invoice Content */}
-        <div
-          id="print-section"
-          className="p-8 bg-white font-sans"
-        >
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex flex-col">
+          {/* Invoice Content */}
+          <div id="print-invoice" className="p-6 bg-white font-mono text-sm">
+            {/* Header */}
+            <div className="print-header text-center mb-4">
               <img
                 src={companyInfo.logo}
-                className="  w-44 h-44 scale-125 flex items-center justify-center font-bold text-xl mr-4"
+                alt="Logo"
+                className="w-16 h-16 mx-auto mb-2 object-contain"
               />
-
-              <div className="mb-4">
-                <h1 className="text-2xl font-bold text-gray-800">{companyInfo.companyName}</h1>
-                <p className="text-sm text-gray-600">{companyInfo.companyAddress}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="bg-blue-500 text-white px-3 py-2 flex justify-end rounded text-sm font-semibold mb-2">
-                <p>INVOICE</p>
-              </div>
-              <div className="text-sm text-gray-600">
-                <p className="font-semibold">Invoice No #{transactionIdDisplay}</p>
-                <p>Due Date: {formatDate(createdAt)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* From and To Section */}
-          <div className="grid grid-cols-3 gap-8 mb-8">
-            <div>
-              <h3 className="font-semibold text-gray-800 mb-2">From</h3>
-              <div className="text-gray-700">
-                <p className="font-semibold text-lg">{userInfo.name}</p>
-                <p className="text-sm">Email: {userInfo.email}</p>
-                <p className="text-sm">Phone: {userInfo.phone}</p>
-                <p className="text-sm text-blue-600 font-medium">{userInfo.title}</p>
-              </div>
+              <div className="font-bold text-lg">{companyInfo.companyName}</div>
+              <div className="text-xs">{companyInfo.address}</div>
+              <div className="text-xs">TEL: {companyInfo.phone}</div>
+              <div className="text-xs">EMAIL: {companyInfo.email}</div>
             </div>
 
-            <div>
-              <h3 className="font-semibold text-gray-800 mb-2">To</h3>
-              <div className="text-gray-700">
-                <p className="font-semibold text-lg">{clientInfo.clientName}</p>
-                <p className="text-sm">Email: {clientInfo.clientEmail}</p>
-                <p className="text-sm">Phone: {clientInfo.clientPhone}</p>
-              </div>
+            <div className="print-divider"></div>
+
+            {/* Transaction Info */}
+            <div className="mb-4 text-xs">
+              <div>CLIENT NAME: {clientInfo.clientName}</div>
+              {clientInfo.clientPhone  && (
+                <div>CLIENT PHONE: {clientInfo.clientPhone}</div>
+              )}
             </div>
 
+            <div className="print-divider"></div>
 
-            <div className="flex items-center">
-              <img src={stockOutService.getBarCodeUrlImage(transactionId)} className='h-20 object-contain' alt="" />
-            </div>
-          </div>
-
-          {/* Payment Status */}
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <p className="text-gray-700">
-                <span className="font-semibold">Invoice For:</span> Product Sales Transaction
-              </p>
-            </div>
-
-
-          </div>
-
-          {/* Invoice Table */}
-          <div className="mb-8">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Product</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Qty</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Unit Price</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoiceData.map((item) => (
-                  <tr key={item.id} className="border-b border-gray-200">
-                    <td className="py-3 px-4 text-gray-700">
-                      {item.stockin?.product?.productName || 'Product'}
-                    </td>
-                    <td className="py-3 px-4 text-center text-gray-700">{item.quantity}</td>
-                    <td className="py-3 px-4 text-right text-gray-700">
-                      {formatCurrency(item.soldPrice / item.quantity)}
-                    </td>
-                    <td className="py-3 px-4 text-right text-gray-700 font-semibold">
-                      {formatCurrency(item.soldPrice)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Totals Section */}
-          <div className="flex justify-end mb-8">
-            <div className="w-80">
-              <div className="flex justify-between py-2">
-                <span className="text-gray-700">Sub Total</span>
-                <span className="font-semibold">{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-700">VAT (5%)</span>
-                <span className="font-semibold">{formatCurrency(vat)}</span>
-              </div>
-              <div className="border-t border-gray-300 pt-2 mt-2">
-                <div className="flex justify-between py-2">
-                  <span className="text-lg font-bold text-gray-800">Total Amount</span>
-                  <span className="text-lg font-bold text-gray-800">{formatCurrency(total)}</span>
+            {/* Items */}
+            <div className="mb-4">
+              {invoiceData.map((item, index) => (
+                <div key={item.id} className="mb-3 text-xs">
+                  <div className="font-semibold">
+                    {item.stockin?.product?.productName || `ITEM ${index + 1}`}
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{item.quantity}x{formatCurrency(item.soldPrice / item.quantity)}</span>
+                    <span className="font-bold">{formatCurrency(item.soldPrice)}</span>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  Amount in Words: {numberToWords(Math.floor(total))}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Terms and Signature */}
-          <div className="grid grid-cols-2 gap-8">
-            <div className=''>
+              ))}
             </div>
 
-            <div className="text-right">
+            <div className="print-divider"></div>
 
-              <div className='flex items-end flex-col'>
-
-                <img src={signature} className='object-contain h-32' alt="" />
-                <p className="font-semibold text-gray-800">{userInfo.name}</p>
+            {/* Totals */}
+            <div className="mb-4">
+              <div className="flex justify-between font-bold text-base">
+                <span>TOTAL</span>
+                <span>{formatCurrency(total)}</span>
               </div>
+              <div className="flex justify-between text-xs">
+                <span>CASH</span>
+                <span>{formatCurrency(total)}</span>
+              </div>
+            </div>
+
+            <div className="print-divider"></div>
+
+            {/* Footer Info */}
+            <div className="text-xs text-center">
+              <div>ITEM NUMBER: {itemCount}</div>
+              <div className="print-divider"></div>
+              <div>INVOICE INFORMATION</div>
+              <div>Date: {formatDate(createdAt)} Time: {formatTime(createdAt)}</div>
+              <div>INVOICE ID: {transactionIdDisplay}</div>
+             
+              
+              <div className="mt-4">
+                <img 
+                  src={stockOutService.getBarCodeUrlImage(transactionId)} 
+                  alt="Barcode" 
+                  className="h-12 mx-auto object-contain"
+                />
+              </div>
+
+              <div className="print-divider"></div>
+              <div className="font-bold">Thank You For Your Business!</div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

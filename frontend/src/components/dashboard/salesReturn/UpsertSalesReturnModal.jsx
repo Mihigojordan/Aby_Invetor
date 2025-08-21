@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Search, Package, DollarSign, Hash, User, Mail, Phone, Calendar, RotateCcw, AlertTriangle, Check, X, Info } from 'lucide-react';
-import stockOutService from "../../../services/stockOutService";
+import stockOutService from "../../../services/stockoutService";
 
 // Modal Component for Sales Return
 const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, currentUser, userRole }) => {
@@ -199,7 +199,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'RWF'
     }).format(price || 0);
   };
 

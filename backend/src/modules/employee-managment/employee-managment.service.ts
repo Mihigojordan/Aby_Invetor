@@ -108,7 +108,7 @@ export class EmployeeManagmentService {
         margin-top: 15px;
         padding: 10px 20px;
         background-color: #007bff;
-        color:"white";
+        color: #fff;
         text-decoration: none;
         border-radius: 4px;
       }
@@ -135,7 +135,7 @@ export class EmployeeManagmentService {
         purposes.
       </p>
 
-      <a href="https://aby_invento.com/login" class="btn">Login Now</a>
+      <a href="https://abyinventory.com/auth/employee/login" class="btn">Login Now</a>
 
       <p>Welcome aboard! If you have any questions, feel free to reach out.</p>
 

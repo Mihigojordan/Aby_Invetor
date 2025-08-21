@@ -3,8 +3,8 @@ import Swal from 'sweetalert2';
 import html2pdf from 'html2pdf.js';
 import salesReturnService from '../../../services/salesReturnService';
 import CompanyLogo from '../../../assets/images/applogo_rm_bg.png'
-import signature from '../../../assets/images/signature.webp'
-import stockOutService from '../../../services/stockOutService';
+// import signature from '../../../assets/images/signature.webp'
+import stockOutService from '../../../services/stockoutService';
 
 const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
   const [creditNoteData, setCreditNoteData] = useState(null);
@@ -42,9 +42,9 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
   const getUserInfo = () => {
     return {
       name: 'Sadiki Rukara',
-      email: 'abyridellc@gmail.com',
+      email: 'umusingihardware7@gmail.com',
       title: '',
-      phone: '+1 (616) 633-7026',
+      phone: '250 787487953',
       role: 'unknown'
     };
   };
@@ -77,7 +77,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'RWF'
     }).format(amount);
   };
 
@@ -248,7 +248,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
     );
   }
 
-  const creditNoteNumber = generateCreditNoteNumber();
+
   const originalInvoiceDate = creditNoteData.items[0]?.stockout?.createdAt || creditNoteData.createdAt;
 
   return (
@@ -257,7 +257,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
         {/* Action Bar */}
         <div className="sticky top-0 bg-gradient-to-r from-primary-600 to-orange-600 z-[10] text-white p-4 rounded-t-lg">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Credit Note #{creditNoteNumber}</h2>
+            <h2 className="text-xl font-bold">Credit Note #{creditNoteData.creditnoteId}</h2>
             <div className="flex gap-3">
               {/* PDF Button */}
               <button
@@ -317,7 +317,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
                 <p>CREDIT NOTE</p>
               </div>
               <div className="text-sm text-gray-600">
-                <p className="font-semibold">Credit Note No #{creditNoteNumber}</p>
+                <p className="font-semibold">Credit Note No #{creditNoteData.creditnoteId}</p>
                 <p>Issue Date: {formatDate(creditNoteData.createdAt)}</p>
               </div>
             </div>
@@ -349,8 +349,9 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
                 <p className="text-sm text-primary-600 font-semibold">Original Invoice</p>
                 <p className="text-xs text-gray-600">{formatDate(originalInvoiceDate)}</p>
                  <div className="py-3">
-                    <img src={stockOutService.getBarCodeUrlImage(creditNoteData.transactionId)} className='h-20 object-contain' alt="" />
+                    <img src={stockOutService.getBarCodeUrlImage(creditNoteData.transactionId)} className='h-20  object-contain' alt="" />
                  </div>
+                
               </div>
             </div>
           </div>
@@ -431,7 +432,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
 
             <div className="text-right">
               <div className='flex items-end flex-col'>
-                <img src={signature} className='object-contain h-32' alt="" />
+                {/* <img src={signature} className='object-contain h-32' alt="" />/ */}
                 <p className="font-semibold text-gray-800">{userInfo.name}</p>
                 <p className="text-sm text-gray-600">Authorized Signature</p>
               </div>

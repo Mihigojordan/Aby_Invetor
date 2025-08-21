@@ -25,6 +25,14 @@ import EmployeeProfile from "../page/dashboard/EmployeeProfileManagement";
 import StockOutManagment from "../page/dashboard/StockOutManagment";
 import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
 import AdminProfile from "../page/dashboard/AdminProfile";
+import EmployeeDashboard from "../page/dashboard/EmployeeDashboard";
+import ProductViewPage from "../components/dashboard/product/ViewMorePage";
+import SalesReportPage from "../page/dashboard/SalesReportPage";
+import ViewStockoutReport from "../components/dashboard/salesReport/ViewStockoutReport";
+import StockOutAnalysisPage from "../components/dashboard/salesReport/StockOutAnalysisPage";
+import ReportManagement from "../page/dashboard/ReportManagment";
+import EmployeeReportManagement from "../page/dashboard/EmployeeReportManagement";
+import EmployeeReportViewMore from "../page/dashboard/EmployeeReportViewMore";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -96,6 +104,15 @@ const routes = createBrowserRouter([
 
                             },
                             {
+                                path: "product/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ProductViewPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
                                 path: "stockin",
                                 element: (
                                     <SuspenseWrapper>
@@ -113,20 +130,51 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                              {
-                                path: "sales-return",
-                                element: (
-                                    <SuspenseWrapper>
-                                        <SalesReturnManagement role={'admin'} />
-                                    </SuspenseWrapper>
-                                )
-
-                            },
                             {
                                 path:"profile",
                                  element: (
                                     <SuspenseWrapper>
                                         <AdminProfile role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <SalesReportPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/stockout/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <ViewStockoutReport role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/stockout-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <StockOutAnalysisPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"employee-report",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <EmployeeReportManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"employee-report/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <EmployeeReportViewMore role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             }
@@ -151,7 +199,7 @@ const routes = createBrowserRouter([
                                 index: true,
                                 element: (
                                     <SuspenseWrapper>
-                                        <Dashboard />
+                                        <EmployeeDashboard />
                                     </SuspenseWrapper>
                                 )
                             },
@@ -189,6 +237,15 @@ const routes = createBrowserRouter([
 
                             },
                             {
+                                path: "product/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ProductViewPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
                                 path: "stockout",
                                 element: (
                                     <SuspenseWrapper>
@@ -198,14 +255,15 @@ const routes = createBrowserRouter([
 
                             },
                             {
-                                path: "sales-return",
+                                path: "report",
                                 element: (
                                     <SuspenseWrapper>
-                                        <SalesReturnManagement role={'employee'} />
+                                        <ReportManagement role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 
                             },
+                            
                           
                         ]
                     }

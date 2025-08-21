@@ -217,4 +217,26 @@ export class StockinManagmentService {
     }
     return deletedStock;
   }
+
+
+  async getStockInBysku(sku: string){
+      try {
+        if (!sku) {
+          throw new HttpException('id is required', HttpStatus.BAD_REQUEST)
+        }
+        const stockin = await this.prisma.stockIn.findFirst({
+          where: {
+            sku: sku
+          },
+          include: {
+            product:true,
+          }
+        })
+        console.log(stockin);
+        
+        return stockin
+      } catch (error) {
+        throw new HttpException(error.message, error.status)
+      }
+    }
 }

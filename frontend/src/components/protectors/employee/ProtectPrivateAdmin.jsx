@@ -11,13 +11,13 @@ const ProtectPrivateEmployee = ({ children }) => {
 // Route to task mapping (matches your ProtectPrivateEmployee logic)
 const routeTaskMapping = {
   // saling
-  '/employee/dashboard/stockout': ['saling'],
+  '/employee/dashboard/stockout': ['saling','selling','sales','stockout'],
   // returning and receiving (both can access these routes)
-  '/employee/dashboard/sales-return': ['returning'],
-  '/employee/dashboard/category': ['returning', 'receiving'],
-  '/employee/dashboard/product': ['returning', 'receiving'],
+  '/employee/dashboard/sales-return': ['returning','return'],
+  '/employee/dashboard/category':['receiving', 'returning','return','stockin'],
+  '/employee/dashboard/product':['receiving', 'returning','return','stockin'],
   // receiving
-  '/employee/dashboard/stockin': ['receiving'],
+  '/employee/dashboard/stockin': ['receiving','stockin'],
 };
 
 

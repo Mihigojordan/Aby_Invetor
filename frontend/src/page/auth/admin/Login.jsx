@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { 
   Package, 
   Loader2,
@@ -151,6 +151,10 @@ const LoginPage = () => {
                   disabled={isSubmitting}
                 />
                 <span className="ml-2 text-sm text-gray-600">Remember me</span>
+              </label>
+
+              <label className="flex items-center">
+             <Link to={'/auth'} className='underline text-blue-600 '>go back</Link>
               </label>
              
             </div>

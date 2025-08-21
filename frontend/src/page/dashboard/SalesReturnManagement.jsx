@@ -12,7 +12,7 @@ const SalesReturnManagement = ({ role }) => {
   const [filteredSalesReturns, setFilteredSalesReturns] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedSalesReturn, setSelectedSalesReturn] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +34,7 @@ const SalesReturnManagement = ({ role }) => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(5);
 
   useEffect(() => {
     fetchSalesReturns();
@@ -72,8 +72,8 @@ const SalesReturnManagement = ({ role }) => {
 
   const handleCloseCreditModal = () => {
     setIsCreditNoteOpen(false);
-    setTransactionId(null);
-    updateSearchParam("setSalesReturnId");
+    setSalesReturnId(null);
+    updateSearchParam("salesReturnId");
   };
 
   const fetchSalesReturns = async () => {
@@ -128,13 +128,13 @@ const SalesReturnManagement = ({ role }) => {
             dateMatch = returnDate.toDateString() === now.toDateString();
             break;
           case 'week':
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            { const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             dateMatch = returnDate >= weekAgo;
-            break;
+            break; }
           case 'month':
-            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            { const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             dateMatch = returnDate >= monthAgo;
-            break;
+            break; }
           case 'custom':
             if (filters.startDate && filters.endDate) {
               const startDate = new Date(filters.startDate);
@@ -260,12 +260,7 @@ const SalesReturnManagement = ({ role }) => {
     });
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price || 0);
-  };
+  
 
   const truncateId = (id) => {
     return id ? `${id.substring(0, 8)}...` : 'N/A';
@@ -314,11 +309,6 @@ const SalesReturnManagement = ({ role }) => {
 
   const handleRefresh = () => {
     fetchSalesReturns();
-  };
-
-  const handleExport = () => {
-    // TODO: Implement export functionality
-    showNotification('Export functionality will be implemented soon', 'info');
   };
 
   // Statistics Cards Component
@@ -504,7 +494,7 @@ const SalesReturnManagement = ({ role }) => {
   const CardView = () => (
     <div className="md:hidden">
       <div className="grid grid-cols-1 gap-4 mb-6">
-        {currentItems.map((salesReturn, index) => (
+        {currentItems.map((salesReturn) => (
           <div key={salesReturn.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">

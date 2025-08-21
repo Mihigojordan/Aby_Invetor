@@ -48,6 +48,7 @@ model Employee {
   stockin      StockIn[]
   product      Product[]
   activity  Activity[]
+  report    Report[]
 }
 
 enum Status {
@@ -118,12 +119,20 @@ model StockOut {
   clientName  String?
   clientEmail String?
   clientPhone String?
+  paymentMethod PaymentMethod?
   stockin     StockIn?  @relation(fields: [stockinId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sales   SalesReturnItem[]
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+
+enum PaymentMethod {
+  MOMO
+  CARD
+  CASH
 }
 
 
@@ -140,19 +149,49 @@ model Activity {
 }
 
 
-model SalesReturn {
-  id        String              @id @default(uuid())
-  transactionId String?
-  reason    String?
-  createdAt DateTime           
-  items     SalesReturnItem[]
+
+
+
+model Report {
+  id             String         @id @default(cuid())
+  employeeId   String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  // Products sold in the report (relation to ProductSold)
+  productsSold   Json?
+  expenses       Expense[]
+
+  // Credit & Debit records
+  transactions   Transaction[]
+  
+  // Money records
+  cashAtHand     Float          @default(0.0)
+  moneyOnPhone   Float          @default(0.0)
+  
+  // Metadata
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+model Expense {
+  id          String   @id @default(cuid())
+  reportId    String
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  
+  description String
+  amount      Float
 }
 
-model SalesReturnItem {
-  id            String   @id @default(uuid())
-  salesReturnId String
-  stockoutId    String
-  quantity      Int
-  stockout      StockOut     @relation(fields: [stockoutId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+model Transaction {
+  id          String   @id @default(cuid())
+  reportId    String
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  
+  type        TransactionType
+  description String
+  amount      Float
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
 }

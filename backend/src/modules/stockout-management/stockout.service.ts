@@ -25,10 +25,12 @@ export class StockoutService {
   clientName?: string;
   clientEmail?: string;
   clientPhone?: string;
+  paymentMethod?;
   adminId?: string;
   employeeId?: string;
 }) {
-  const { sales, adminId, employeeId , clientEmail,clientName,clientPhone } = data;
+  const { sales, adminId, employeeId , clientEmail,clientName,clientPhone , paymentMethod } = data;
+  console.log('recieved data:', data)
 
   if (!Array.isArray(sales) || sales.length === 0) {
     throw new BadRequestException('At least one sale is required');
@@ -80,6 +82,7 @@ export class StockoutService {
         adminId,
         employeeId,
         transactionId,
+        paymentMethod
       },
     });
 
@@ -116,9 +119,14 @@ export class StockoutService {
     try {
       return await this.prisma.stockOut.findMany({
         include: {
-          stockin: true,
+          stockin: {
+            include:{
+              product:true
+            }
+          },
           admin: true,
           employee: true,
+         
         },
       });
     } catch (error) {
@@ -131,7 +139,11 @@ export class StockoutService {
       const stockout = await this.prisma.stockOut.findUnique({
         where: { id },
         include: {
-          stockin: true,
+    stockin: {
+      include: {
+        product: true, // include product via stockin
+      },
+    },
           admin: true,
           employee: true,
         },

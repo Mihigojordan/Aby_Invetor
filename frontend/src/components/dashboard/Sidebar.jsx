@@ -10,7 +10,9 @@ import {
   ShoppingCart,
   ChevronRight,
   User,
-  X
+  X,
+  ReceiptPoundSterling,
+  FileText
 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -38,17 +40,50 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     { key: 'products', label: 'Products Management', icon: Package, path: '/admin/dashboard/product' },
     { key: 'stockin', label: 'Stock In Movement', icon: ArrowDown, path: '/admin/dashboard/stockin' },
     { key: 'stockout', label: 'Stock Out Movement', icon: ArrowUp, path: '/admin/dashboard/stockout' },
-    { key: 'returning', label: 'Sales Returns', icon: RotateCcw, path: '/admin/dashboard/sales-return' },
+    { key: 'report', label: 'Employee Report', icon: FileText, path: '/admin/dashboard/employee-report' },
+    { key: 'sales-report', label: 'Sales Report', icon: ReceiptPoundSterling, path: '/admin/dashboard/sales-report' },
+    // { key: 'returning', label: 'Sales Returns', icon: RotateCcw, path: '/admin/dashboard/sales-return' },
   ];
 
-  const employeeItems = [
-    { key: 'dashboard', label: 'Dashboard Summary', icon: Home, path: '/employee/dashboard', alwaysShow: true },
-    { key: 'category_receiving_returning', label: 'Category Management', taskname: ['receiving', 'returning'], icon: Layers, path: '/employee/dashboard/category' },
-    { key: 'product_receiving_returning', label: 'Product Management', taskname: ['receiving', 'returning'], icon: Package, path: '/employee/dashboard/product' },
-    { key: 'stockin_receiving', label: 'Stock In Management', taskname: ['receiving'], icon: ArrowDown, path: '/employee/dashboard/stockin' },
-    { key: 'stockout', label: 'Stock Out Management', taskname: ['saling'], icon: ShoppingCart, path: '/employee/dashboard/stockout' },
-    { key: 'returning', label: 'Sales Returns', taskname: ['returning'], icon: RotateCcw, path: '/employee/dashboard/sales-return' },
-  ];
+const employeeItems = [
+ { key: 'dashboard', label: 'Dashboard Summary', icon: Home, path: '/employee/dashboard', alwaysShow: true },
+  {
+    key: 'category_receiving_returning',
+    label: 'Category Management',
+    taskname: ['receiving', 'returning','return','stockin'],
+    icon: Layers, // Good choice, keep as is
+    path: '/employee/dashboard/category'
+  },
+  {
+    key: 'product_receiving_returning',
+    label: 'Product Management',
+    taskname: ['receiving', 'returning','return','stockin'],
+    icon: Package, // Better than TagIcon for products
+    path: '/employee/dashboard/product'
+  },
+  {
+    key: 'stockin_receiving',
+    label: 'Stock In Management',
+    taskname: ['receiving','stockin'],
+    icon: ArrowDown, // Clear indication of incoming stock
+    path: '/employee/dashboard/stockin'
+  },
+  {
+    key: 'stockout',
+    label: 'Stock Out Management',
+    taskname: ['saling','selling','sales','stockout'],
+    icon: ShoppingCart, // More specific for sales than generic ArrowUp
+    path: '/employee/dashboard/stockout'
+  },
+  {
+    key: 'report',
+    label: 'Report Management',
+    taskname:['saling','selling','sales','stockout','receiving','stockin'],
+    icon: FileText, // Better than Undo2Icon for returns
+    path: '/employee/dashboard/report'
+  },
+];
+ 
 
   const getProfileRoute = () => role === 'admin' ? '/admin/dashboard/profile' : '/employee/dashboard/profile';
 
@@ -153,7 +188,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={onToggle} />
       )}
 
-      <div className={`fixed left-0 top-0 min-h-screen bg-white flex flex-col shadow-lg transform transition-transform duration-300 z-50 lg:relative lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} xl:w-/12`}>
+      <div className={`fixed left-0 top-0 min-h-screen bg-white flex flex-col shadow-lg transform transition-transform duration-300 z-50 lg:relative lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:w-3/12 xl:w-2/12`}>
 
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">

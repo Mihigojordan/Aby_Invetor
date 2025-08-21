@@ -186,9 +186,13 @@ class ProductService {
    * @param {string} id - Product ID
    * @returns {Promise<Object>} Deletion confirmation
    */
-  async deleteProduct(id) {
+  async deleteProduct(id,data) {
     try {
-      const response = await api.delete(`${this.apiPath}/${id}`);
+      const response = await api.delete(`${this.apiPath}/${id}`,{
+        data:{
+...data
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error deleting product:', error);
