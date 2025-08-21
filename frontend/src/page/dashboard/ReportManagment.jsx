@@ -278,7 +278,7 @@ const UpsertReportModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-6xl mx-4 max-h-[95vh] overflow-y-auto">
+      <div className="bg-white rounded-xl p-6 w-full max-w-5xl mx-4 max-h-[95vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
           <button
@@ -638,7 +638,7 @@ const UpsertReportModal = ({
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Report Summary
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary-600">
                   {(formData.productsSold || []).length}
@@ -656,17 +656,6 @@ const UpsertReportModal = ({
                   {formatCurrency(totalExpenses)}
                 </div>
                 <div className="text-sm text-gray-600">Total Expenses</div>
-              </div>
-              <div className="text-center">
-                <div
-                  className={`text-2xl font-bold ${
-                    netCashFlow >= 0 ? "text-blue-600" : "text-orange-600"
-                  }`}
-                >
-                  {netCashFlow >= 0 ? "+" : ""}
-                  {formatCurrency(netCashFlow)}
-                </div>
-                <div className="text-sm text-gray-600">Netf Cash Flow</div>
               </div>
             </div>
           </div>
@@ -754,6 +743,10 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
       .reduce((total, t) => total + (t.amount || 0), 0);
   };
 
+  // Separate credit and debit transactions
+  const creditTransactions = (report.transactions || []).filter(t => t.type === "CREDIT");
+  const debitTransactions = (report.transactions || []).filter(t => t.type === "DEBIT");
+
   const totalMoney = (report.cashAtHand || 0) + (report.moneyOnPhone || 0);
   const totalExpenses = calculateTotalExpenses();
   const netCashFlow = calculateNetCashFlow();
@@ -838,7 +831,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                       Total Credit
                     </label>
                     <p className="text-xl font-bold text-green-600">
-                      +{formatCurrency(totalCredit)}
+                      {formatCurrency(totalCredit)}
                     </p>
                   </div>
                   <div>
@@ -846,20 +839,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                       Total Debit
                     </label>
                     <p className="text-xl font-bold text-red-600">
-                      -{formatCurrency(totalDebit)}
-                    </p>
-                  </div>
-                  <div className="col-span-2 border-t pt-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Net Cash Flow
-                    </label>
-                    <p
-                      className={`text-2xl font-bold ${
-                        netCashFlow >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {netCashFlow >= 0 ? "+" : ""}
-                      {formatCurrency(netCashFlow)}
+                      {formatCurrency(totalDebit)}
                     </p>
                   </div>
                 </div>
@@ -939,41 +919,49 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                 </div>
               )}
 
-              {/* Transaction Details */}
-              {report.transactions && report.transactions.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">
-                    Transaction Details
+              {/* Credit Transactions */}
+              {creditTransactions.length > 0 && (
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-green-600 rounded-full"></span>
+                    Credit Transactions ({creditTransactions.length})
                   </h3>
                   <div className="space-y-2">
-                    {report.transactions.map((transaction, index) => (
+                    {creditTransactions.map((transaction, index) => (
                       <div
                         key={index}
-                        className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0"
+                        className="flex justify-between items-center py-2 border-b border-green-200 last:border-b-0"
                       >
-                        <div>
-                          <span className="text-gray-700">
-                            {transaction.description || 'No description'}
-                          </span>
-                          <span
-                            className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                              transaction.type === "CREDIT"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {transaction.type}
-                          </span>
-                        </div>
-                        <span
-                          className={`font-medium ${
-                            transaction.type === "CREDIT"
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {transaction.type === "CREDIT" ? "+" : "-"}
-                          {formatCurrency(transaction.amount)}
+                        <span className="text-gray-700">
+                          {transaction.description || 'No description'}
+                        </span>
+                        <span className="font-medium text-green-600">
+                          +{formatCurrency(transaction.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Debit Transactions */}
+              {debitTransactions.length > 0 && (
+                <div className="bg-red-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-red-600 rounded-full"></span>
+                    Debit Transactions ({debitTransactions.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {debitTransactions.map((transaction, index) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-center py-2 border-b border-red-200 last:border-b-0"
+                      >
+                        <span className="text-gray-700">
+                          {transaction.description || 'No description'}
+                        </span>
+                        <span className="font-medium text-red-600">
+                          -{formatCurrency(transaction.amount)}
                         </span>
                       </div>
                     ))}
@@ -1023,11 +1011,9 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
     </div>
   );
 };
-
 // Delete Report Modal Component
 const DeleteModal = ({ isOpen, onClose, onConfirm, report, isLoading }) => {
   if (!isOpen || !report) return null;
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
