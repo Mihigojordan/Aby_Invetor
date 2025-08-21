@@ -12,6 +12,7 @@ import { EmailModule } from './global/email/email.module';
 import { ActivityManagmentModule } from './modules/activity-managament/activity.module';
 import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.module';
 import { SummaryModule } from './modules/Summary/summary.module';
+import { ReportModule } from './modules/report-management/report.module';
 
 
 @Module({
@@ -25,6 +26,7 @@ import { SummaryModule } from './modules/Summary/summary.module';
     StockinManagmentModule,
     StockoutModule,
     EmailModule,
+    ReportModule,
     ActivityManagmentModule,
     SalesReturnModule,
     SummaryModule
