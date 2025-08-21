@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Calendar, Filter, User, DollarSign, TrendingUp, FileText, Clock } from 'lucide-react';
+import { Search, Calendar, Filter, User, DollarSign, TrendingUp, FileText, Clock, ChevronLeft, ChevronRight, Eye, X, Package } from 'lucide-react';
 import reportService from '../../services/reportService';
+import { useNavigate } from 'react-router-dom';
 
 const EmployeeReportManagement = () => {
   const [reports, setReports] = useState([]);
@@ -11,7 +12,10 @@ const EmployeeReportManagement = () => {
   const [dateFilter, setDateFilter] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  const navigate = useNavigate();
   // Fetch all reports on component mount
   useEffect(() => {
     const fetchReports = async () => {
@@ -91,6 +95,7 @@ const EmployeeReportManagement = () => {
     }
 
     setFilteredReports(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [reports, searchTerm, dateFilter, customStartDate, customEndDate]);
 
   // Calculate summary statistics
@@ -112,13 +117,70 @@ const EmployeeReportManagement = () => {
     };
   }, [filteredReports]);
 
-  const formatCurrency = (amount) => {
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredReports.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const getPageNumbers = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push('...', totalPages);
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setDateFilter('all');
+    setCustomStartDate('');
+    setCustomEndDate('');
+  };
+
+  // Format currency helper
+  function formatCurrency(amount) {
     return new Intl.NumberFormat('en-RW', {
       style: 'currency',
       currency: 'RWF',
       minimumFractionDigits: 0
     }).format(amount);
-  };
+  }
 
   const formatDate = (date) => {
     return new Intl.DateTimeFormat('en-RW', {
@@ -134,21 +196,185 @@ const EmployeeReportManagement = () => {
     return filteredReports.filter(r => r.employeeId === employeeId).length;
   };
 
-  // Group reports by employee for better display
-  const groupedReports = useMemo(() => {
-    const grouped = {};
-    filteredReports.forEach(report => {
-      const employeeId = report.employeeId;
-      if (!grouped[employeeId]) {
-        grouped[employeeId] = {
-          employee: report.employee,
-          reports: []
-        };
-      }
-      grouped[employeeId].reports.push(report);
-    });
-    return grouped;
-  }, [filteredReports]);
+  const handleViewMore = (reportId) => {
+    if (!reportId) return;
+    // Navigate to report details page
+    navigate(`/admin/dashboard/employee-report/${reportId}`);
+  };
+
+  const hasActiveFilters = searchTerm || dateFilter !== 'all' || customStartDate || customEndDate;
+
+  // Pagination Component
+  const PaginationComponent = () => (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
+      <div className="flex items-center gap-4">
+        <p className="text-sm text-gray-600">
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredReports.length)} of {filteredReports.length} entries
+        </p>
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+          <div className="flex items-center gap-1 mx-2">
+            {getPageNumbers().map((page, idx) => (
+              <button
+                key={idx}
+                onClick={() => typeof page === 'number' && handlePageChange(page)}
+                className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                  typeof page !== 'number'
+                    ? 'cursor-default text-gray-500'
+                    : currentPage === page
+                    ? 'bg-blue-600 text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+                disabled={typeof page !== 'number'}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  // Table View Component
+  const TableView = () => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products Sold</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash at Hand</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Money</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {currentItems.map((report, index) => {
+              const totalExpenses = report.expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0;
+              return (
+                <tr key={report.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                      {startIndex + index + 1}
+                    </span>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                        <User size={16} />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {report.employee?.firstname} {report.employee?.lastname}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {report.employee?.email}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Package size={14} className="text-gray-400" />
+                      <span className="text-sm font-semibold text-gray-900">
+                        {report.productsSold?.length || 0}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <DollarSign size={14} className="text-green-500" />
+                      <span className="text-sm text-gray-900">
+                        {formatCurrency(report.cashAtHand || 0)}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <DollarSign size={14} className="text-blue-500" />
+                      <span className="text-sm text-gray-900">
+                        {formatCurrency(report.moneyOnPhone || 0)}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp size={14} className="text-red-500" />
+                      <div className="text-sm">
+                        <div className="text-gray-900 font-medium">
+                          {formatCurrency(totalExpenses)}
+                        </div>
+                        <div className="text-gray-500 text-xs">
+                          {report.expenses?.length || 0} item{(report.expenses?.length || 0) !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} className="text-gray-400" />
+                      <span className="text-sm text-gray-600">
+                        {formatDate(report.createdAt)}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleViewMore(report.id)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <Eye size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Table Pagination */}
+      <PaginationComponent />
+    </div>
+  );
 
   if (loading) {
     return (
@@ -163,8 +389,8 @@ const EmployeeReportManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="h-[90vh] overflow-y-auto px-4 bg-gray-50 p-6">
+      <div className=" mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Employee Report Management</h1>
@@ -220,7 +446,7 @@ const EmployeeReportManagement = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -250,7 +476,7 @@ const EmployeeReportManagement = () => {
             </div>
 
             {/* Custom Date Range */}
-            {dateFilter === 'custom' && (
+            {dateFilter === 'custom' ? (
               <div className="flex space-x-2">
                 <input
                   type="date"
@@ -265,135 +491,35 @@ const EmployeeReportManagement = () => {
                   onChange={(e) => setCustomEndDate(e.target.value)}
                 />
               </div>
+            ) : (
+              <div></div>
             )}
+
+            {/* Clear Filters Button */}
+            <div className="flex justify-end">
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <X size={16} />
+                  Clear Filters
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Reports Display */}
+        {/* Reports Table */}
         <div className="space-y-6">
-          {Object.keys(groupedReports).length === 0 ? (
+          {filteredReports.length === 0 ? (
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
               <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <p className="text-xl text-gray-600 mb-2">No reports found</p>
               <p className="text-gray-500">Try adjusting your search or filter criteria</p>
             </div>
           ) : (
-            Object.entries(groupedReports).map(([employeeId, data]) => (
-              <div key={employeeId} className="bg-white rounded-lg shadow-md overflow-hidden">
-                {/* Employee Header */}
-                <div className="bg-gray-50 px-6 py-4 border-b">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <User className="h-10 w-10 text-gray-600 bg-gray-200 rounded-full p-2" />
-                      <div className="ml-4">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {data.employee?.firstname} {data.employee?.lastname}
-                        </h3>
-                        <p className="text-gray-600">{data.employee?.email}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">Reports</p>
-                      <p className="text-2xl font-bold text-blue-600">{data.reports.length}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Employee Reports */}
-                <div className="divide-y divide-gray-200">
-                  {data.reports.map((report) => (
-                    <div key={report.id} className="p-6 hover:bg-gray-50 transition-colors">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Date</p>
-                          <p className="text-gray-900 flex items-center">
-                            <Clock className="h-4 w-4 mr-1" />
-                            {formatDate(report.createdAt)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Products Sold</p>
-                          <p className="text-gray-900 font-semibold">{report.productsSold || 0}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Money Available</p>
-                          <div className="space-y-1">
-                            <p className="text-gray-900 text-sm">
-                              Cash: {formatCurrency(report.cashAtHand || 0)}
-                            </p>
-                            <p className="text-gray-900 text-sm">
-                              Phone: {formatCurrency(report.moneyOnPhone || 0)}
-                            </p>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Activity</p>
-                          <div className="space-y-1">
-                            <p className="text-gray-900 text-sm">
-                              Expenses: {report.expenses?.length || 0}
-                            </p>
-                            <p className="text-gray-900 text-sm">
-                              Transactions: {report.transactions?.length || 0}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expenses and Transactions Details */}
-                      {(report.expenses?.length > 0 || report.transactions?.length > 0) && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Expenses */}
-                            {report.expenses?.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Expenses</h4>
-                                <div className="space-y-1">
-                                  {report.expenses.slice(0, 3).map((expense, idx) => (
-                                    <div key={idx} className="flex justify-between text-sm">
-                                      <span className="text-gray-600 truncate">{expense.description}</span>
-                                      <span className="text-red-600 ml-2">{formatCurrency(expense.amount)}</span>
-                                    </div>
-                                  ))}
-                                  {report.expenses.length > 3 && (
-                                    <p className="text-xs text-gray-500">
-                                      +{report.expenses.length - 3} more expenses
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Transactions */}
-                            {report.transactions?.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Transactions</h4>
-                                <div className="space-y-1">
-                                  {report.transactions.slice(0, 3).map((transaction, idx) => (
-                                    <div key={idx} className="flex justify-between text-sm">
-                                      <span className="text-gray-600 truncate">
-                                        {transaction.description} ({transaction.type})
-                                      </span>
-                                      <span className={`ml-2 ${transaction.type === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
-                                        {transaction.type === 'CREDIT' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                  {report.transactions.length > 3 && (
-                                    <p className="text-xs text-gray-500">
-                                      +{report.transactions.length - 3} more transactions
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))
+            <TableView />
           )}
         </div>
       </div>

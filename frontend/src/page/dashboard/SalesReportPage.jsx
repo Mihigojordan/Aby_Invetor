@@ -324,9 +324,144 @@ const SalesReportPage = () => {
     </div>
   );
 
+  // Card View Component
+const CardView = () => (
+  <div className="space-y-6 md:hidden">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {currentItems.map((stockOut, index) => {
+        const profit = calculateProfit(stockOut);
+        const isProfit = profit > 0;
+        
+        return (
+          <div key={stockOut.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-gray-300">
+            {/* Card Header */}
+            <div className="p-6 pb-4">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
+                    <ShoppingCart size={20} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      #{startIndex + index + 1}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                  title="View Details"
+                  onClick={() => handleViewMoreDetails(stockOut.id)}
+                >
+                  <Eye size={18} />
+                </button>
+              </div>
+
+              {/* Product Info */}
+              <div className="mb-4">
+                <h3 className="font-semibold text-gray-900 text-lg mb-1 leading-tight">
+                  {stockOut.stockin?.product?.productName || 'Sale Transaction'}
+                </h3>
+                {stockOut.transactionId && (
+                  <div className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded inline-block">
+                    {stockOut.transactionId}
+                  </div>
+                )}
+              </div>
+
+              {/* Client Info */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <User size={16} className="text-gray-400" />
+                  <span className="text-gray-600">
+                    {stockOut.clientName || 'Walk-in customer'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card Body - Stats */}
+            <div className="px-6 pb-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Quantity */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Hash size={14} className="text-gray-400" />
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</span>
+                  </div>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {stockOut.quantity || 'N/A'}
+                  </div>
+                </div>
+
+                {/* Unit Price */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unit Price</span>
+                  </div>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {stockOut.soldPrice ? formatPrice(stockOut.soldPrice) : 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card Footer */}
+            <div className="px-6 py-4 bg-gray-50 rounded-b-xl">
+              <div className="flex items-center justify-between">
+                {/* Profit/Loss */}
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                    Profit/Loss
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold text-lg ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
+                    </span>
+                    {profit !== 0 && (
+                      <span className={`text-sm ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+                        {isProfit ? '↗' : '↘'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                    Date Sold
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Calendar size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-600 font-medium">
+                      {formatDate(stockOut.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* No Data State */}
+    {currentItems.length === 0 && (
+      <div className="text-center py-12">
+        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <ShoppingCart size={32} className="text-gray-400" />
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No stock out records</h3>
+        <p className="text-gray-500">Stock out transactions will appear here once you make some sales.</p>
+      </div>
+    )}
+
+    <PaginationComponent />
+  </div>
+);
+
   // Table View Component
   const TableView = () => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div className="bg-white hidden md:block rounded-xl shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -641,7 +776,10 @@ const SalesReportPage = () => {
               <p className="text-gray-600">No sales transactions found for {getPeriodLabel().toLowerCase()}.</p>
             </div>
           ) : (
+            <>
+            <CardView />
             <TableView />
+            </>
           )}
         </div>
       </div>
