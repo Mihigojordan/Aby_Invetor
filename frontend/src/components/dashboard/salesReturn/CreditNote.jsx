@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import html2pdf from 'html2pdf.js';
 import salesReturnService from '../../../services/salesReturnService';
 import CompanyLogo from '../../../assets/images/applogo_rm_bg.png'
-import signature from '../../../assets/images/signature.webp'
+// import signature from '../../../assets/images/signature.webp'
 import stockOutService from '../../../services/stockoutService';
 
 const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
@@ -432,7 +432,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
 
             <div className="text-right">
               <div className='flex items-end flex-col'>
-                <img src={signature} className='object-contain h-32' alt="" />
+                {/* <img src={signature} className='object-contain h-32' alt="" />/ */}
                 <p className="font-semibold text-gray-800">{userInfo.name}</p>
                 <p className="text-sm text-gray-600">Authorized Signature</p>
               </div>
