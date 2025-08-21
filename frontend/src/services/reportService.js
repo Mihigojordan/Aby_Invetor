@@ -10,7 +10,7 @@ class ReportService {
   /**
    * Create a new report
    * @param {Object} reportData - Report data
-   * @param {number} reportData.productsSold - Number of products sold (required)
+   * @param {Array} reportData.productsSold - Number of products sold (required)
    * @param {number} [reportData.cashAtHand] - Cash at hand amount (optional, defaults to 0)
    * @param {number} [reportData.moneyOnPhone] - Money on phone amount (optional, defaults to 0)
    * @param {Array} [reportData.expenses] - Array of expense objects (optional)
@@ -26,7 +26,7 @@ class ReportService {
 
       // Format the request data
       const requestData = {
-        productsSold: Number(reportData.productsSold),
+        productsSold: reportData.productsSold,
         cashAtHand: reportData.cashAtHand ? Number(reportData.cashAtHand) : 0,
         moneyOnPhone: reportData.moneyOnPhone ? Number(reportData.moneyOnPhone) : 0,
         expenses: reportData.expenses || [],
@@ -88,7 +88,7 @@ class ReportService {
    * Update a report
    * @param {string} id - Report ID
    * @param {Object} updateData - Data to update
-   * @param {number} [updateData.productsSold] - Updated products sold count
+   * @param {Array} [updateData.productsSold] - Updated products sold count
    * @param {number} [updateData.cashAtHand] - Updated cash at hand amount
    * @param {number} [updateData.moneyOnPhone] - Updated money on phone amount
    * @returns {Promise<Object>} Updated report
@@ -109,7 +109,7 @@ class ReportService {
       };
 
       if (updateData.productsSold !== undefined) {
-        formattedUpdateData.productsSold = Number(updateData.productsSold);
+        formattedUpdateData.productsSold = updateData.productsSold;
       }
       if (updateData.cashAtHand !== undefined) {
         formattedUpdateData.cashAtHand = Number(updateData.cashAtHand);
