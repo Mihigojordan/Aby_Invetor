@@ -72,7 +72,7 @@ CREATE TABLE `Product` (
 -- CreateTable
 CREATE TABLE `StockIn` (
     `id` VARCHAR(191) NOT NULL,
-    `productId` VARCHAR(191) NULL,
+    `productId` VARCHAR(191) NOT NULL,
     `adminId` VARCHAR(191) NULL,
     `employeeId` VARCHAR(191) NULL,
     `quantity` INTEGER NULL,
@@ -100,6 +100,7 @@ CREATE TABLE `StockOut` (
     `clientName` VARCHAR(191) NULL,
     `clientEmail` VARCHAR(191) NULL,
     `clientPhone` VARCHAR(191) NULL,
+    `paymentMethod` ENUM('MOMO', 'CARD', 'CASH') NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -113,17 +114,41 @@ CREATE TABLE `Activity` (
     `description` VARCHAR(191) NOT NULL,
     `employeeId` VARCHAR(191) NULL,
     `adminId` VARCHAR(191) NULL,
-    `doneAt` DATETIME(3) NOT NULL,
+    `doneAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `salesReturn` (
+CREATE TABLE `Report` (
     `id` VARCHAR(191) NOT NULL,
-    `stockoutId` VARCHAR(191) NULL,
-    `reason` VARCHAR(191) NULL,
-    `createdAt` DATETIME(3) NOT NULL,
+    `employeeId` VARCHAR(191) NOT NULL,
+    `productsSold` JSON NULL,
+    `cashAtHand` DOUBLE NOT NULL DEFAULT 0.0,
+    `moneyOnPhone` DOUBLE NOT NULL DEFAULT 0.0,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Expense` (
+    `id` VARCHAR(191) NOT NULL,
+    `reportId` VARCHAR(191) NOT NULL,
+    `description` VARCHAR(191) NOT NULL,
+    `amount` DOUBLE NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Transaction` (
+    `id` VARCHAR(191) NOT NULL,
+    `reportId` VARCHAR(191) NOT NULL,
+    `type` ENUM('CREDIT', 'DEBIT') NOT NULL,
+    `description` VARCHAR(191) NOT NULL,
+    `amount` DOUBLE NOT NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -171,7 +196,13 @@ ALTER TABLE `Activity` ADD CONSTRAINT `Activity_adminId_fkey` FOREIGN KEY (`admi
 ALTER TABLE `Activity` ADD CONSTRAINT `Activity_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `Employee`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `salesReturn` ADD CONSTRAINT `salesReturn_stockoutId_fkey` FOREIGN KEY (`stockoutId`) REFERENCES `StockOut`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Report` ADD CONSTRAINT `Report_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `Employee`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Expense` ADD CONSTRAINT `Expense_reportId_fkey` FOREIGN KEY (`reportId`) REFERENCES `Report`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Transaction` ADD CONSTRAINT `Transaction_reportId_fkey` FOREIGN KEY (`reportId`) REFERENCES `Report`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `_EmployeeTasks` ADD CONSTRAINT `_EmployeeTasks_A_fkey` FOREIGN KEY (`A`) REFERENCES `Employee`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
