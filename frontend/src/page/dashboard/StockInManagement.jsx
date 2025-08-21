@@ -1,13 +1,266 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 import stockInService from '../../services/stockinService';
 import productService from '../../services/productService';
 import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockInModel';
-// import DeleteModal from '../../components/dashboard/stockin/DeleteStockInModel';
 import ViewStockInModal from '../../components/dashboard/stockin/ViewStockInModal';
 import { API_URL } from '../../api/api';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
+
+// Barcode Service Class
+class BarcodeService {
+  constructor() {
+    this.API_URL = API_URL || 'http://localhost:3000';
+  }
+
+  // Generate print-ready barcode HTML for a single item
+  generateBarcodeHTML(stockItem) {
+    return `
+      <div style="
+        width: 4in; 
+        height: 2in; 
+        padding: 0.25in; 
+        margin: 0; 
+        page-break-after: always;
+        border: 1px solid #000;
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      ">
+        <div style="text-align: center; margin-bottom: 0.1in;">
+          <h3 style="margin: 0 0 0.05in 0; font-size: 12px; font-weight: bold;">
+            ${stockItem.product?.productName || 'Product'}
+          </h3>
+          <p style="margin: 0; font-size: 10px; color: #666;">
+            SKU: ${stockItem.sku}
+          </p>
+        </div>
+        
+        <div style="margin: 0.1in 0;">
+          <img 
+            src="${this.API_URL}${stockItem.barcodeUrl}" 
+            alt="Barcode" 
+            style="height: 0.8in; max-width: 3in; object-fit: contain;"
+            onload="this.style.display='block'"
+            onerror="this.style.display='none'"
+          />
+        </div>
+        
+        <div style="text-align: center; font-size: 10px;">
+          <p style="margin: 0 0 0.02in 0;">Price: $${stockItem.sellingPrice?.toFixed(2)}</p>
+          <p style="margin: 0; font-weight: bold;">${stockItem.sku}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Generate HTML for multiple barcodes
+  generateMultipleBarcodeHTML(stockItems) {
+    const barcodeHTMLs = stockItems.map(item => this.generateBarcodeHTML(item));
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Barcode Print</title>
+          <style>
+            @page {
+              size: 4in 2in;
+              margin: 0;
+            }
+            
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+            
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: Arial, sans-serif;
+            }
+            
+            .print-container {
+              width: 100%;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-container">
+            ${barcodeHTMLs.join('')}
+          </div>
+          
+          <script>
+            // Auto-print when page loads
+            window.onload = function() {
+              // Wait for images to load
+              const images = document.querySelectorAll('img');
+              let loadedImages = 0;
+              
+              if (images.length === 0) {
+                setTimeout(() => window.print(), 500);
+                return;
+              }
+              
+              images.forEach(img => {
+                if (img.complete) {
+                  loadedImages++;
+                } else {
+                  img.onload = () => {
+                    loadedImages++;
+                    if (loadedImages === images.length) {
+                      setTimeout(() => window.print(), 500);
+                    }
+                  };
+                  img.onerror = () => {
+                    loadedImages++;
+                    if (loadedImages === images.length) {
+                      setTimeout(() => window.print(), 500);
+                    }
+                  };
+                }
+              });
+              
+              if (loadedImages === images.length) {
+                setTimeout(() => window.print(), 500);
+              }
+              
+              // Fallback timeout
+              setTimeout(() => window.print(), 3000);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+  }
+
+  // Print barcodes using window.print()
+  async printBarcodes(stockItems) {
+    if (!Array.isArray(stockItems)) {
+      stockItems = [stockItems];
+    }
+
+    try {
+      // Wait for barcode images to be generated (give server time)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const printHTML = this.generateMultipleBarcodeHTML(stockItems);
+      
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      
+      if (!printWindow) {
+        throw new Error('Popup blocked. Please allow popups for barcode printing.');
+      }
+
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      
+      return true;
+    } catch (error) {
+      console.error('Error printing barcodes:', error);
+      throw error;
+    }
+  }
+
+  // Alternative: Print using iframe (more reliable for some browsers)
+  async printBarcodesViaIframe(stockItems) {
+    if (!Array.isArray(stockItems)) {
+      stockItems = [stockItems];
+    }
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const printHTML = this.generateMultipleBarcodeHTML(stockItems);
+      
+      // Create invisible iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.top = '-1000px';
+      iframe.style.left = '-1000px';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      
+      document.body.appendChild(iframe);
+      
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(printHTML);
+      doc.close();
+
+      // Wait for content to load then print
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow.print();
+          // Remove iframe after printing
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }, 500);
+      };
+
+      return true;
+    } catch (error) {
+      console.error('Error printing barcodes via iframe:', error);
+      throw error;
+    }
+  }
+
+  // Print individual barcode
+  async printSingleBarcode(stockItem) {
+    return this.printBarcodes([stockItem]);
+  }
+}
+
+const barcodeService = new BarcodeService();
+
+// Print Barcode Button Component
+const PrintBarcodeButton = ({ stockItems, onPrint, showNotification }) => {
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    if (!stockItems || stockItems.length === 0) {
+      showNotification('No items to print', 'warning');
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      await barcodeService.printBarcodes(stockItems);
+      showNotification(`Printing ${stockItems.length} barcode(s)...`, 'success');
+      if (onPrint) onPrint();
+    } catch (error) {
+      console.error('Print failed:', error);
+      showNotification(`Print failed: ${error.message}`, 'error');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handlePrint}
+      disabled={isPrinting || !stockItems || stockItems.length === 0}
+      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {isPrinting ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          Printing...
+        </>
+      ) : (
+        <>
+          <Printer size={16} />
+          Print Barcodes
+        </>
+      )}
+    </button>
+  );
+};
 
 const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
@@ -16,19 +269,18 @@ const StockInManagement = ({ role }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedStockIn, setSelectedStockIn] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [recentlyAddedItems, setRecentlyAddedItems] = useState([]);
 
-
-  const { user: employeeData } = useEmployeeAuth()
-  const { user: adminData } = useAdminAuth()
+  const { user: employeeData } = useEmployeeAuth();
+  const { user: adminData } = useAdminAuth();
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage,] = useState(5);
+  const [itemsPerPage] = useState(5);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -91,93 +343,136 @@ const StockInManagement = ({ role }) => {
   };
 
   const handleAddStockIn = async (stockInData) => {
-  setIsLoading(true);
-  try {
-    // Validate user data
-    if (!adminData?.id && !employeeData?.id) {
-      throw new Error('User authentication required');
-    }
-
-    // Prepare user identification data
-    const userInfo = {};
-    if (role === 'admin' && adminData?.id) {
-      userInfo.adminId = adminData.id;
-    }
-    if (role === 'employee' && employeeData?.id) {
-      userInfo.employeeId = employeeData.id;
-    }
-
-    let result;
-    let successMessage;
-    let totalItems = 0;
-
-    // Handle multiple vs single purchases
-    if (stockInData.purchases && Array.isArray(stockInData.purchases)) {
-      // Validate purchases array
-      if (stockInData.purchases.length === 0) {
-        throw new Error('At least one purchase is required');
+    setIsLoading(true);
+    try {
+      // Validate user data
+      if (!adminData?.id && !employeeData?.id) {
+        throw new Error('User authentication required');
       }
 
-      // Calculate total items for notification
-      totalItems = stockInData.purchases.reduce((sum, purchase) => sum + (purchase.quantity || 0), 0);
+      // Prepare user identification data
+      const userInfo = {};
+      if (role === 'admin' && adminData?.id) {
+        userInfo.adminId = adminData.id;
+      }
+      if (role === 'employee' && employeeData?.id) {
+        userInfo.employeeId = employeeData.id;
+      }
 
-      // Create multiple purchases
-      result = await stockInService.createMultipleStockIn(stockInData.purchases, userInfo);
-      successMessage = `Successfully added ${stockInData.purchases.length} purchase${stockInData.purchases.length > 1 ? 's' : ''} (${totalItems} total items)`;
-    } else {
-      // Single purchase
-      const singleStockData = {
-        ...stockInData,
-        ...userInfo
-      };
+      let result;
+      let successMessage;
+      let totalItems = 0;
+      let createdStockItems = [];
+
+      // Handle multiple vs single purchases
+      if (stockInData.purchases && Array.isArray(stockInData.purchases)) {
+        // Validate purchases array
+        if (stockInData.purchases.length === 0) {
+          throw new Error('At least one purchase is required');
+        }
+
+        // Calculate total items for notification
+        totalItems = stockInData.purchases.reduce((sum, purchase) => sum + (purchase.quantity || 0), 0);
+
+        // Create multiple purchases
+        result = await stockInService.createMultipleStockIn(stockInData.purchases, userInfo);
+        createdStockItems = result.data || result;
+        successMessage = `Successfully added ${stockInData.purchases.length} purchase${stockInData.purchases.length > 1 ? 's' : ''} (${totalItems} total items)`;
+      } else {
+        // Single purchase
+        const singleStockData = {
+          ...stockInData,
+          ...userInfo
+        };
+        
+        // Validate required fields
+        if (!singleStockData.productId || !singleStockData.quantity || !singleStockData.price || !singleStockData.sellingPrice) {
+          throw new Error('Missing required fields');
+        }
+
+        result = await stockInService.createStockIn(singleStockData);
+        createdStockItems = [result];
+        successMessage = `Stock entry added successfully! (${singleStockData.quantity} items)`;
+      }
+
+      // Refresh the stock list
+      const updatedStockIns = await stockInService.getAllStockIns();
+      setStockIns(updatedStockIns);
       
-      // Validate required fields
-      if (!singleStockData.productId || !singleStockData.quantity || !singleStockData.price || !singleStockData.sellingPrice) {
-        throw new Error('Missing required fields');
+      // Close modal and show success notification
+      setIsAddModalOpen(false);
+      showNotification(successMessage);
+
+      // Store recently added items for manual printing
+      setRecentlyAddedItems(createdStockItems);
+
+      // AUTO-PRINT BARCODES HERE
+      try {
+        if (createdStockItems && createdStockItems.length > 0) {
+          showNotification('Preparing barcodes for printing...', 'info');
+          
+          // Add a small delay to ensure barcodes are generated on server
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Enhance stock items with product info for better printing
+          const stockItemsWithProducts = createdStockItems.map(item => {
+            const productInfo = products.find(p => p.id === item.productId);
+            return {
+              ...item,
+              product: productInfo || { productName: 'Unknown Product' }
+            };
+          });
+
+          // Print barcodes automatically
+          await barcodeService.printBarcodes(stockItemsWithProducts);
+          
+          showNotification(`Printing ${createdStockItems.length} barcode(s)...`, 'success');
+        }
+      } catch (printError) {
+        console.error('Barcode printing failed:', printError);
+        showNotification(
+          `Stock added successfully, but barcode printing failed: ${printError.message}`, 
+          'warning'
+        );
+        
+        // Keep items for manual printing retry
+        const stockItemsWithProducts = createdStockItems.map(item => {
+          const productInfo = products.find(p => p.id === item.productId);
+          return {
+            ...item,
+            product: productInfo || { productName: 'Unknown Product' }
+          };
+        });
+        setRecentlyAddedItems(stockItemsWithProducts);
       }
 
-      // eslint-disable-next-line no-unused-vars
-      result = await stockInService.createStockIn(singleStockData);
-      successMessage = `Stock entry added successfully! (${singleStockData.quantity} items)`;
+    } catch (error) {
+      console.error('Error adding stock:', error);
+      
+      // More specific error messages
+      let errorMessage = 'Failed to add stock entry';
+      if (error.message.includes('required')) {
+        errorMessage = 'Please fill in all required fields';
+      } else if (error.message.includes('authentication')) {
+        errorMessage = 'Please log in again';
+      } else {
+        errorMessage = `Failed to add stock entry: ${error.message}`;
+      }
+      
+      showNotification(errorMessage, 'error');
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    // Refresh the stock list
-    const updatedStockIns = await stockInService.getAllStockIns();
-    setStockIns(updatedStockIns);
-    
-    // Close modal and show success notification
-    setIsAddModalOpen(false);
-    showNotification(successMessage);
-
-    // Optional: Additional success actions
-    // You could add analytics tracking, audit logging, etc. here
-
-  } catch (error) {
-    console.error('Error adding stock:', error);
-    
-    // More specific error messages
-    let errorMessage = 'Failed to add stock entry';
-    if (error.message.includes('required')) {
-      errorMessage = 'Please fill in all required fields';
-    } else if (error.message.includes('authentication')) {
-      errorMessage = 'Please log in again';
-    } else {
-      errorMessage = `Failed to add stock entry: ${error.message}`;
-    }
-    
-    showNotification(errorMessage, 'error');
-  } finally {
-    setIsLoading(false);
-  }
-};
   const handleEditStockIn = async (stockInData) => {
     setIsLoading(true);
     try {
-      if (role == 'admin') {
-        stockInData.adminId = adminData.id
+      if (role === 'admin') {
+        stockInData.adminId = adminData.id;
       }
-      if (role == 'employee') {
-        stockInData.employeeId = employeeData.id
+      if (role === 'employee') {
+        stockInData.employeeId = employeeData.id;
       }
       await stockInService.updateStockIn(selectedStockIn.id, stockInData);
       const updatedStockIns = await stockInService.getAllStockIns();
@@ -191,21 +486,6 @@ const StockInManagement = ({ role }) => {
       setIsLoading(false);
     }
   };
-
-  // const handleDeleteStockIn = async () => {
-  //   setIsLoading(true);
-  //   try {
-  //     await stockInService.deleteStockIn(selectedStockIn.id);
-  //     setStockIns(prev => prev.filter(stock => stock.id !== selectedStockIn.id));
-  //     setIsDeleteModalOpen(false);
-  //     setSelectedStockIn(null);
-  //     showNotification('Stock entry deleted successfully!');
-  //   } catch (error) {
-  //     showNotification(`Failed to delete stock entry: ${error.message}`, 'error');
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
 
   const openEditModal = (stockIn) => {
     setSelectedStockIn(stockIn);
@@ -249,29 +529,27 @@ const StockInManagement = ({ role }) => {
     }
   };
 
+  // Print individual barcode from table/card
+  const handlePrintSingleBarcode = async (stockIn) => {
+    try {
+      const stockWithProduct = {
+        ...stockIn,
+        product: stockIn.product || { productName: 'Unknown Product' }
+      };
+      await barcodeService.printSingleBarcode(stockWithProduct);
+      showNotification('Printing barcode...', 'success');
+    } catch (error) {
+      showNotification(`Print failed: ${error.message}`, 'error');
+    }
+  };
+
   // Pagination Component
-  // eslint-disable-next-line no-empty-pattern
-  const PaginationComponent = ({ }) => (
+  const PaginationComponent = () => (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
         <p className="text-sm text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredStockIns.length)} of {filteredStockIns.length} entries
         </p>
-        {/* {showItemsPerPage && filteredStockIns.length > 0 && (
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Show:</label>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-              className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
-        )} */}
       </div>
 
       {totalPages > 1 && (
@@ -342,6 +620,13 @@ const StockInManagement = ({ role }) => {
                   </div>
                 </div>
                 <div className="flex gap-1">
+                  <button
+                    onClick={() => handlePrintSingleBarcode(stockIn)}
+                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    title="Print Barcode"
+                  >
+                    <Printer size={16} />
+                  </button>
                   <button
                     onClick={() => openViewModal(stockIn)}
                     className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -414,7 +699,7 @@ const StockInManagement = ({ role }) => {
 
       {/* Pagination for Cards */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <PaginationComponent showItemsPerPage={true} />
+        <PaginationComponent />
       </div>
     </div>
   );
@@ -460,22 +745,26 @@ const StockInManagement = ({ role }) => {
                     </div>
                   </div>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Hash size={14} className="text-gray-400" />
                     <span className="font-medium text-gray-900">{stockIn.quantity || 0}</span>
                   </div>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-medium text-gray-900">
                     {formatPrice(stockIn.price || 0)}
                   </span>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-semibold text-primary-600">
                     {formatPrice(stockIn.totalPrice || 0)}
                   </span>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-semibold text-primary-600">
                     {formatPrice(stockIn.sellingPrice || 0)}
@@ -490,8 +779,16 @@ const StockInManagement = ({ role }) => {
                     </span>
                   </div>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePrintSingleBarcode(stockIn)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Print Barcode"
+                    >
+                      <Printer size={16} />
+                    </button>
                     <button
                       onClick={() => openViewModal(stockIn)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -515,14 +812,17 @@ const StockInManagement = ({ role }) => {
       </div>
 
       {/* Table Pagination */}
-      <PaginationComponent showItemsPerPage={true} />
+      <PaginationComponent />
     </div>
   );
 
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : 
+          notification.type === 'warning' ? 'bg-yellow-500 text-white' :
+          notification.type === 'info' ? 'bg-blue-500 text-white' :
+          'bg-red-500 text-white'
           } animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
@@ -552,13 +852,22 @@ const StockInManagement = ({ role }) => {
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-            >
-              <Plus size={20} />
-              Add Stock Entry
-            </button>
+            <div className="flex gap-3">
+              {recentlyAddedItems.length > 0 && (
+                <PrintBarcodeButton
+                  stockItems={recentlyAddedItems}
+                  onPrint={() => setRecentlyAddedItems([])}
+                  showNotification={showNotification}
+                />
+              )}
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+              >
+                <Plus size={20} />
+                Add Stock Entry
+              </button>
+            </div>
           </div>
         </div>
 
