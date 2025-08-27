@@ -805,15 +805,7 @@ const StockInManagement = ({ role }) => {
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  {isOnline && (
-                    <button
-                      onClick={() => openViewModal(stockIn)}
-                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                      title="View Details"
-                    >
-                      <Eye size={16} />
-                    </button>
-                  )}
+                 
                   <button
                     onClick={() => handlePrint(stockIn)}
                     className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
