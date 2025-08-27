@@ -10,7 +10,6 @@ import { StockinManagmentModule } from './modules/stockin-managment/stockin-mana
 import { StockoutModule } from './modules/stockout-management/stockout.module';
 import { EmailModule } from './global/email/email.module';
 import { ActivityManagmentModule } from './modules/activity-managament/activity.module';
-import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.module';
 import { SummaryModule } from './modules/Summary/summary.module';
 import { ReportModule } from './modules/report-management/report.module';
 
@@ -28,7 +27,6 @@ import { ReportModule } from './modules/report-management/report.module';
     EmailModule,
     ReportModule,
     ActivityManagmentModule,
-    SalesReturnModule,
     SummaryModule
   ],
   controllers: [AppController],

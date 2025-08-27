@@ -27,8 +27,13 @@ import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
 import AdminProfile from "../page/dashboard/AdminProfile";
 import EmployeeDashboard from "../page/dashboard/EmployeeDashboard";
 import ProductViewPage from "../components/dashboard/product/ViewMorePage";
+import SalesReportPage from "../page/dashboard/SalesReportPage";
+import ViewStockoutReport from "../components/dashboard/salesReport/ViewStockoutReport";
+import StockOutAnalysisPage from "../components/dashboard/salesReport/StockOutAnalysisPage";
 import ReportManagement from "../page/dashboard/ReportManagment";
 import ViewReportsPage from "../components/dashboard/report/ViewReportPage";
+import EmployeeReportManagement from "../page/dashboard/EmployeeReportManagement";
+import EmployeeReportViewMore from "../page/dashboard/EmployeeReportViewMore";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -131,6 +136,46 @@ const routes = createBrowserRouter([
                                  element: (
                                     <SuspenseWrapper>
                                         <AdminProfile role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <SalesReportPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/stockout/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <ViewStockoutReport role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/stockout-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <StockOutAnalysisPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"employee-report",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <EmployeeReportManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"employee-report/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <EmployeeReportViewMore role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             }
