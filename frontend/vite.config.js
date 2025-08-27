@@ -124,41 +124,41 @@ export default defineConfig({
                     '**/*.{js,css,html,ico,png,svg,webp,woff,woff2,ttf,eot}'
                 ],
                 runtimeCaching: [
-                    // Cache Google Fonts
-                    {
-                        urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
-                        handler: 'StaleWhileRevalidate',
-                        options: {
-                            cacheName: 'google-fonts-stylesheets',
-                            expiration: {
-                                maxEntries: 10,
-                                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-                            }
-                        }
-                    },
-                    {
-                        urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'google-fonts-webfonts',
-                            expiration: {
-                                maxEntries: 30,
-                                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-                            }
-                        }
-                    },
-                    // Cache images
-                    {
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'images-cache',
-                            expiration: {
-                                maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-                            }
-                        }
-                    },
+                    // // Cache Google Fonts
+                    // {
+                    //     urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
+                    //     handler: 'StaleWhileRevalidate',
+                    //     options: {
+                    //         cacheName: 'google-fonts-stylesheets',
+                    //         expiration: {
+                    //             maxEntries: 10,
+                    //             maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+                    //         }
+                    //     }
+                    // },
+                    // {
+                    //     urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
+                    //     handler: 'CacheFirst',
+                    //     options: {
+                    //         cacheName: 'google-fonts-webfonts',
+                    //         expiration: {
+                    //             maxEntries: 30,
+                    //             maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+                    //         }
+                    //     }
+                    // },
+                    // // Cache images
+                    // {
+                    //     urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
+                    //     handler: 'CacheFirst',
+                    //     options: {
+                    //         cacheName: 'images-cache',
+                    //         expiration: {
+                    //             maxEntries: 100,
+                    //             maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+                    //         }
+                    //     }
+                    // },
                     // Cache API calls
                     // {
                     //     urlPattern: /^https:\/\/api\./,

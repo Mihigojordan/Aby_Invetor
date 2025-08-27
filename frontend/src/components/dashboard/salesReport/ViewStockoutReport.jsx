@@ -48,6 +48,9 @@ const ViewStockoutReport = () => {
     }
   }, [id]);
 
+  console.log(stockOut);
+  
+
   if (loading) {
     return (
       <div className="min-h-[90vh]  bg-gray-50 flex items-center justify-center">
