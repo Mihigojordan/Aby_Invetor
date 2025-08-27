@@ -38,6 +38,7 @@ import { API_URL } from '../../api/api';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); // Add error state
   const [dashboardData, setDashboardData] = useState({
     employees: [],
     products: [],
@@ -54,13 +55,30 @@ const Dashboard = () => {
   const [chartData, setChartData] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('6months');
 
+  // Add debugging function
+  const debugData = (data, label) => {
+    console.group(`🔍 DEBUG: ${label}`);
+    console.log('Data:', data);
+    console.log('Type:', typeof data);
+    console.log('Is Array:', Array.isArray(data));
+    console.log('Length/Keys:', Array.isArray(data) ? data.length : Object.keys(data || {}).length);
+    console.groupEnd();
+  };
+
   const fetchSummaryCounts = async () => {
     try {
+      console.log('🔄 Fetching summary from:', `${API_URL}/summary`);
       const response = await fetch(`${API_URL}/summary`);
-      if (!response.ok) throw new Error('Failed to fetch summary counts');
-      return await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const summaryData = await response.json();
+      debugData(summaryData, 'Summary API Response');
+      return summaryData;
     } catch (error) {
-      console.error('Error fetching summary counts:', error);
+      console.error('❌ Error fetching summary counts:', error);
       return null;
     }
   };
@@ -68,17 +86,14 @@ const Dashboard = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      console.log('🚀 Starting dashboard data load...');
 
+      // First try to get summary
       const summary = await fetchSummaryCounts();
 
-      const [
-        employees,
-        products,
-        stockIns,
-        stockOuts,
-        categories,
-        salesReturns,
-      ] = await Promise.all([
+      // Then load all other data with error handling for each service
+      const results = await Promise.allSettled([
         employeeService.getAllEmployees(),
         productService.getAllProducts(),
         stockinService.getAllStockIns(),
@@ -87,15 +102,31 @@ const Dashboard = () => {
         salesReturnService.getAllSalesReturns(),
       ]);
 
+      // Process results and handle any failed requests
+      const [
+        employeesResult,
+        productsResult,
+        stockInsResult,
+        stockOutsResult,
+        categoriesResult,
+        salesReturnsResult,
+      ] = results;
+
       const data = {
-        employees,
-        products,
-        stockIns,
-        stockOuts,
-        categories,
-        salesReturns: salesReturns.data,
+        employees: employeesResult.status === 'fulfilled' ? employeesResult.value : [],
+        products: productsResult.status === 'fulfilled' ? productsResult.value : [],
+        stockIns: stockInsResult.status === 'fulfilled' ? stockInsResult.value : [],
+        stockOuts: stockOutsResult.status === 'fulfilled' ? stockOutsResult.value : [],
+        categories: categoriesResult.status === 'fulfilled' ? categoriesResult.value : [],
+        salesReturns: salesReturnsResult.status === 'fulfilled' ? 
+          (salesReturnsResult.value?.data || salesReturnsResult.value) : [],
         summary
       };
+
+      // Debug each data type
+      Object.entries(data).forEach(([key, value]) => {
+        debugData(value, `${key} data`);
+      });
 
       setDashboardData(data);
 
@@ -109,50 +140,47 @@ const Dashboard = () => {
       prepareRecentActivities(data);
       prepareChartData(data, selectedPeriod);
 
+      console.log('✅ Dashboard data loaded successfully');
+
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error('❌ Error loading dashboard data:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const calculateStats = (summary) => {
+    console.log('📊 Calculating stats from summary:', summary);
+    
     const newStats = [
       {
         title: 'Total Products',
-        value: summary.totalProducts.toString(),
+        value: (summary.totalProducts || 0).toString(),
         icon: Package,
-        change: `${summary.totalStockIn} total stock in`,
+        change: `${summary.totalStockIn || 0} total stock in`,
         color: 'text-blue-600',
         bgColor: 'bg-blue-50'
       },
       {
         title: 'Low Stock Items',
-        value: summary.lowStock.length.toString(),
+        value: (summary.lowStock?.length || 0).toString(),
         icon: AlertTriangle,
-        change: `${summary.lowStock.filter(item => item.stock <= 0).length} out of stock`,
+        change: `${summary.lowStock?.filter(item => item.stock <= 0).length || 0} out of stock`,
         color: 'text-amber-600',
         bgColor: 'bg-amber-50'
       },
-      // {
-      //   title: 'Total Stock Out',
-      //   value: summary.totalStockOut.toString(),
-      //   icon: ArrowDownRight,
-      //   change: `${summary.totalSalesReturns} sales returns`,
-      //   color: 'text-green-600',
-      //   bgColor: 'bg-green-50'
-      // },
       {
         title: 'Total Employees',
-        value: summary.totalEmployees.toString(),
+        value: (summary.totalEmployees || 0).toString(),
         icon: UserCheck,
-        change: `${summary.totalCategories} categories`,
+        change: `${summary.totalCategories || 0} categories`,
         color: 'text-purple-600',
         bgColor: 'bg-purple-50'
       },
       {
         title: 'Total Categories',
-        value: summary.totalCategories.toString(),
+        value: (summary.totalCategories || 0).toString(),
         icon: Layers,
         change: `Most used: ${summary.mostUsedCategory?.name || 'N/A'}`,
         color: 'text-indigo-600',
@@ -160,7 +188,7 @@ const Dashboard = () => {
       },
       {
         title: 'High Stock Items',
-        value: summary.highStock.length.toString(),
+        value: (summary.highStock?.length || 0).toString(),
         icon: TrendingUp,
         change: `Top product: ${summary.mostStockedInProduct?.name || 'N/A'}`,
         color: 'text-emerald-600',
@@ -168,7 +196,7 @@ const Dashboard = () => {
       },
       {
         title: 'Total Stock In',
-        value: summary.totalStockIn.toString(),
+        value: (summary.totalStockIn || 0).toString(),
         icon: Box,
         change: `Most stocked: ${summary.mostStockedInProduct?.name || 'N/A'}`,
         color: 'text-cyan-600',
@@ -176,27 +204,52 @@ const Dashboard = () => {
       },
       {
         title: 'Sales Returns',
-        value: summary.totalSalesReturns.toString(),
+        value: (summary.totalSalesReturns || 0).toString(),
         icon: RefreshCw,
-        change: `${summary.totalStockOut} total stock out`,
+        change: `${summary.totalStockOut || 0} total stock out`,
         color: 'text-rose-600',
         bgColor: 'bg-rose-50'
       }
     ];
+    
+    console.log('📊 Stats calculated:', newStats);
     setStats(newStats);
   };
 
   const calculateStatsFromData = (data) => {
-    const totalProducts = data.products.length;
-    const totalEmployees = data.employees.length;
-    const totalCategories = data.categories.length;
-    const totalStockIn = data.stockIns.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const totalStockOut = data.stockOuts.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const totalSalesReturns = data.salesReturns.length;
+    console.log('📊 Calculating stats from raw data...');
+    
+    // Ensure data is arrays
+    const employees = Array.isArray(data.employees) ? data.employees : [];
+    const products = Array.isArray(data.products) ? data.products : [];
+    const categories = Array.isArray(data.categories) ? data.categories : [];
+    const stockIns = Array.isArray(data.stockIns) ? data.stockIns : [];
+    const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
+    const salesReturns = Array.isArray(data.salesReturns) ? data.salesReturns : [];
 
-    const lowStock = data.stockIns.filter(item => item.quantity <= 5);
+    const totalProducts = products.length;
+    const totalEmployees = employees.length;
+    const totalCategories = categories.length;
+    const totalStockIn = stockIns.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const totalStockOut = stockOuts.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const totalSalesReturns = salesReturns.length;
 
-    setStats([
+    // Fix lowStock calculation - should be based on products with current stock
+    const lowStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 5);
+    const outOfStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 0);
+
+    console.log('📊 Calculated values:', {
+      totalProducts,
+      totalEmployees,
+      totalCategories,
+      totalStockIn,
+      totalStockOut,
+      totalSalesReturns,
+      lowStockCount: lowStock.length,
+      outOfStockCount: outOfStock.length
+    });
+
+    const newStats = [
       {
         title: 'Total Products',
         value: totalProducts.toString(),
@@ -209,7 +262,7 @@ const Dashboard = () => {
         title: 'Low Stock Items',
         value: lowStock.length.toString(),
         icon: AlertTriangle,
-        change: `${lowStock.filter(item => item.quantity <= 0).length} out of stock`,
+        change: `${outOfStock.length} out of stock`,
         color: 'text-amber-600',
         bgColor: 'bg-amber-50'
       },
@@ -229,92 +282,122 @@ const Dashboard = () => {
         color: 'text-purple-600',
         bgColor: 'bg-purple-50'
       }
-    ]);
+    ];
+
+    setStats(newStats);
   };
 
   const prepareInventoryData = (data) => {
+    console.log('📦 Preparing inventory data...');
+    
+    if (!Array.isArray(data.stockIns)) {
+      console.warn('⚠️ StockIns is not an array:', data.stockIns);
+      setInventoryData([]);
+      return;
+    }
+
     const inventory = data.stockIns.map(stockIn => {
-      const product = data.products.find(p => p.id === stockIn.productId);
-      const category = data.categories.find(c => c.id === product?.categoryId);
+      const product = data.products?.find(p => p.id === stockIn.productId);
+      const category = data.categories?.find(c => c.id === product?.categoryId);
+      const quantity = Number(stockIn.quantity) || 0;
+      
       let status = 'In Stock';
-      if (stockIn.quantity === 0) status = 'Out of Stock';
-      else if (stockIn.quantity <= 5) status = 'Low Stock';
+      if (quantity === 0) status = 'Out of Stock';
+      else if (quantity <= 5) status = 'Low Stock';
 
       return {
         id: stockIn.id,
-        name: product?.productName || 'Unknown Product',
-        sku: stockIn.sku || 'N/A',
+        name: product?.productName || product?.name || 'Unknown Product',
+        sku: stockIn.sku || `SKU-${stockIn.id}`,
         category: category?.name || 'Uncategorized',
-        stock: stockIn.quantity || 0,
-        price: stockIn.sellingPrice || 0,
-        costPrice: stockIn.price || 0,
+        stock: quantity,
+        price: Number(stockIn.sellingPrice) || 0,
+        costPrice: Number(stockIn.price) || 0,
         status,
         supplier: stockIn.supplier || 'N/A',
         createdAt: stockIn.createdAt
       };
     });
 
+    console.log('📦 Inventory prepared:', inventory.slice(0, 3));
     setInventoryData(inventory);
   };
 
   const prepareRecentActivities = (data) => {
+    console.log('🔄 Preparing recent activities...');
     const activities = [];
 
-    const recentStockIns = data.stockIns
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 3);
+    // Handle stock ins
+    if (Array.isArray(data.stockIns) && data.stockIns.length > 0) {
+      const recentStockIns = [...data.stockIns]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 3);
 
-    recentStockIns.forEach(stockIn => {
-      const product = data.products.find(p => p.id === stockIn.productId);
-      activities.push({
-        id: `stockin-${stockIn.id}`,
-        type: 'stock_in',
-        title: 'Stock Added',
-        description: `${stockIn.quantity} units of ${product?.productName || 'product'} added`,
-        time: stockIn.createdAt,
-        icon: ArrowUpRight,
-        color: 'text-green-600'
+      recentStockIns.forEach(stockIn => {
+        const product = data.products?.find(p => p.id === stockIn.productId);
+        activities.push({
+          id: `stockin-${stockIn.id}`,
+          type: 'stock_in',
+          title: 'Stock Added',
+          description: `${stockIn.quantity || 0} units of ${product?.productName || product?.name || 'product'} added`,
+          time: stockIn.createdAt || new Date().toISOString(),
+          icon: ArrowUpRight,
+          color: 'text-green-600'
+        });
       });
-    });
+    }
 
-    const recentStockOuts = data.stockOuts
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 3);
+    // Handle stock outs
+    if (Array.isArray(data.stockOuts) && data.stockOuts.length > 0) {
+      const recentStockOuts = [...data.stockOuts]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 3);
 
-    recentStockOuts.forEach(stockOut => {
-      activities.push({
-        id: `stockout-${stockOut.id}`,
-        type: 'stock_out',
-        title: 'Sale Completed',
-        description: `${stockOut.quantity} units sold to ${stockOut.clientName || 'customer'}`,
-        time: stockOut.createdAt,
-        icon: ArrowDownRight,
-        color: 'text-blue-600'
+      recentStockOuts.forEach(stockOut => {
+        activities.push({
+          id: `stockout-${stockOut.id}`,
+          type: 'stock_out',
+          title: 'Sale Completed',
+          description: `${stockOut.quantity || 0} units sold to ${stockOut.clientName || 'customer'}`,
+          time: stockOut.createdAt || new Date().toISOString(),
+          icon: ArrowDownRight,
+          color: 'text-blue-600'
+        });
       });
-    });
+    }
 
-    const recentReturns = data.salesReturns
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 2);
+    // Handle returns
+    if (Array.isArray(data.salesReturns) && data.salesReturns.length > 0) {
+      const recentReturns = [...data.salesReturns]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 2);
 
-    recentReturns.forEach(returnItem => {
-      activities.push({
-        id: `return-${returnItem.id}`,
-        type: 'return',
-        title: 'Return Processed',
-        description: `Return processed: ${returnItem.reason}`,
-        time: returnItem.createdAt,
-        icon: RefreshCw,
-        color: 'text-red-600'
+      recentReturns.forEach(returnItem => {
+        activities.push({
+          id: `return-${returnItem.id}`,
+          type: 'return',
+          title: 'Return Processed',
+          description: `Return processed: ${returnItem.reason || 'No reason specified'}`,
+          time: returnItem.createdAt || new Date().toISOString(),
+          icon: RefreshCw,
+          color: 'text-red-600'
+        });
       });
-    });
+    }
 
-    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-    setRecentActivities(activities.slice(0, 8));
+    const sortedActivities = activities
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 8);
+
+    console.log('🔄 Activities prepared:', sortedActivities.length, 'activities');
+    setRecentActivities(sortedActivities);
   };
 
   const prepareChartData = (data, period = '6months') => {
-    if (!data || !data.stockIns || !data.stockOuts) {
+    console.log('📈 Preparing chart data for period:', period);
+    
+    if (!data || !Array.isArray(data.stockIns) || !Array.isArray(data.stockOuts)) {
+      console.warn('⚠️ Invalid data for chart preparation');
       setChartData([]);
       return;
     }
@@ -323,23 +406,26 @@ const Dashboard = () => {
     let periods = [];
     
     if (period === '30days') {
-      // Last 30 days - group by day
       for (let i = 29; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
         const dayName = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         
-        const stockInThisDay = data.stockIns.filter(item => {
-          if (!item.createdAt) return false;
-          const itemDate = new Date(item.createdAt);
-          return itemDate.toDateString() === date.toDateString();
-        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const stockInThisDay = data.stockIns
+          .filter(item => {
+            if (!item.createdAt) return false;
+            const itemDate = new Date(item.createdAt);
+            return itemDate.toDateString() === date.toDateString();
+          })
+          .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
         
-        const stockOutThisDay = data.stockOuts.filter(item => {
-          if (!item.createdAt) return false;
-          const itemDate = new Date(item.createdAt);
-          return itemDate.toDateString() === date.toDateString();
-        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const stockOutThisDay = data.stockOuts
+          .filter(item => {
+            if (!item.createdAt) return false;
+            const itemDate = new Date(item.createdAt);
+            return itemDate.toDateString() === date.toDateString();
+          })
+          .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
         
         periods.push({
           period: dayName,
@@ -348,22 +434,27 @@ const Dashboard = () => {
         });
       }
     } else if (period === '6months') {
-      // Last 6 months - group by month
       for (let i = 5; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
         
-        const stockInThisMonth = data.stockIns.filter(item => {
-          if (!item.createdAt) return false;
-          const itemDate = new Date(item.createdAt);
-          return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
-        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const stockInThisMonth = data.stockIns
+          .filter(item => {
+            if (!item.createdAt) return false;
+            const itemDate = new Date(item.createdAt);
+            return itemDate.getMonth() === date.getMonth() && 
+                   itemDate.getFullYear() === date.getFullYear();
+          })
+          .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
         
-        const stockOutThisMonth = data.stockOuts.filter(item => {
-          if (!item.createdAt) return false;
-          const itemDate = new Date(item.createdAt);
-          return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
-        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const stockOutThisMonth = data.stockOuts
+          .filter(item => {
+            if (!item.createdAt) return false;
+            const itemDate = new Date(item.createdAt);
+            return itemDate.getMonth() === date.getMonth() && 
+                   itemDate.getFullYear() === date.getFullYear();
+          })
+          .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
         
         periods.push({
           period: monthName,
@@ -372,22 +463,27 @@ const Dashboard = () => {
         });
       }
     } else if (period === '1year') {
-      // Last 12 months - group by month
       for (let i = 11; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
         
-        const stockInThisMonth = data.stockIns.filter(item => {
-          if (!item.createdAt) return false;
-          const itemDate = new Date(item.createdAt);
-          return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
-        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const stockInThisMonth = data.stockIns
+          .filter(item => {
+            if (!item.createdAt) return false;
+            const itemDate = new Date(item.createdAt);
+            return itemDate.getMonth() === date.getMonth() && 
+                   itemDate.getFullYear() === date.getFullYear();
+          })
+          .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
         
-        const stockOutThisMonth = data.stockOuts.filter(item => {
-          if (!item.createdAt) return false;
-          const itemDate = new Date(item.createdAt);
-          return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
-        }).reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const stockOutThisMonth = data.stockOuts
+          .filter(item => {
+            if (!item.createdAt) return false;
+            const itemDate = new Date(item.createdAt);
+            return itemDate.getMonth() === date.getMonth() && 
+                   itemDate.getFullYear() === date.getFullYear();
+          })
+          .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
         
         periods.push({
           period: monthName,
@@ -397,13 +493,13 @@ const Dashboard = () => {
       }
     }
     
-    console.log('Chart data prepared:', periods); // Debug log
+    console.log('📈 Chart data prepared:', periods);
     setChartData(periods);
   };
 
   const handlePeriodChange = (period) => {
+    console.log('🔄 Period changed to:', period);
     setSelectedPeriod(period);
-    // The useEffect will handle the data update
   };
 
   const getPeriodLabel = () => {
@@ -447,6 +543,24 @@ const Dashboard = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={loadDashboardData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-h-[90vh] overflow-y-auto bg-gray-50">
       <div className="bg-white border-b border-gray-200 p-6">
@@ -455,10 +569,19 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold text-gray-900">Umusingi Hardware Inventory Management</h1>
             <p className="text-gray-600">Real-time inventory management and analytics</p>
           </div>
+          {/* Debug info in development */}
+          {/* {process.env.NODE_ENV === 'development' && (
+            <div className="text-sm text-gray-500">
+              Products: {dashboardData.products.length} | 
+              Stock Ins: {dashboardData.stockIns.length} | 
+              Stock Outs: {dashboardData.stockOuts.length}
+            </div>
+          )} */}
         </div>
       </div>
 
       <main className="p-6">
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
             <div key={index} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
@@ -476,6 +599,7 @@ const Dashboard = () => {
           ))}
         </div>
 
+        {/* Rest of your existing JSX remains the same */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory Overview</h3>
@@ -681,71 +805,81 @@ const Dashboard = () => {
           </div>
           
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                margin={{
-                  top: 20,
-                  right: 30,
-                  left: 20,
-                  bottom: 5,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="period" 
-                  stroke="#6b7280"
-                  fontSize={12}
-                  angle={selectedPeriod === '30days' ? -45 : 0}
-                  textAnchor={selectedPeriod === '30days' ? 'end' : 'middle'}
-                  height={selectedPeriod === '30days' ? 80 : 60}
-                />
-                <YAxis 
-                  stroke="#6b7280"
-                  fontSize={12}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartData}
+                  margin={{
+                    top: 20,
+                    right: 30,
+                    left: 20,
+                    bottom: 5,
                   }}
-                  labelStyle={{ color: '#374151' }}
-                />
-                <Legend />
-                <Bar 
-                  dataKey="stockIn" 
-                  fill="#10b981" 
-                  name="Stock In"
-                  radius={[2, 2, 0, 0]}
-                />
-                <Bar 
-                  dataKey="stockOut" 
-                  fill="#3b82f6" 
-                  name="Stock Out"
-                  radius={[2, 2, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="period" 
+                    stroke="#6b7280"
+                    fontSize={12}
+                    angle={selectedPeriod === '30days' ? -45 : 0}
+                    textAnchor={selectedPeriod === '30days' ? 'end' : 'middle'}
+                    height={selectedPeriod === '30days' ? 80 : 60}
+                  />
+                  <YAxis 
+                    stroke="#6b7280"
+                    fontSize={12}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    labelStyle={{ color: '#374151' }}
+                  />
+                  <Legend />
+                  <Bar 
+                    dataKey="stockIn" 
+                    fill="#10b981" 
+                    name="Stock In"
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="stockOut" 
+                    fill="#3b82f6" 
+                    name="Stock Out"
+                    radius={[2, 2, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <BarChart2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No chart data available</p>
+                  <p className="text-sm text-gray-400">Check if stock data exists for the selected period</p>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {chartData.reduce((sum, item) => sum + item.stockIn, 0)}
+                {chartData.reduce((sum, item) => sum + (item.stockIn || 0), 0)}
               </div>
               <div className="text-sm text-gray-500">Total Stock In ({getPeriodLabel().toLowerCase()})</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {chartData.reduce((sum, item) => sum + item.stockOut, 0)}
+                {chartData.reduce((sum, item) => sum + (item.stockOut || 0), 0)}
               </div>
               <div className="text-sm text-gray-500">Total Stock Out ({getPeriodLabel().toLowerCase()})</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
-                {chartData.reduce((sum, item) => sum + (item.stockIn - item.stockOut), 0)}
+                {chartData.reduce((sum, item) => sum + ((item.stockIn || 0) - (item.stockOut || 0)), 0)}
               </div>
               <div className="text-sm text-gray-500">Net Stock Change</div>
             </div>
