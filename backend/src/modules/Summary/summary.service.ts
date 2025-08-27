@@ -10,12 +10,12 @@ export class SummaryService {
       totalCategories,
       totalProducts,
       totalEmployees,
-      totalSalesReturns,
+
     ] = await Promise.all([
       this.prisma.category.count(),
       this.prisma.product.count(),
       this.prisma.employee.count(),
-      this.prisma.salesReturn.count(),
+ 
     ]);
 
     // Most used category (by number of products)
@@ -111,7 +111,7 @@ export class SummaryService {
       totalCategories,
       totalProducts,
       totalEmployees,
-      totalSalesReturns,
+
       totalStockIn: stockInAgg._sum.quantity || 0,
       totalStockOut: stockOutAgg._sum.quantity || 0,
       mostUsedCategory: mostUsedCategory

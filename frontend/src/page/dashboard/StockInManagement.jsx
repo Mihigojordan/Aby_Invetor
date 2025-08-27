@@ -15,6 +15,260 @@ import { db } from '../../db/database';
 import { useStockInOfflineSync } from '../../hooks/useStockInOfflineSync';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
+// Barcode Service Class
+class BarcodeService {
+  constructor() {
+    this.API_URL = API_URL || 'http://localhost:3000';
+  }
+
+  // Generate print-ready barcode HTML for a single item
+  generateBarcodeHTML(stockItem) {
+    return `
+      <div style="
+        width: 4in; 
+        height: 2in; 
+        padding: 0.25in; 
+        margin: 0; 
+        page-break-after: always;
+        border: 1px solid #000;
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      ">
+        <div style="text-align: center; margin-bottom: 0.1in;">
+          <h3 style="margin: 0 0 0.05in 0; font-size: 12px; font-weight: bold;">
+            ${stockItem.product?.productName || 'Product'}
+          </h3>
+          <p style="margin: 0; font-size: 10px; color: #666;">
+            SKU: ${stockItem.sku}
+          </p>
+        </div>
+        
+        <div style="margin: 0.1in 0;">
+          <img 
+            src="${this.API_URL}${stockItem.barcodeUrl}" 
+            alt="Barcode" 
+            style="height: 0.8in; max-width: 3in; object-fit: contain;"
+            onload="this.style.display='block'"
+            onerror="this.style.display='none'"
+          />
+        </div>
+        
+        <div style="text-align: center; font-size: 10px;">
+          <p style="margin: 0 0 0.02in 0;">Price: $${stockItem.sellingPrice?.toFixed(2)}</p>
+          <p style="margin: 0; font-weight: bold;">${stockItem.sku}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Generate HTML for multiple barcodes
+  generateMultipleBarcodeHTML(stockItems) {
+    const barcodeHTMLs = stockItems.map(item => this.generateBarcodeHTML(item));
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Barcode Print</title>
+          <style>
+            @page {
+              size: 4in 2in;
+              margin: 0;
+            }
+            
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+            
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: Arial, sans-serif;
+            }
+            
+            .print-container {
+              width: 100%;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-container">
+            ${barcodeHTMLs.join('')}
+          </div>
+          
+          <script>
+            // Auto-print when page loads
+            window.onload = function() {
+              // Wait for images to load
+              const images = document.querySelectorAll('img');
+              let loadedImages = 0;
+              
+              if (images.length === 0) {
+                setTimeout(() => window.print(), 500);
+                return;
+              }
+              
+              images.forEach(img => {
+                if (img.complete) {
+                  loadedImages++;
+                } else {
+                  img.onload = () => {
+                    loadedImages++;
+                    if (loadedImages === images.length) {
+                      setTimeout(() => window.print(), 500);
+                    }
+                  };
+                  img.onerror = () => {
+                    loadedImages++;
+                    if (loadedImages === images.length) {
+                      setTimeout(() => window.print(), 500);
+                    }
+                  };
+                }
+              });
+              
+              if (loadedImages === images.length) {
+                setTimeout(() => window.print(), 500);
+              }
+              
+              // Fallback timeout
+              setTimeout(() => window.print(), 3000);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+  }
+
+  // Print barcodes using window.print()
+  async printBarcodes(stockItems) {
+    if (!Array.isArray(stockItems)) {
+      stockItems = [stockItems];
+    }
+
+    try {
+      // Wait for barcode images to be generated (give server time)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const printHTML = this.generateMultipleBarcodeHTML(stockItems);
+      
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      
+      if (!printWindow) {
+        throw new Error('Popup blocked. Please allow popups for barcode printing.');
+      }
+
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      
+      return true;
+    } catch (error) {
+      console.error('Error printing barcodes:', error);
+      throw error;
+    }
+  }
+
+  // Alternative: Print using iframe (more reliable for some browsers)
+  async printBarcodesViaIframe(stockItems) {
+    if (!Array.isArray(stockItems)) {
+      stockItems = [stockItems];
+    }
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const printHTML = this.generateMultipleBarcodeHTML(stockItems);
+      
+      // Create invisible iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.top = '-1000px';
+      iframe.style.left = '-1000px';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      
+      document.body.appendChild(iframe);
+      
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(printHTML);
+      doc.close();
+
+      // Wait for content to load then print
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow.print();
+          // Remove iframe after printing
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }, 500);
+      };
+
+      return true;
+    } catch (error) {
+      console.error('Error printing barcodes via iframe:', error);
+      throw error;
+    }
+  }
+
+  // Print individual barcode
+  async printSingleBarcode(stockItem) {
+    return this.printBarcodes([stockItem]);
+  }
+}
+
+const barcodeService = new BarcodeService();
+
+// Print Barcode Button Component
+const PrintBarcodeButton = ({ stockItems, onPrint, showNotification }) => {
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    if (!stockItems || stockItems.length === 0) {
+      showNotification('No items to print', 'warning');
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      await barcodeService.printBarcodes(stockItems);
+      showNotification(`Printing ${stockItems.length} barcode(s)...`, 'success');
+      if (onPrint) onPrint();
+    } catch (error) {
+      console.error('Print failed:', error);
+      showNotification(`Print failed: ${error.message}`, 'error');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handlePrint}
+      disabled={isPrinting || !stockItems || stockItems.length === 0}
+      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {isPrinting ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          Printing...
+        </>
+      ) : (
+        <>
+          <Printer size={16} />
+          Print Barcodes
+        </>
+      )}
+    </button>
+  );
+};
+
 const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
   const [products, setProducts] = useState([]);
@@ -35,7 +289,7 @@ const StockInManagement = ({ role }) => {
   const [itemsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
 
-
+  const [recentlyAddedItems, setRecentlyAddedItems] = useState([]);
       
 
   useEffect(() => {
@@ -472,6 +726,21 @@ const StockInManagement = ({ role }) => {
     return pages;
   };
 
+  // Print individual barcode from table/card
+  const handlePrintSingleBarcode = async (stockIn) => {
+    try {
+      const stockWithProduct = {
+        ...stockIn,
+        product: stockIn.product || { productName: 'Unknown Product' }
+      };
+      await barcodeService.printSingleBarcode(stockWithProduct);
+      showNotification('Printing barcode...', 'success');
+    } catch (error) {
+      showNotification(`Print failed: ${error.message}`, 'error');
+    }
+  };
+
+  // Pagination Component
   const PaginationComponent = () => (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
@@ -656,18 +925,22 @@ const StockInManagement = ({ role }) => {
                     </div>
                   </div>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Hash size={14} className="text-gray-400" />
                     <span className="font-medium text-gray-900">{stockIn.quantity || 0}</span>
                   </div>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-medium text-gray-900">{formatPrice(stockIn.price || 0)}</span>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-semibold text-primary-600">{formatPrice((stockIn.price * stockIn.quantity) || 0)}</span>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-semibold text-primary-600">{formatPrice(stockIn.sellingPrice || 0)}</span>
                 </td>
@@ -677,17 +950,23 @@ const StockInManagement = ({ role }) => {
                     <span className="text-sm text-gray-600">{formatDate(stockIn.createdAt || stockIn.lastModified)}</span>
                   </div>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    {isOnline && (
-                      <button
-                        onClick={() => openViewModal(stockIn)}
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="View Details"
-                      >
-                        <Eye size={16} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handlePrintSingleBarcode(stockIn)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Print Barcode"
+                    >
+                      <Printer size={16} />
+                    </button>
+                    <button
+                      onClick={() => openViewModal(stockIn)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <Eye size={16} />
+                    </button>
                     <button
                       onClick={() => handlePrint(stockIn)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -765,13 +1044,22 @@ const StockInManagement = ({ role }) => {
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-            >
-              <Plus size={20} />
-              Add Stock Entry
-            </button>
+            <div className="flex gap-3">
+              {recentlyAddedItems.length > 0 && (
+                <PrintBarcodeButton
+                  stockItems={recentlyAddedItems}
+                  onPrint={() => setRecentlyAddedItems([])}
+                  showNotification={showNotification}
+                />
+              )}
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+              >
+                <Plus size={20} />
+                Add Stock Entry
+              </button>
+            </div>
           </div>
         </div>
         {isLoading ? (

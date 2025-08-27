@@ -31,6 +31,7 @@ import SalesReportPage from "../page/dashboard/SalesReportPage";
 import ViewStockoutReport from "../components/dashboard/salesReport/ViewStockoutReport";
 import StockOutAnalysisPage from "../components/dashboard/salesReport/StockOutAnalysisPage";
 import ReportManagement from "../page/dashboard/ReportManagment";
+import ViewReportsPage from "../components/dashboard/report/ViewReportPage";
 import EmployeeReportManagement from "../page/dashboard/EmployeeReportManagement";
 import EmployeeReportViewMore from "../page/dashboard/EmployeeReportViewMore";
 
@@ -241,6 +242,15 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <ProductViewPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "report/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ViewReportsPage role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 
