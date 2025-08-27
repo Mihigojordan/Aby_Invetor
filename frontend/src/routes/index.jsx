@@ -28,6 +28,7 @@ import AdminProfile from "../page/dashboard/AdminProfile";
 import EmployeeDashboard from "../page/dashboard/EmployeeDashboard";
 import ProductViewPage from "../components/dashboard/product/ViewMorePage";
 import ReportManagement from "../page/dashboard/ReportManagment";
+import ViewReportsPage from "../components/dashboard/report/ViewReportPage";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -196,6 +197,15 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <ProductViewPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "report/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ViewReportsPage role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 
