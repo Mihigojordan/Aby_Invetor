@@ -308,7 +308,7 @@ export default function LandingPage() {
               Manage your stock levels efficiently with our powerful dashboard.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <a href="/auth/admin/">
+              <a href="/auth/">
                 <button className="px-8 py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center">
                   Get Started Now
                   <ArrowRight className="ml-2 h-5 w-5" />

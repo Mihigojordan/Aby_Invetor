@@ -30,7 +30,7 @@ export class StockoutService {
   employeeId?: string;
 }) {
   const { sales, adminId, employeeId , clientEmail,clientName,clientPhone , paymentMethod } = data;
-  console.log('recieved data:', data)
+  // console.log('recieved data:', data)
 
   if (!Array.isArray(sales) || sales.length === 0) {
     throw new BadRequestException('At least one sale is required');
@@ -108,6 +108,8 @@ export class StockoutService {
     employeeId,
   });
 
+  console.log('yes this is it',createdStockouts);
+  
   return {
     message: 'Stock out transaction completed successfully',
     transactionId,
@@ -141,7 +143,12 @@ export class StockoutService {
         include: {
     stockin: {
       include: {
-        product: true, // include product via stockin
+        product: {
+          include:{
+            category:true,
+            
+          }
+        }, // include product via stockin
       },
     },
           admin: true,

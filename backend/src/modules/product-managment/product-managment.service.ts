@@ -36,6 +36,8 @@ export class ProductManagmentService {
         createdAt,
       } = data;
 
+      console.log(data)
+
       const imageUrls =
         imageurls?.map((file) => `/uploads/product_images/${file.filename}`) ||
         [];
