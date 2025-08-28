@@ -202,14 +202,6 @@ const Dashboard = () => {
         color: 'text-cyan-600',
         bgColor: 'bg-cyan-50'
       },
-      {
-        title: 'Sales Returns',
-        value: (summary.totalSalesReturns || 0).toString(),
-        icon: RefreshCw,
-        change: `${summary.totalStockOut || 0} total stock out`,
-        color: 'text-rose-600',
-        bgColor: 'bg-rose-50'
-      }
     ];
     
     console.log('📊 Stats calculated:', newStats);
