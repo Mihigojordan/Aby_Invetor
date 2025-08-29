@@ -124,7 +124,7 @@ const ProductManagement = ({ role }) => {
         .concat(offlineAdds.map(a => ({
            ...a,
             synced: false,
-             category: categories.find(cat => cat.id == p.categoryId )
+             category: categories.find(cat => cat.id == a.categoryId )
            })
           ));
 

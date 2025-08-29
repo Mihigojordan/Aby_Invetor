@@ -267,6 +267,21 @@ export class StockoutService {
         where: { id },
         data,
       });
+      if(stockout.backorderId){
+
+        const existingBackOrder = await this.prisma.backOrder.findUnique({where:{ id:stockout.backorderId }})
+        if(!existingBackOrder){
+          throw new NotFoundException('backorder was not found') 
+        }
+        await this.prisma.backOrder.update({
+          where:{id:existingBackOrder.id},
+          data:{
+            quantity: data.quantity || undefined
+          }
+        })
+
+
+      }
       if (data.adminId) {
         const admin = await this.prisma.admin.findUnique({
           where: { id: data.adminId },

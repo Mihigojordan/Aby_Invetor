@@ -472,16 +472,11 @@ const handleAddStockOut = async (stockOutData) => {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
 
-      const stockin = await db.stockins_all.get(selectedStockOut.stockinId);
-      if (stockin) {
+      if (selectedStockOut.stockinId) {
+        const stockin = await db.stockins_all.get(selectedStockOut.stockinId);
         const newQuantity = stockin.quantity + selectedStockOut.quantity;
         await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newQuantity });
-        await db.stockins_offline_update.put({
-          id: selectedStockOut.stockinId,
-          quantity: newQuantity,
-          lastModified: now,
-          updatedAt: now
-        });
+       
       }
 
       if (isOnline && selectedStockOut.id) {
@@ -886,13 +881,13 @@ const handleAddStockOut = async (stockOutData) => {
                     >
                       <Edit3 size={16} />
                     </button>
-                    {/* <button
+                    <button
                       onClick={() => openDeleteModal(stockOut)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete"
                     >
                       <Trash2 size={16} />
-                    </button> */}
+                    </button>
                   </div>
                 </td>
               </tr>

@@ -162,7 +162,7 @@ class ProductSyncService {
             brand: product.brand,
             categoryId: product.categoryId,
             description: product.description,
-            lastModified: new Date(),
+            lastModified: response.product?.createdAt || new Date(),
             updatedAt: response.product?.updatedAt || new Date()
           };
 
@@ -279,8 +279,8 @@ class ProductSyncService {
             brand: product.brand,
             categoryId: product.categoryId,
             description: product.description,
-            lastModified: new Date(),
-            updatedAt: response.product?.updatedAt || new Date()
+            lastModified: response?.product?.createdAt || new Date(),
+            updatedAt: response?.product?.updatedAt || new Date()
           });
 
           // Update images - only remove and re-add if server returned new URLs
@@ -407,7 +407,7 @@ class ProductSyncService {
             brand: serverProduct.brand,
             categoryId: serverProduct.categoryId,
             description: serverProduct.description,
-            lastModified: new Date(),
+            lastModified: serverProduct.createdAt || new Date(),
             updatedAt: serverProduct.updatedAt || new Date()
           });
 
