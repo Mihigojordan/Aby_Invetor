@@ -235,7 +235,8 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
               {invoiceData.map((item, index) => (
                 <div key={item.id} className="mb-3 text-xs">
                   <div className="font-semibold">
-                    {item.stockin?.product?.productName || `ITEM ${index + 1}`}
+                    
+                    {item.stockin?.product?.productName || item?.backorder?.productName || `ITEM ${index + 1}`}
                   </div>
                   <div className="flex justify-between">
                     <span>{item.quantity}x{formatCurrency(item.soldPrice / item.quantity)}</span>

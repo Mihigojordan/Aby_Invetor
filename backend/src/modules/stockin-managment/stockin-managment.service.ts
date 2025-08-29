@@ -122,12 +122,15 @@ export class StockinManagmentService {
       include: { product: true },
     });
     if (!stock) throw new NotFoundException('Stock not found');
+    console.log(data);
+    
 
     const totalPrice =
       data.quantity && data.price
         ? data.quantity * data.price
         : stock.totalPrice;
-
+    
+    
     const updatedStock = await this.prisma.stockIn.update({
       where: { id },
       data: {

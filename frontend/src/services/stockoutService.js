@@ -20,34 +20,49 @@ class StockOutService {
      * @param {string} [stockOutData.employeeId] - Employee ID (optional)
      * @returns {Promise<Object>} Created stock-out transaction with success message
      */
-    async createStockOut(stockOutData) {
-        try {
-            // Validate required fields
-            if (!stockOutData.stockinId || !stockOutData.quantity) {
-                throw new Error('Stock-in ID and quantity are required');
-            }
+ async createStockOut(stockOutData) {
+    try {
+    
 
-            // Transform single stock-out data to match backend expected format
-            const requestData = {
-                sales: [{
-                    stockinId: stockOutData.stockinId,
-                    quantity: Number(stockOutData.quantity)
-                }],
-                clientName: stockOutData.clientName || undefined,
-                clientEmail: stockOutData.clientEmail || undefined,
-                clientPhone: stockOutData.clientPhone || undefined,
-                adminId: stockOutData.adminId || undefined,
-                employeeId: stockOutData.employeeId || undefined,
-                paymentMethod: stockOutData.paymentMethod || undefined
-            };
-
-            const response = await api.post('/stockout/create', requestData);
-            return response.data;
-        } catch (error) {
-            console.error('Error creating stock-out:', error);
-            throw new Error(error.response.data.message || error.message || 'Failed to create stock-out');
+       if (stockOutData.isBackOrder) {
+          // Validate back order
+          if (!stockOutData.quantity) {
+            throw new Error('Quantity is required for back order');
+          }
+          if (!stockOutData.backOrder || !stockOutData.backOrder.productName || !stockOutData.backOrder.sellingPrice) {
+            throw new Error('Back order must have product name and selling price');
+          }
+        } else {
+          // Validate stock-in sale
+          if (!stockOutData.stockinId || !stockOutData.quantity) {
+            throw new Error('Each stock-in sale must have stockinId and quantity');
+          }
         }
+      
+
+      // Transform single stock-out data to match backend expected format
+      const requestData = {
+        sales: [{
+          stockinId: stockOutData.stockinId,
+          quantity: Number(stockOutData.quantity),
+          isBackOrder: stockOutData.isBackOrder || false,
+          backOrder: stockOutData.backOrder ||  null
+        }],
+        clientName: stockOutData.clientName || undefined,
+        clientEmail: stockOutData.clientEmail || undefined,
+        clientPhone: stockOutData.clientPhone || undefined,
+        paymentMethod: stockOutData.paymentMethod || undefined,
+        adminId: stockOutData.adminId || undefined,
+        employeeId: stockOutData.employeeId || undefined
+      };
+
+      const response = await api.post('/stockout/create', requestData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating stock-out:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to create stock-out');
     }
+  }
 
     /**
      * Create multiple stock-out entries in a single transaction
@@ -62,43 +77,71 @@ class StockOutService {
      * @param {string} [userInfo.employeeId] - Employee ID
      * @returns {Promise<Object>} Created stock-out transaction with success message
      */
-    async createMultipleStockOut(salesArray, clientInfo = {}, userInfo = {}) {
-        try {
-            // Validate sales array
-            if (!Array.isArray(salesArray) || salesArray.length === 0) {
-                throw new Error('At least one sale is required');
-            }
+     async createMultipleStockOut(salesArray, clientInfo = {}, userInfo = {}) {
+    try {
+      // Validate sales array
+      if (!Array.isArray(salesArray) || salesArray.length === 0) {
+        throw new Error('At least one sale is required');
+      }
 
-            // Validate each sale item
-            for (const sale of salesArray) {
-                if (!sale.stockinId || !sale.quantity) {
-                    throw new Error('Each sale must have stockinId and quantity');
-                }
-            }
-
-            // Format sales data - only stockinId and quantity per sale item
-            const formattedSales = salesArray.map(sale => ({
-                stockinId: sale.stockinId,
-                quantity: Number(sale.quantity)
-            }));
-
-            const requestData = {
-                sales: formattedSales,
-                clientName: clientInfo.clientName || undefined,
-                clientEmail: clientInfo.clientEmail || undefined,
-                clientPhone: clientInfo.clientPhone || undefined,
-                paymentMethod: clientInfo.paymentMethod || undefined, // FIXED: Added this line
-                adminId: userInfo.adminId || undefined,
-                employeeId: userInfo.employeeId || undefined
-            };
-
-            const response = await api.post('/stockout/create', requestData);
-            return response.data;
-        } catch (error) {
-            console.error('Error creating multiple stock-out:', error);
-            throw new Error(error.response.data.message || error.message || 'Failed to create multiple stock-out');
+      // Validate each sale item
+      for (const sale of salesArray) {
+        if (sale.isBackOrder) {
+          // Validate back order
+          if (!sale.quantity) {
+            throw new Error('Quantity is required for back order');
+          }
+          if (!sale.backOrder || !sale.backOrder.productName || !sale.backOrder.sellingPrice) {
+            throw new Error('Back order must have product name and selling price');
+          }
+        } else {
+          // Validate stock-in sale
+          if (!sale.stockinId || !sale.quantity) {
+            throw new Error('Each stock-in sale must have stockinId and quantity');
+          }
         }
+      }
+
+      // Format sales data to match backend expectations
+      const formattedSales = salesArray.map(sale => {
+        if (sale.isBackOrder) {
+          return {
+            stockinId: null, // No stockinId for back orders
+            quantity: Number(sale.quantity),
+            isBackOrder: true,
+            backOrder: {
+              productName: sale.backOrder.productName,
+              quantity: Number(sale.quantity), // Back order quantity matches sales quantity
+              sellingPrice: Number(sale.backOrder.sellingPrice)
+            }
+          };
+        } else {
+          return {
+            stockinId: sale.stockinId,
+            quantity: Number(sale.quantity),
+            isBackOrder: false,
+            backOrder: null
+          };
+        }
+      });
+
+      const requestData = {
+        sales: formattedSales,
+        clientName: clientInfo.clientName || undefined,
+        clientEmail: clientInfo.clientEmail || undefined,
+        clientPhone: clientInfo.clientPhone || undefined,
+        paymentMethod: clientInfo.paymentMethod || undefined,
+        adminId: userInfo.adminId || undefined,
+        employeeId: userInfo.employeeId || undefined
+      };
+
+      const response = await api.post('/stockout/create', requestData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating multiple stock-out:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to create multiple stock-out');
     }
+  }
 
     /**
      * Get all stock-out entries

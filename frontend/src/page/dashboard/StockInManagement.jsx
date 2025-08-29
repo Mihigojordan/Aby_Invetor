@@ -945,13 +945,13 @@ const StockInManagement = ({ role }) => {
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <button
+                    {/* <button
                       onClick={() => handlePrintSingleBarcode(stockIn)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                       title="Print Barcode"
                     >
                       <Printer size={16} />
-                    </button>
+                    </button> */}
                     <button
                       onClick={() => openViewModal(stockIn)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"

@@ -1,5 +1,6 @@
 import { db } from '../../db/database';
 import stockOutService from '../stockoutService';
+import backorderService from '../backOrderService'; 
 import { isOnline } from '../../utils/networkUtils';
 
 class StockOutSyncService {
@@ -43,7 +44,7 @@ class StockOutSyncService {
                               results.updates.processed > 0 || 
                               results.deletes.processed > 0 ||
                               !this.lastSyncTime ||
-                              (Date.now() - this.lastSyncTime) > 300000; // 5 minutes
+                              (Date.now() - this.lastSyncTime) > 120000; // 5 minutes
 
       if (shouldFetchFresh) {
         await this.fetchAndUpdateLocal();
@@ -62,100 +63,115 @@ class StockOutSyncService {
     }
   }
 
-  async syncUnsyncedAdds() {
-    const unsyncedAdds = await db.stockouts_offline_add.toArray();
-    console.log('******** => + ADDING UNSYNCED STOCK-OUTS ', unsyncedAdds.length);
+ async syncUnsyncedAdds() {
+  const unsyncedAdds = await db.stockouts_offline_add.toArray();
+  console.log('******** => + ADDING UNSYNCED STOCK-OUTS ', unsyncedAdds.length);
 
-    let processed = 0;
-    let skipped = 0;
-    let errors = 0;
+  let processed = 0;
+  let skipped = 0;
+  let errors = 0;
 
-    for (const stockOut of unsyncedAdds) {
-      // 🔒 Skip if already being processed
-      if (this.processingLocalIds.has(stockOut.localId)) {
-        console.log(`⏭️ Skipping stockout ${stockOut.localId} - already processing`);
+  for (const stockOut of unsyncedAdds) {
+    if (this.processingLocalIds.has(stockOut.localId)) {
+      console.log(`⏭️ Skipping stockout ${stockOut.localId} - already processing`);
+      skipped++;
+      continue;
+    }
+
+    this.processingLocalIds.add(stockOut.localId);
+
+    try {
+      // ✅ Check if already synced
+      const syncedRecord = await db.synced_stockout_ids
+        .where('localId')
+        .equals(stockOut.localId)
+        .first();
+
+      if (syncedRecord) {
+        console.log(`✓ StockOut ${stockOut.localId} already synced to server ID ${syncedRecord.serverId}`);
+        await db.stockouts_offline_add.delete(stockOut.localId);
         skipped++;
         continue;
       }
 
-      this.processingLocalIds.add(stockOut.localId);
+      // 🔍 Check duplicates
+     if (stockOut.stockinId) {
+  const isDuplicateContent = await this.checkForContentDuplicate(stockOut);
+  if (isDuplicateContent) {
+    console.log(`🔍 Duplicate content detected for stockout ${stockOut.localId}, removing from queue`);
+    await db.stockouts_offline_add.delete(stockOut.localId);
+    skipped++;
+    continue;
+  }
+}
 
-      try {
-        // ✅ Double-check if already synced (race condition protection)
-        const syncedRecord = await db.synced_stockout_ids
-          .where('localId')
-          .equals(stockOut.localId)
-          .first();
-        
-        if (syncedRecord) {
-          console.log(`✓ StockOut ${stockOut.localId} already synced to server ID ${syncedRecord.serverId}`);
-          await db.stockouts_offline_add.delete(stockOut.localId);
-          skipped++;
-          continue;
+      // 🆕 Check if this stockOut has an associated backorder (via backorderLocalId)
+      let backOrderPayload = null;
+      if (stockOut.backorderLocalId) {
+        const localBackOrder = await db.backorders_offline_add.get(stockOut.backorderLocalId);
+        if (localBackOrder) {
+          backOrderPayload = {
+            quantity: localBackOrder.quantity,
+            sellingPrice: localBackOrder.soldPrice,
+            productName: localBackOrder.productName,
+            adminId: localBackOrder.adminId,
+            employeeId: localBackOrder.employeeId
+          };
         }
+      }
 
-        // 🔍 Check for potential content duplicates
-        const isDuplicateContent = await this.checkForContentDuplicate(stockOut);
-        if (isDuplicateContent) {
-          console.log(`🔍 Duplicate content detected for stockout ${stockOut.localId}, removing from queue`);
-          await db.stockouts_offline_add.delete(stockOut.localId);
-          skipped++;
-          continue;
-        }
-
-        // 📦 Prepare data with idempotency key - using createStockOut for single items
-        const stockOutData = {
+      // 📦 Prepare request
+      const requestData = {
           stockinId: stockOut.stockinId,
-          quantity: stockOut.quantity,
+          quantity: Number(stockOut.quantity),
           soldPrice: stockOut.soldPrice,
-          clientName: stockOut.clientName,
-          clientEmail: stockOut.clientEmail,
-          clientPhone: stockOut.clientPhone,
-          paymentMethod: stockOut.paymentMethod,
-          adminId: stockOut.adminId,
-          employeeId: stockOut.employeeId,
-          transactionId: stockOut.transactionId,
-          // 🔑 Idempotency key for backend deduplication
-          idempotencyKey: this.generateIdempotencyKey(stockOut),
-          clientId: stockOut.localId, // For tracking
-          clientTimestamp: stockOut.createdAt || stockOut.lastModified
-        };
+          isBackOrder: !!backOrderPayload,
+          backOrder: backOrderPayload,
+        clientName: stockOut.clientName || undefined,
+        clientEmail: stockOut.clientEmail || undefined,
+        clientPhone: stockOut.clientPhone || undefined,
+        paymentMethod: stockOut.paymentMethod || undefined,
+        adminId: stockOut.adminId || undefined,
+        employeeId: stockOut.employeeId || undefined,
+        // idempotencyKey: this.generateIdempotencyKey(stockOut),
+        clientId: stockOut.localId,
+        clientTimestamp: stockOut.createdAt || stockOut.lastModified
+      };
 
-        console.log(`📤 Sending stockout ${stockOut.localId} to server...`);
-        
-        // 🌐 Send to server with error handling
-        let response;
-        try {
-          response = await stockOutService.createStockOut(stockOutData);
-        } catch (apiError) {
-          // Handle specific API errors
-          if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
-            console.log(`⚠️ Server detected duplicate for stockout ${stockOut.localId}, removing from queue`);
-            await db.stockouts_offline_add.delete(stockOut.localId);
-            skipped++;
-            continue;
-          }
-          throw apiError; // Re-throw other errors
+      console.log(`📤 Sending stockout ${stockOut.localId} (with backorder: ${!!backOrderPayload})...`);
+
+      // 🌐 Send to server
+      let response;
+      try {
+        response = await stockOutService.createStockOut(requestData);
+      } catch (apiError) {
+        if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
+          console.log(`⚠️ Server detected duplicate for stockout ${stockOut.localId}, removing from queue`);
+          await db.stockouts_offline_add.delete(stockOut.localId);
+          skipped++;
+          continue;
         }
+        throw apiError;
+      }
 
-        // Handle different response structures from backend
-        const serverStockOut = response.data?.[0] || response.data || response;
-        const serverStockOutId = serverStockOut.id;
+      const serverStockOut = response.data?.[0] || response.data || response;
+      const serverStockOutId = serverStockOut.id;
+      if (!serverStockOutId) throw new Error('Server did not return a valid stockout ID');
 
-        if (!serverStockOutId) {
-          throw new Error('Server did not return a valid stockout ID');
-        }
-
-        // 💾 Update local database atomically with all columns
-        await db.transaction('rw', db.stockouts_all, db.stockouts_offline_add, db.synced_stockout_ids, async () => {
-          // Check for existing record in stockouts_all
-          const existingStockOut = await db.stockouts_all.get(serverStockOutId);
-          
+      await db.transaction(
+        'rw',
+        db.stockouts_all,
+        db.stockouts_offline_add,
+        db.backorders_all,
+        db.backorders_offline_add,
+        db.synced_stockout_ids,
+        async () => {
+          // Save stockout
           const stockOutRecord = {
             id: serverStockOutId,
             stockinId: serverStockOut.stockinId || stockOut.stockinId,
             quantity: serverStockOut.quantity || stockOut.quantity,
-            soldPrice: serverStockOut.soldPrice || stockOut.soldPrice || (stockOut.quantity * (serverStockOut.stockin?.sellingPrice || 0)),
+            soldPrice: serverStockOut.soldPrice || stockOut.soldPrice,
             clientName: serverStockOut.clientName || stockOut.clientName,
             clientEmail: serverStockOut.clientEmail || stockOut.clientEmail,
             clientPhone: serverStockOut.clientPhone || stockOut.clientPhone,
@@ -163,57 +179,65 @@ class StockOutSyncService {
             adminId: serverStockOut.adminId || stockOut.adminId,
             employeeId: serverStockOut.employeeId || stockOut.employeeId,
             transactionId: serverStockOut.transactionId || stockOut.transactionId,
+            backorderId: serverStockOut.backorderId || null,
             lastModified: new Date(),
             createdAt: serverStockOut.createdAt || stockOut.createdAt || new Date(),
             updatedAt: serverStockOut.updatedAt || new Date()
           };
 
-          if (existingStockOut) {
-            console.log(`📝 Updating existing stockout ${serverStockOutId}`);
-            await db.stockouts_all.update(serverStockOutId, stockOutRecord);
-          } else {
-            console.log(`➕ Adding new stockout ${serverStockOutId}`);
-            await db.stockouts_all.add(stockOutRecord);
+          await db.stockouts_all.put(stockOutRecord);
+
+          // Save backorder (if returned from server)
+          if (serverStockOut.backorderId && backOrderPayload) {
+            await db.backorders_all.put({
+              id: serverStockOut.backorderId,
+              ...backOrderPayload,
+              lastModified: new Date(),
+              createdAt: serverStockOut.createdAt || new Date(),
+              updatedAt: serverStockOut.updatedAt || new Date()
+            });
+
+            // Remove local backorder stub
+            if (stockOut.backorderLocalId) {
+              await db.backorders_offline_add.delete(stockOut.backorderLocalId);
+            }
           }
 
-          // Record the sync relationship
+          // Record sync mapping
           await db.synced_stockout_ids.put({
             localId: stockOut.localId,
             serverId: serverStockOutId,
             syncedAt: new Date()
           });
 
-          // Remove from offline queue
+          // Remove offline stockout
           await db.stockouts_offline_add.delete(stockOut.localId);
-        });
-
-        console.log(`✅ Successfully synced stockout ${stockOut.localId} → ${serverStockOutId}`);
-        processed++;
-
-      } catch (error) {
-        console.error(`❌ Error syncing stockout ${stockOut.localId}:`, error);
-        
-        const retryCount = (stockOut.syncRetryCount || 0) + 1;
-        const maxRetries = 5;
-
-        if (retryCount >= maxRetries) {
-          console.log(`🚫 Max retries reached for stockout ${stockOut.localId}, removing from queue`);
-          await db.stockouts_offline_add.delete(stockOut.localId);
-        } else {
-          await db.stockouts_offline_add.update(stockOut.localId, {
-            syncError: error.message,
-            syncRetryCount: retryCount,
-            lastSyncAttempt: new Date()
-          });
         }
-        errors++;
-      } finally {
-        this.processingLocalIds.delete(stockOut.localId);
-      }
-    }
+      );
 
-    return { processed, skipped, errors, total: unsyncedAdds.length };
+      console.log(`✅ Synced stockout ${stockOut.localId} → ${serverStockOutId}`);
+      processed++;
+    } catch (error) {
+      console.error(`❌ Error syncing stockout ${stockOut.localId}:`, error);
+      const retryCount = (stockOut.syncRetryCount || 0) + 1;
+      if (retryCount >= 5) {
+        console.log(`🚫 Max retries reached for stockout ${stockOut.localId}, removing from queue`);
+        await db.stockouts_offline_add.delete(stockOut.localId);
+      } else {
+        await db.stockouts_offline_add.update(stockOut.localId, {
+          syncError: error.message,
+          syncRetryCount: retryCount,
+          lastSyncAttempt: new Date()
+        });
+      }
+      errors++;
+    } finally {
+      this.processingLocalIds.delete(stockOut.localId);
+    }
   }
+
+  return { processed, skipped, errors, total: unsyncedAdds.length };
+}
 
   async syncUnsyncedUpdates() {
     const unsyncedUpdates = await db.stockouts_offline_update.toArray();
@@ -344,17 +368,18 @@ class StockOutSyncService {
     return { processed, errors, total: deletedStockOuts.length };
   }
 
+// ...
+
   async fetchAndUpdateLocal() {
     try {
+      // --- 🔹 Fetch StockOuts ---
       const serverStockOuts = await stockOutService.getAllStockOuts();
       console.log('******** => + FETCHING AND UPDATING STOCK-OUT DATA ', serverStockOuts.length);
 
       await db.transaction('rw', db.stockouts_all, db.synced_stockout_ids, async () => {
-        // 🔥 Clear all local data - server is the source of truth
         await db.stockouts_all.clear();
-        console.log('✨ Cleared local stockouts, replacing with server data');
+        console.warn('✨ Cleared local stockouts, replacing with server data',serverStockOuts);
 
-        // 📥 Replace with fresh server data including all columns
         for (const serverStockOut of serverStockOuts) {
           await db.stockouts_all.put({
             id: serverStockOut.id,
@@ -366,26 +391,51 @@ class StockOutSyncService {
             clientPhone: serverStockOut.clientPhone,
             paymentMethod: serverStockOut.paymentMethod,
             adminId: serverStockOut.adminId,
+            backorderId: serverStockOut.backorderId,
             employeeId: serverStockOut.employeeId,
             transactionId: serverStockOut.transactionId,
-            lastModified: new Date(),
+            lastModified: serverStockOut.createdAt || new Date(),
             createdAt: serverStockOut.createdAt,
             updatedAt: serverStockOut.updatedAt || new Date()
           });
         }
 
-        // 🧹 Clean up sync tracking for stockouts no longer on server
         const serverIds = new Set(serverStockOuts.map(s => s.id));
         await db.synced_stockout_ids
           .where('serverId')
           .noneOf(Array.from(serverIds))
           .delete();
-        
-        console.log(`✅ Successfully replaced local data with ${serverStockOuts.length} stockouts from server`);
+
+        console.log(`✅ Replaced local data with ${serverStockOuts.length} stockouts`);
       });
+
+      // --- 🔹 Fetch Backorders ---
+      const serverBackorders = await backorderService.getAllBackOrders();
+      console.log('******** => + FETCHING AND UPDATING BACKORDER DATA ', serverBackorders.length);
+
+      await db.transaction('rw', db.backorders_all, async () => {
+        await db.backorders_all.clear();
+        console.log('✨ Cleared local backorders, replacing with server data');
+
+        for (const serverBackorder of serverBackorders) {
+          await db.backorders_all.put({
+            id: serverBackorder.id,
+            quantity: serverBackorder.quantity,
+            soldPrice: serverBackorder.soldPrice,
+            productName: serverBackorder.productName,
+            adminId: serverBackorder.adminId,
+            employeeId: serverBackorder.employeeId,
+            lastModified: new Date(),
+            createdAt: serverBackorder.createdAt,
+            updatedAt: serverBackorder.updatedAt || new Date()
+          });
+        }
+
+        console.log(`✅ Replaced local data with ${serverBackorders.length} backorders`);
+      });
+
     } catch (error) {
-      console.error('Error fetching server stockout data:', error);
-      // Don't throw - sync can continue without fresh server data
+      console.error('Error fetching server stockout/backorder data:', error);
     }
   }
 

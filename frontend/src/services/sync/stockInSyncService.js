@@ -234,7 +234,7 @@ class StockInSyncService {
           adminId: stockIn.adminId,
           employeeId: stockIn.employeeId,
           // Add version or timestamp for optimistic locking
-          lastModified: stockIn.lastModified
+          createdAt: stockIn.lastModified
         };
 
         const response = await stockInService.updateStockIn(stockIn.id, stockInData);
@@ -251,7 +251,7 @@ class StockInSyncService {
             supplier: serverStockIn.supplier || stockIn.supplier,
             sku: serverStockIn.sku || stockIn.sku,
             barcodeUrl: serverStockIn.barcodeUrl || stockIn.barcodeUrl,
-            lastModified: new Date(),
+            lastModified: serverStockIn.createdAt || new Date(),
             updatedAt: serverStockIn.updatedAt || new Date()
           });
 
