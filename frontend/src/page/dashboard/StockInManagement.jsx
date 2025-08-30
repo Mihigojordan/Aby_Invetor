@@ -979,14 +979,20 @@ const StockInManagement = ({ role }) => {
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-medium text-gray-900">{formatPrice(stockIn.price || 0)}</span>
-                </td>
 
-               <span className="font-semibold text-primary-600">
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="font-semibold text-primary-600">
   {formatPrice(
     stockIn.price *
     (!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity) : stockIn.quantity)
   )}
 </span>
+
+                </td>
+
+                
+
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-semibold text-primary-600">{formatPrice(stockIn.sellingPrice || 0)}</span>

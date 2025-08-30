@@ -42,6 +42,7 @@ const StockOutManagement = ({ role }) => {
     console.warn('loading');
     
     loadStockOuts();
+     if (isOnline) handleManualSync()
     const params = new URLSearchParams(window.location.search);
     const trId = params.get("transactionId");
     if (trId?.trim()) {
@@ -72,6 +73,8 @@ const StockOutManagement = ({ role }) => {
     setIsLoading(true);
     try {
       if (isOnline) await triggerSync();
+
+
 
       const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData,backOrderData] = await Promise.all([
         db.stockouts_all.toArray(),
