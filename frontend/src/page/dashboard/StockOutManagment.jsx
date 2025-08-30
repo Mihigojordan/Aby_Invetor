@@ -9,10 +9,11 @@ import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
 import InvoiceComponent from '../../components/dashboard/stockout/InvoiceComponent';
 import { useStockOutOfflineSync } from '../../hooks/useStockOutOfflineSync';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+
 import { db } from '../../db/database';
 import productService from '../../services/productService';
 import backOrderService from '../../services/backOrderService';
+import { useNetworkStatusContext } from '../../context/useNetworkContext';
 
 const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
@@ -26,7 +27,7 @@ const StockOutManagement = ({ role }) => {
   const [selectedStockOut, setSelectedStockOut] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-  const { isOnline } = useNetworkStatus();
+  const { isOnline } = useNetworkStatusContext();
   const { triggerSync, syncError } = useStockOutOfflineSync();
   const [isInvoiceNoteOpen, setIsInvoiceNoteOpen] = useState(false);
   const [transactionId, setTransactionId] = useState(null);
@@ -83,7 +84,7 @@ const StockOutManagement = ({ role }) => {
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
 
-      const backOrderMap = new Map(backOrderData.map(b => [b.id, b]));
+      const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
       const productMap = new Map(productsData.map(p => [p.id, p]));
 
       const stockinMap = new Map(stockinsData.map(s => [s.id, { ...s, product: productMap.get(s.productId) }]));
@@ -100,12 +101,15 @@ const StockOutManagement = ({ role }) => {
         .concat(offlineAdds.map(a => ({
           ...a,
           synced: false,
+          backorder: backOrderMap.get(a.backorderLocalId)  ,
           stockin: stockinMap.get(a.stockinId)
-        })));
+        })))
+         .sort((a, b) => a.synced - b.synced)
+        ;
         
         const convertedStockIns = Array.from(stockinMap.values())
       
-        console.warn('STOCK INS',combinedStockOuts);
+        console.warn('STOCK INS',backOrderMap);
         
 
       setStockOuts(combinedStockOuts);
@@ -184,14 +188,53 @@ const StockOutManagement = ({ role }) => {
           updatedAt: b.updatedAt || new Date()
         });
       }
+          // 3. Merge all data (works offline too)
+        
+     
     }
-    return await db.backorders_all.toArray();
+
+        const [allBackOrder, offlineAdds] = await Promise.all([
+            db.backorders_all.toArray(),
+            db.backorders_offline_add.toArray(),
+          
+          ]);
+       
+          const combinedBackOrder = allBackOrder
+      
+            .map(c => ({
+              ...c,
+              synced: true
+            }))
+            .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+             .sort((a, b) => a.synced - b.synced);
+      console.warn('backend',combinedBackOrder);
+      
+            return combinedBackOrder;
+  
   } catch (error) {
     console.error('Error fetching backorders:', error);
 
     // Fallback: return local cache if API fails or offline
     if (!error?.response) {
-      return await db.backorders_all.toArray();
+
+      const [allBackOrder, offlineAdds] = await Promise.all([
+            db.backorders_all.toArray(),
+            db.backorders_offline_add.toArray(),
+          
+          ]);
+       
+          const combinedBackOrder = allBackOrder
+      
+            .map(c => ({
+              ...c,
+              synced: true
+            }))
+            .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+             .sort((a, b) => a.synced - b.synced);
+      console.warn('backend',combinedBackOrder);
+      
+            return combinedBackOrder;
+      
     }
   }
 };

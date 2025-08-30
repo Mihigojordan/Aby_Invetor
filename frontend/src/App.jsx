@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { RouterProvider } from 'react-router-dom';
 import routes from './routes';
+import { NetworkStatusProvider } from './context/useNetworkContext';
 
 
 
@@ -28,7 +29,12 @@ import routes from './routes';
 // Main App Component
 const App = () => {
 
-  return( <RouterProvider router={routes}></RouterProvider>)
+  return( 
+    <NetworkStatusProvider retryInterval={3000}>
+
+  <RouterProvider router={routes}></RouterProvider>
+    </NetworkStatusProvider>
+)
 };
 
 export default App;

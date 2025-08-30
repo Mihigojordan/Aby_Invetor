@@ -1,9 +1,10 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { stockOutSyncService } from '../services/sync/stockOutSyncService';
-import { useNetworkStatus } from './useNetworkStatus';
+
+import { useNetworkStatusContext } from '../context/useNetworkContext';
 
 export const useStockOutOfflineSync = (options = {}) => {
-  const { isOnline } = useNetworkStatus();
+  const { isOnline } = useNetworkStatusContext();
   const { autoSync = true, syncInterval = 30000, enableDebugLogs = true } = options;
 
   const [syncStatus, setSyncStatus] = useState({

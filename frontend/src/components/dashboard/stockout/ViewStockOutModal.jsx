@@ -155,6 +155,46 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
                 </div>
               )}
 
+               {stockOut.backorder && (
+        <div className="bg-blue-50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Package className="w-5 h-5 text-blue-600" />
+            <h3 className="font-semibold text-gray-900">Related BackOrder</h3>
+          </div>
+          <div className="space-y-3">
+
+            {stockOut.backorder.productName && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product
+                </label>
+                <p className="text-gray-900 font-medium">
+                  {stockOut.backorder.productName}
+                </p>
+              </div>
+            )}
+
+            {stockOut.backorder.quantity !== undefined && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantity
+                </label>
+                <p className="text-gray-900">{stockOut.backorder.quantity}</p>
+              </div>
+            )}
+
+            {stockOut.backorder.soldPrice !== undefined && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sold Price
+                </label>
+                <p className="text-gray-900">${stockOut.backorder.soldPrice}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
               {/* Related Stock-In Information */}
               {stockOut.stockin && (
                 <div className="bg-purple-50 rounded-lg p-4">
@@ -292,6 +332,7 @@ const ViewStockOutModal = ({ isOpen, onClose, stockOut }) => {
                 </div>
               </div>
 
+          
 
               {/* Empty State for No Additional Info */}
               {!stockOut.clientName && !stockOut.clientEmail && !stockOut.clientPhone &&

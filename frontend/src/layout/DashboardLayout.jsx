@@ -11,6 +11,8 @@ const DashboardLayout = ({role}) => {
     setIsOpen(!isOpen)
   }
 
+  
+
   return (
     <div className='flex items-start  min-h-screen w-screen'>
       <Sidebar onToggle={onToggle} role={role} isOpen={isOpen} />

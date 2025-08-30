@@ -30,7 +30,7 @@ const SearchableProductSelect = ({
   }, [searchTerm, products]);
 
   // Get selected product name
-  const selectedProduct = products?.find(p => p.id === value);
+  const selectedProduct = products?.find(p => p.id === value ||  p.localId === value);
   const displayText = selectedProduct ? selectedProduct.productName : '';
 
   // Close dropdown when clicking outside
@@ -52,7 +52,7 @@ const SearchableProductSelect = ({
   };
 
   const handleProductSelect = (product) => {
-    onChange({ target: { value: product.id } });
+    onChange({ target: { value: product.id || product?.localId } });
     setIsOpen(false);
     setSearchTerm('');
   };
@@ -113,15 +113,19 @@ const SearchableProductSelect = ({
                   {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
                 </div>
               )}
-              {filteredProducts.map((product) => (
+              {filteredProducts.map((product,key) => (
                 <div
-                  key={product.id}
+                  key={key}
                   onClick={() => handleProductSelect(product)}
                   className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${
-                    value === product.id ? 'bg-blue-100 text-blue-800' : 'text-gray-900'
+                   ( value ===  product.id || value === product.localId )? 'bg-blue-100 text-blue-800' : 'text-gray-900'
                   }`}
                 >
-                  {product.productName}
+                  {product.productName}  {!product.synced && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                            Pending
+                          </span>
+                        )}
                 </div>
               ))}
             </>

@@ -8,7 +8,8 @@ import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
 import { db } from '../../db/database';
 import { useCategoryOfflineSync } from '../../hooks/useCategoryOffline';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+
+import { useNetworkStatusContext } from '../../context/useNetworkContext';
 
 const CategoryManagement = ({ role }) => {
   const [categories, setCategories] = useState([]);
@@ -20,7 +21,7 @@ const CategoryManagement = ({ role }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-  const { isOnline } = useNetworkStatus();
+ const { isOnline } = useNetworkStatusContext();
   const { triggerSync, syncError } = useCategoryOfflineSync();
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
@@ -66,7 +67,8 @@ const CategoryManagement = ({ role }) => {
           ...updateMap.get(c.id),
           synced: true
         }))
-        .concat(offlineAdds.map(a => ({ ...a, synced: false })));
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+         .sort((a, b) => a.synced - b.synced);
 
       setCategories(combinedCategories);
       setFilteredCategories(combinedCategories);

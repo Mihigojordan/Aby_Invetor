@@ -9,8 +9,8 @@ import useAdminAuth from '../../context/AdminAuthContext';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../db/database';
 import { useProductOfflineSync } from '../../hooks/useProductOfflineSync';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import categoryService from '../../services/categoryService';
+import { useNetworkStatusContext } from '../../context/useNetworkContext';
 
 const ProductManagement = ({ role }) => {
   const [products, setProducts] = useState([]);
@@ -22,7 +22,7 @@ const ProductManagement = ({ role }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-  const { isOnline } = useNetworkStatus();
+  const { isOnline } = useNetworkStatusContext();
   const navigate = useNavigate();
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
@@ -126,7 +126,7 @@ const ProductManagement = ({ role }) => {
             synced: false,
              category: categories.find(cat => cat.id == a.categoryId )
            })
-          ));
+          )) .sort((a, b) => a.synced - b.synced);
 
           console.warn('combined product:',combinedProducts);
           
