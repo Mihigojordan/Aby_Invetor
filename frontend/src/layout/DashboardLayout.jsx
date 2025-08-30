@@ -6,7 +6,6 @@ import Sidebar from '../components/dashboard/Sidebar'
 
 const DashboardLayout = ({role}) => {
   const [isOpen, setIsOpen] = useState(false)
- 
   const onToggle = () => {
     setIsOpen(!isOpen)
   }
@@ -17,8 +16,6 @@ const DashboardLayout = ({role}) => {
       <div className="min-h-screen max-h-screen  w-full lg:w-10/12 bg-gray-50">
         <Header onToggle={onToggle} role={role} />
         <Outlet />
-      
-
       </div>
     </div>
   )
