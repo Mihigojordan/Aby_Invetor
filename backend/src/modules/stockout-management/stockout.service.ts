@@ -19,32 +19,32 @@ export class StockoutService {
     private readonly backOrderService: BackOrderManagementService,
   ) { }
 
-  async create(data: {
-    sales: {
-      stockinId: string;
-      quantity: number;
-      isBackOrder: boolean;
-      backOrder: any;
-    }[];
-    clientName?: string;
-    clientEmail?: string;
-    clientPhone?: string;
-    paymentMethod?;
-    adminId?: string;
-    employeeId?: string;
-  }) {
-    const { sales, adminId, employeeId, clientEmail, clientName, clientPhone, paymentMethod } = data;
-    // console.log('recieved data:', data)
-    console.log(data);
-    
+async create(data: {
+  sales: {
+    stockinId: string;
+    quantity: number;
+    isBackOrder: boolean;
+    backOrder: any;
+  }[];
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  paymentMethod?;
+  adminId?: string;
+  employeeId?: string;
+}) {
+  const { sales, adminId, employeeId, clientEmail, clientName, clientPhone, paymentMethod } = data;
+  console.log(data);
 
-    if (!Array.isArray(sales) || sales.length === 0) {
-      throw new BadRequestException('At least one sale is required');
-    }
+  if (!Array.isArray(sales) || sales.length === 0) {
+    throw new BadRequestException('At least one sale is required');
+  }
 
-    const transactionId = generateStockSKU('abyride', 'transaction');
-    const createdStockouts: Awaited<ReturnType<typeof this.prisma.stockOut.create>>[] = [];
+  const transactionId = generateStockSKU('abyride', 'transaction');
+  const createdStockouts: Awaited<ReturnType<typeof this.prisma.stockOut.create>>[] = [];
 
+  // Use a database transaction to ensure atomicity
+  return await this.prisma.$transaction(async (tx) => {
     for (const sale of sales) {
       const { stockinId, quantity, isBackOrder, backOrder } = sale;
 
@@ -52,12 +52,11 @@ export class StockoutService {
         ...backOrder,
         adminId,
         employeeId
-      }
+      };
 
       if (stockinId) {
-
-
-        const stockin = await this.prisma.stockIn.findUnique({
+        // First, get the current stock with a lock for update
+        const stockin = await tx.stockIn.findUnique({
           where: { id: stockinId },
         });
 
@@ -70,23 +69,36 @@ export class StockoutService {
         }
 
         if (stockin.quantity < quantity) {
-          throw new BadRequestException(`Not enough stock for product with ID: ${stockinId}`);
+          throw new BadRequestException(`Not enough stock for product with ID: ${stockinId}. Available: ${stockin.quantity}, Requested: ${quantity}`);
         }
 
         if (stockin.sellingPrice === null || stockin.sellingPrice === undefined) {
           throw new BadRequestException(`Selling price not set for stockin ID: ${stockinId}`);
         }
 
-        const updatedStock = await this.prisma.stockIn.update({
-          where: { id: stockinId },
-          data: {
-            quantity: stockin.quantity - quantity,
+        console.log('quantity of stockin Stock in : ' + stockin.id, stockin.quantity);
+
+        // Use atomic decrement operation to prevent race conditions
+        const updatedStock = await tx.stockIn.updateMany({
+          where: {
+            id: stockinId,
+            quantity: { gte: quantity } // Only update if we still have enough stock
           },
+          data: {
+            quantity: { decrement: quantity }
+          }
         });
+
+        // Check if the update actually happened (count should be 1)
+        if (updatedStock.count === 0) {
+          throw new BadRequestException(`Insufficient stock for product with ID: ${stockinId}. Another transaction may have reduced the stock.`);
+        }
+
+        console.log('Stock updated successfully for stockin:', stockinId);
 
         const soldPrice = stockin.sellingPrice * quantity;
 
-        const newStockout = await this.prisma.stockOut.create({
+        const newStockout = await tx.stockOut.create({
           data: {
             stockinId,
             quantity,
@@ -102,7 +114,6 @@ export class StockoutService {
         });
 
         createdStockouts.push(newStockout);
-        await generateAndSaveBarcodeImage(String(transactionId))
       }
       else if (isBackOrder) {
         if (backorderData.quantity === null || backorderData.quantity === undefined) {
@@ -114,15 +125,14 @@ export class StockoutService {
         }
 
         if (backorderData.productName === null || backorderData.productName === undefined) {
-          throw new BadRequestException(` product name not set for Back order`);
+          throw new BadRequestException(`Product name not set for Back order`);
         }
 
         const soldPrice = backorderData.sellingPrice * quantity;
 
-        const backorder = await this.backOrderService.createBackOrder(backorderData)
+        const backorder = await this.backOrderService.createBackOrder(backorderData);
 
-
-        const newStockout = await this.prisma.stockOut.create({
+        const newStockout = await tx.stockOut.create({
           data: {
             stockinId,
             quantity,
@@ -139,15 +149,16 @@ export class StockoutService {
         });
 
         createdStockouts.push(newStockout);
-        await generateAndSaveBarcodeImage(String(transactionId))
-
       }
     }
 
+    // Generate barcode after successful transaction
+    await generateAndSaveBarcodeImage(String(transactionId));
+
     // Track activity once for the entire transaction
     const activityUser =
-      adminId && (await this.prisma.admin.findUnique({ where: { id: adminId } })) ||
-      employeeId && (await this.prisma.employee.findUnique({ where: { id: employeeId } }));
+      adminId && (await tx.admin.findUnique({ where: { id: adminId } })) ||
+      employeeId && (await tx.employee.findUnique({ where: { id: employeeId } }));
 
     if (!activityUser) {
       throw new NotFoundException('Admin or Employee not found');
@@ -162,14 +173,15 @@ export class StockoutService {
       employeeId,
     });
 
-    console.log('yes this is it', createdStockouts);
+    console.log('Transaction completed successfully', createdStockouts);
 
     return {
       message: 'Stock out transaction completed successfully',
       transactionId,
       data: createdStockouts,
     };
-  }
+  });
+}
 
   async getAll() {
     try {

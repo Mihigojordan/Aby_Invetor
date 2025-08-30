@@ -39,6 +39,8 @@ const StockOutManagement = ({ role }) => {
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
+    console.warn('loading');
+    
     loadStockOuts();
     const params = new URLSearchParams(window.location.search);
     const trId = params.get("transactionId");
@@ -85,9 +87,9 @@ const StockOutManagement = ({ role }) => {
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
 
       const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
-      const productMap = new Map(productsData.map(p => [p.id, p]));
+      const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
 
-      const stockinMap = new Map(stockinsData.map(s => [s.id, { ...s, product: productMap.get(s.productId) }]));
+      const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
 
       const combinedStockOuts = allStockOuts
         .filter(so => !deleteIds.has(so.id))
@@ -159,7 +161,33 @@ const StockOutManagement = ({ role }) => {
           }
         }
       }
-      return await db.stockins_all.toArray();
+      
+              // 3. Merge all data (works offline too)
+          const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+            db.stockins_all.toArray(),
+            db.stockins_offline_add.toArray(),
+            db.stockins_offline_update.toArray(),
+            db.stockins_offline_delete.toArray()
+          ]);
+      
+          const deleteIds = new Set(offlineDeletes.map(d => d.id));
+          const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      
+          const combinedStockin = allStockin
+            .filter(c => !deleteIds.has(c.id))
+            .map(c => ({
+              ...c,
+              ...updateMap.get(c.id),
+              synced: true
+            }))
+            .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+            .sort((a, b) => a.synced - b.synced);
+
+            console.warn('THIS THE COMBINED STOCK IN :' , combinedStockin);
+            
+      
+            return combinedStockin;
+      
     } catch (error) {
       console.error('Error fetching stock-ins:', error);
       if(!error.response){
@@ -257,11 +285,57 @@ const StockOutManagement = ({ role }) => {
           });
         }
       }
-      return await db.products_all.toArray();
+      
+              // 3. Merge all data (works offline too)
+          const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+            db.products_all.toArray(),
+            db.products_offline_add.toArray(),
+            db.products_offline_update.toArray(),
+            db.products_offline_delete.toArray()
+          ]);
+      
+          const deleteIds = new Set(offlineDeletes.map(d => d.id));
+          const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      
+          const combinedProducts = allProducts
+            .filter(c => !deleteIds.has(c.id))
+            .map(c => ({
+              ...c,
+              ...updateMap.get(c.id),
+              synced: true
+            }))
+            .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+             .sort((a, b) => a.synced - b.synced);
+      
+            return combinedProducts;
+      
     } catch (error) {
       console.error('Error fetching products:', error);
       if(!error?.response){
-        return await db.products_all.toArray();
+        
+        // 3. Merge all data (works offline too)
+    const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+      db.products_all.toArray(),
+      db.products_offline_add.toArray(),
+      db.products_offline_update.toArray(),
+      db.products_offline_delete.toArray()
+    ]);
+
+    const deleteIds = new Set(offlineDeletes.map(d => d.id));
+    const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+    const combinedProducts = allProducts
+      .filter(c => !deleteIds.has(c.id))
+      .map(c => ({
+        ...c,
+        ...updateMap.get(c.id),
+        synced: true
+      }))
+      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+       .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
+
       }
     
     }
@@ -333,7 +407,9 @@ const handleAddStockOut = async (stockOutData) => {
 
       } else {
         // ✅ Regular stockout flow
-        const stockin = await db.stockins_all.get(sale.stockinId);
+        const stockins = await fetchStockIns();
+
+        const stockin = stockins.find(s=> s.id === sale.stockinId ||  s.localId === sale.stockinId )
         if (!stockin) throw new Error(`Stock-in not found for ID: ${sale.stockinId}`);
 
         if (stockin.quantity < sale.quantity) {
@@ -362,8 +438,18 @@ const handleAddStockOut = async (stockOutData) => {
         createdStockouts.push({ ...newStockout, localId, synced: false });
 
         // Update stockin quantities locally
-        const newQuantity = stockin.quantity - sale.quantity;
-        await db.stockins_all.update(sale.stockinId, { quantity: newQuantity });
+       const newQuantity = (stockin.offlineQuantity??stockin.quantity) - sale.quantity;
+
+const existingStockin = await db.stockins_all.get(sale.stockinId);
+if (existingStockin) {
+  await db.stockins_all.update(sale.stockinId, { quantity: newQuantity });
+} else {
+  const offlineStockin = await db.stockins_offline_add.get(sale.stockinId);
+  if (offlineStockin) {
+    await db.stockins_offline_add.update(sale.stockinId, { offlineQuantity: newQuantity });
+  }
+}
+
        
       }
     }
@@ -372,45 +458,49 @@ const handleAddStockOut = async (stockOutData) => {
       try {
         const response = await stockOutService.createMultipleStockOut(salesArray, clientInfo, userInfo);
 
-        response.data.forEach(async (serverSo, idx) => {
-          const local = createdStockouts[idx];
-          await db.synced_stockout_ids.add({
-            localId: local.localId,
-            serverId: serverSo.id,
-            syncedAt: now
-          });
+   await Promise.all(
+  response.data.map(async (serverSo, idx) => {
+    const local = createdStockouts[idx];
 
-          await db.stockouts_all.put({
-            id: serverSo.id,
-            stockinId: serverSo.stockinId,
-            backorderId: serverSo.backorderId || null,
-            quantity: serverSo.quantity,
-            soldPrice: serverSo.soldPrice,
-            clientName: serverSo.clientName,
-            clientEmail: serverSo.clientEmail,
-            clientPhone: serverSo.clientPhone,
-            paymentMethod: serverSo.paymentMethod,
-            lastModified: serverSo.lastModified || now,
-            updatedAt: serverSo.updatedAt || now
-          });
+    await db.synced_stockout_ids.add({
+      localId: local.localId,
+      serverId: serverSo.id,
+      syncedAt: now,
+    });
 
-          await db.stockouts_offline_add.delete(local.localId);
+    await db.stockouts_all.put({
+      id: serverSo.id,
+      stockinId: serverSo.stockinId,
+      backorderId: serverSo.backorderId || null,
+      quantity: serverSo.quantity,
+      soldPrice: serverSo.soldPrice,
+      clientName: serverSo.clientName,
+      transactionId:serverSo.transactionId,
+      clientEmail: serverSo.clientEmail,
+      clientPhone: serverSo.clientPhone,
+      paymentMethod: serverSo.paymentMethod,
+      lastModified: serverSo.lastModified || now,
+      updatedAt: serverSo.updatedAt || now,
+    });
 
-          // If server created a backorder, persist it in main table & remove offline stub
-          if (serverSo.backorderId && local.backorderLocalId) {
-            await db.backorders_all.put({
-              id: serverSo.backorderId,
-              quantity: serverSo.quantity,
-              soldPrice: serverSo.soldPrice,
-              productName: serverSo.productName,
-              ...userInfo,
-              lastModified: now,
-              createdAt: serverSo.createdAt || now,
-              updatedAt: serverSo.updatedAt || now
-            });
-            await db.backorders_offline_add.delete(local.backorderLocalId);
-          }
-        });
+    await db.stockouts_offline_add.delete(local.localId);
+
+    if (serverSo.backorderId && local.backorderLocalId) {
+      await db.backorders_all.put({
+        id: serverSo.backorderId,
+        quantity: serverSo.quantity,
+        soldPrice: serverSo.soldPrice,
+        productName: serverSo.productName,
+        ...userInfo,
+        lastModified: now,
+        createdAt: serverSo.createdAt || now,
+        updatedAt: serverSo.updatedAt || now,
+      });
+      await db.backorders_offline_add.delete(local.backorderLocalId);
+    }
+  })
+);
+
 
         showNotification(`Stock out transaction created successfully with ${salesArray.length} entries!`);
         updateSearchParam('transactionId', response.transactionId);
@@ -486,15 +576,19 @@ const handleAddStockOut = async (stockOutData) => {
         showNotification('Stock out updated offline (will sync when online)', 'warning');
       }
       if (selectedStockOut.stockinId){
+        
+        
+        
         const stockin = await db.stockins_all.get(selectedStockOut.stockinId);
-
         
-        const oldQuantity = selectedStockOut.quantity;
-        const quantityDelta = stockOutData.quantity - oldQuantity;
-        const newStockQuantity = stockin.quantity - quantityDelta;
+        if(stockin){
+          // Update local stock-in regardless
+          const oldQuantity = selectedStockOut.quantity;
+          const quantityDelta = stockOutData.quantity - oldQuantity;
+          const newStockQuantity = stockin.quantity - quantityDelta;
+          await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newStockQuantity });
+        }
         
-        // Update local stock-in regardless
-        await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newStockQuantity });
       }
       
         
@@ -516,11 +610,23 @@ const handleAddStockOut = async (stockOutData) => {
       const now = new Date();
 
       if (selectedStockOut.stockinId) {
-        const stockin = await db.stockins_all.get(selectedStockOut.stockinId);
-        const newQuantity = stockin.quantity + selectedStockOut.quantity;
-        await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newQuantity });
+        const existingStockin = await db.stockins_all.get(selectedStockOut.stockinId);
+if (existingStockin) {
+   const newQuantity = existingStockin.quantity + selectedStockOut.quantity;
+   await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newQuantity });
+  } else {
+    const offlineStockin = await db.stockins_offline_add.get(selectedStockOut.stockinId);
+    if (offlineStockin) {
+    const newQuantity = offlineStockin.quantity + selectedStockOut.quantity;
+    await db.stockins_offline_add.update(selectedStockOut.stockinId, { offlineQuantity: newQuantity });
+  }
+}
+
        
       }
+
+
+
 
       if (isOnline && selectedStockOut.id) {
         await stockOutService.deleteStockOut(selectedStockOut.id, userData);
@@ -747,6 +853,8 @@ const handleAddStockOut = async (stockOutData) => {
                   >
                     <Eye size={16} />
                   </button>
+              {
+               stockOut.synced  && (
                   <button
                     onClick={() => openEditModal(stockOut)}
                     className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -754,6 +862,8 @@ const handleAddStockOut = async (stockOutData) => {
                   >
                     <Edit3 size={16} />
                   </button>
+               )
+              }
                   {/* <button
                     onClick={() => openDeleteModal(stockOut)}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -917,6 +1027,8 @@ const handleAddStockOut = async (stockOutData) => {
                     >
                       <Eye size={16} />
                     </button>
+                     {
+               stockOut.synced  && (
                     <button
                       onClick={() => openEditModal(stockOut)}
                       className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -924,6 +1036,7 @@ const handleAddStockOut = async (stockOutData) => {
                     >
                       <Edit3 size={16} />
                     </button>
+               )}
                     <button
                       onClick={() => openDeleteModal(stockOut)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

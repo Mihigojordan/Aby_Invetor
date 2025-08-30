@@ -344,7 +344,30 @@ const StockInManagement = ({ role }) => {
     } catch (error) {
       console.error('Error fetching products:', error);
       if(!error?.response){
-        return await db.products_all.toArray();
+        
+        // 3. Merge all data (works offline too)
+    const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+      db.products_all.toArray(),
+      db.products_offline_add.toArray(),
+      db.products_offline_update.toArray(),
+      db.products_offline_delete.toArray()
+    ]);
+
+    const deleteIds = new Set(offlineDeletes.map(d => d.id));
+    const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+    const combinedProducts = allProducts
+      .filter(c => !deleteIds.has(c.id))
+      .map(c => ({
+        ...c,
+        ...updateMap.get(c.id),
+        synced: true
+      }))
+      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+       .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
+
       }
       
     }
@@ -435,6 +458,7 @@ const StockInManagement = ({ role }) => {
         const purchases = stockInData.purchases.map(purchase => ({
           ...purchase,
           ...userData,
+       
           lastModified: now,
           createdAt: now,
           updatedAt: now
@@ -442,7 +466,7 @@ const StockInManagement = ({ role }) => {
 
         const localIds = [];
         for (const purchase of purchases) {
-          const localId = await db.stockins_offline_add.add(purchase);
+          const localId = await db.stockins_offline_add.add({...purchase,   offlineQuantity: purchase.quantity,});
           localIds.push(localId);
         }
 
@@ -492,7 +516,7 @@ const StockInManagement = ({ role }) => {
           throw new Error('Missing required fields');
         }
 
-        const localId = await db.stockins_offline_add.add(newStockIn);
+        const localId = await db.stockins_offline_add.add({...newStockIn,offlineQuantity:newStockIn.quantity });
         const savedStockIn = { ...newStockIn, localId, synced: false };
 
         if (isOnline) {
@@ -946,7 +970,10 @@ const StockInManagement = ({ role }) => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Hash size={14} className="text-gray-400" />
-                    <span className="font-medium text-gray-900">{stockIn.quantity || 0}</span>
+                    <span className="font-medium text-gray-900">
+  {!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity ?? 0) : (stockIn.quantity ?? 0)}
+</span>
+
                   </div>
                 </td>
 
@@ -954,9 +981,12 @@ const StockInManagement = ({ role }) => {
                   <span className="font-medium text-gray-900">{formatPrice(stockIn.price || 0)}</span>
                 </td>
 
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="font-semibold text-primary-600">{formatPrice((stockIn.price * stockIn.quantity) || 0)}</span>
-                </td>
+               <span className="font-semibold text-primary-600">
+  {formatPrice(
+    stockIn.price *
+    (!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity) : stockIn.quantity)
+  )}
+</span>
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-semibold text-primary-600">{formatPrice(stockIn.sellingPrice || 0)}</span>

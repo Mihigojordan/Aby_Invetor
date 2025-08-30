@@ -23,7 +23,8 @@ const SearchableStockInDropdown = ({
     const searchLower = searchTerm.toLowerCase();
     const productName = stockIn.product?.productName?.toLowerCase() || '';
     const sku = stockIn.sku?.toLowerCase() || '';
-    const quantity = stockIn.quantity?.toString() || '';
+    const quantity = (stockIn.offlineQuantity ?? stockIn.quantity ?? '').toString();
+
     const price = stockIn.sellingPrice?.toString() || '';
 
     return productName.includes(searchLower) ||
@@ -33,7 +34,7 @@ const SearchableStockInDropdown = ({
   }) || [];
 
   // Get selected stock info for display
-  const selectedStock = stockIns?.find(stock => stock.id === value);
+  const selectedStock = stockIns?.find(stock => stock.id === value || stock.localId === value);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -47,6 +48,9 @@ const SearchableStockInDropdown = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+ 
+  
 
   // Focus search input when dropdown opens
   useEffect(() => {
@@ -80,7 +84,7 @@ const SearchableStockInDropdown = ({
       >
         <span className={`${selectedStock ? 'text-gray-900' : 'text-gray-500'} truncate`}>
           {selectedStock ? (
-            `${selectedStock.product?.productName || 'Unknown Product'} - Qty: #${selectedStock.quantity} - Price: ${formatCurrency(selectedStock.sellingPrice)}`
+            `${selectedStock.product?.productName || 'Unknown Product'} - Qty: #${ selectedStock.offlineQuantity ?? selectedStock.quantity} - Price: ${formatCurrency(selectedStock.sellingPrice)} ${(!selectedStock.synced && selectedStock.localId) ? ' - Pending' : ''}`
           ) : (
             placeholder
           )}
@@ -123,11 +127,11 @@ const SearchableStockInDropdown = ({
                 </div>
 
                 {/* Stock options */}
-                {filteredStockIns.map(stockIn => (
+                {filteredStockIns.map((stockIn,key) => (
                   <div
-                    key={stockIn.id}
-                    onClick={() => handleSelect(stockIn.id)}
-                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${value === stockIn.id ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+                    key={key}
+                    onClick={() => handleSelect(stockIn.id || stockIn.localId)}
+                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${(value === stockIn.id || value === stockIn.localId) ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
                       }`}
                   >
                     <div className="flex items-center justify-between">
@@ -136,9 +140,14 @@ const SearchableStockInDropdown = ({
                           {stockIn.product?.productName || 'Unknown Product'}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          SKU: {stockIn.sku} • Qty: #{stockIn.quantity}
+                          SKU: {stockIn.sku} • Qty: #{ stockIn.offlineQuantity ?? stockIn.quantity}
                         </div>
                       </div>
+{!stockIn.synced && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                            Pending
+                          </span>
+                        )}
                       <div className="ml-2 text-right">
                         <div className="text-sm font-medium text-green-600">
                           {formatCurrency(stockIn.sellingPrice)}
@@ -258,10 +267,14 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
     // Check if quantity exceeds available stock (only for stock-in, not back orders)
     if (stockinId && stockIns) {
-      const selectedStockIn = stockIns.find(stock => stock.id === stockinId);
-      if (selectedStockIn && numQuantity > selectedStockIn.quantity) {
-        return `Quantity cannot exceed available stock (${selectedStockIn.quantity})`;
-      }
+      const selectedStockIn = stockIns.find(stock => stock.id === stockinId || stock.localId === stockinId);
+    if (selectedStockIn) {
+  const availableQty = selectedStockIn.offlineQuantity ?? selectedStockIn.quantity;
+
+  if (numQuantity > availableQty) {
+    return `Quantity cannot exceed available stock (${availableQty})`;
+  }
+}
     }
 
     return '';
@@ -387,36 +400,45 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
   // FIXED: Improved debounced SKU search with proper cleanup
   const handleSkuChange = (index, value) => {
-    // Update the SKU value immediately
-    const updatedEntries = [...formData.salesEntries];
-    updatedEntries[index] = { ...updatedEntries[index], sku: value };
-    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+  // Update the SKU value immediately
+  const updatedEntries = [...formData.salesEntries];
+  updatedEntries[index] = { ...updatedEntries[index], sku: value };
+  setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
 
-    // Clear SKU error when user starts typing (gives them chance to correct)
-    if (value.trim() && skuErrors[index]) {
-      setSkuErrors(prev => ({ ...prev, [index]: '' }));
-    }
+  // Clear SKU error when user starts typing (gives them chance to correct)
+  if (value.trim() && skuErrors[index]) {
+    setSkuErrors(prev => ({ ...prev, [index]: '' }));
+  }
 
-    // Initialize timeouts object if it doesn't exist
-    if (!window.skuSearchTimeouts) {
-      window.skuSearchTimeouts = {};
-    }
+  // Check if we have a selected stock item to determine if it's offline
+  const selectedStock = getStockInfo(updatedEntries[index].stockinId);
+  const isOfflineData = selectedStock && (selectedStock.synced === false || selectedStock.localId);
 
-    // Clear previous timeout for this specific index
-    if (window.skuSearchTimeouts[index]) {
-      clearTimeout(window.skuSearchTimeouts[index]);
-    }
+  // Don't search for offline data
+  if (isOfflineData) {
+    return;
+  }
 
-    // Set new timeout for search
-    window.skuSearchTimeouts[index] = setTimeout(() => {
-      handleSkuSearch(index, value);
-    }, 500); // 500ms delay
-  };
+  // Initialize timeouts object if it doesn't exist
+  if (!window.skuSearchTimeouts) {
+    window.skuSearchTimeouts = {};
+  }
+
+  // Clear previous timeout for this specific index
+  if (window.skuSearchTimeouts[index]) {
+    clearTimeout(window.skuSearchTimeouts[index]);
+  }
+
+  // Set new timeout for search (only for online data)
+  window.skuSearchTimeouts[index] = setTimeout(() => {
+    handleSkuSearch(index, value);
+  }, 500); // 500ms delay
+};
 
   // Get stock information for display
   const getStockInfo = (stockinId) => {
     if (!stockinId || !stockIns) return null;
-    return stockIns.find(stock => stock.id === stockinId);
+    return stockIns.find(stock => stock.id === stockinId || stock.localId === stockinId);
   };
 
   // Single entry handlers (for update mode)
@@ -568,7 +590,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
       // FIXED: When manually selecting from dropdown, clear SKU error and update SKU field
       if (value && stockIns) {
-        const selectedStock = stockIns.find(stock => stock.id === value);
+        const selectedStock = stockIns.find(stock => stock.id === value || stock.localId === value);
         if (selectedStock) {
           // Update SKU if available
           if (selectedStock.sku) {
@@ -580,7 +602,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
           // Auto-fill quantity if not already set
           if (!updatedEntries[index].quantity) {
-            const suggestedQuantity = calculateSuggestedQuantity(selectedStock.quantity);
+            const suggestedQuantity = calculateSuggestedQuantity(( selectedStock.offlineQuantity ?? selectedStock.quantity));
             updatedEntries[index].quantity = suggestedQuantity.toString();
 
             // Clear quantity validation error since we're setting a valid value
@@ -615,7 +637,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     const stockInfo = getStockInfo(entry.stockinId);
     if (!stockInfo) return;
 
-    const suggestedQuantity = calculateSuggestedQuantity(stockInfo.quantity);
+    const suggestedQuantity = calculateSuggestedQuantity(stockInfo.offlineQuantity ?? stockInfo.quantity);
     handleSalesEntryChange(index, 'quantity', suggestedQuantity.toString());
   };
 
@@ -925,9 +947,12 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                       <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
                     )}
                     {formData.stockinId && stockIns && (
-                      <p className="text-gray-500 text-xs mt-1">
-                        Available stock: {stockIns.find(stock => stock.id === formData.stockinId)?.quantity || 0}
-                      </p>
+<p className="text-gray-500 text-xs mt-1">
+  Available stock: {stockIns.find(stock => stock.id === formData.stockinId || stock.localId === formData.stockinId)?.offlineQuantity 
+    ?? stockIns.find(stock => stock.id === formData.stockinId)?.quantity 
+    ?? 0}
+</p>
+
                     )}
                   </div>
                 </div>
@@ -1058,41 +1083,61 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                       </div>
                     ) : (
                       // Stock-In Form (existing code)
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      <div className={`grid grid-cols-1 gap-4 ${(() => {
+  const selectedStock = getStockInfo(entry.stockinId);
+  const isOfflineData = selectedStock && (selectedStock.synced === false || selectedStock.localId);
+  const shouldShowSku = !entry.stockinId || !isOfflineData;
+  return shouldShowSku ? 'md:grid-cols-12' : 'md:grid-cols-9';
+})()}` }>
                         {/* SKU Input */}
-                        <div className="md:col-span-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            SKU <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              value={entry.sku || ''}
-                              onChange={(e) => handleSkuChange(index, e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${skuError
-                                ? 'border-red-300 focus:ring-red-500'
-                                : entry.stockinId
-                                  ? 'border-green-300 focus:ring-green-500'
-                                  : 'border-gray-300 focus:ring-blue-500'
-                                }`}
-                              placeholder="Enter SKU"
-                            />
-                            {isSkuLoading && (
-                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                              </div>
-                            )}
-                          </div>
-                          {skuError && (
-                            <p className="text-red-500 text-xs mt-1">{skuError}</p>
-                          )}
-                          {entry.stockinId && !skuError && (
-                            <p className="text-green-600 text-xs mt-1">✓ Stock found & quantity auto-filled</p>
-                          )}
-                        </div>
+                       {/* SKU Input - Conditionally rendered */}
+{(() => {
+  const selectedStock = getStockInfo(entry.stockinId);
+  const isOfflineData = selectedStock && (selectedStock.synced === false || selectedStock.localId);
+  const shouldShowSku = !entry.stockinId || !isOfflineData;
+
+  return shouldShowSku ? (
+    <div className="md:col-span-3">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        SKU <span className="text-red-500">*</span>
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          value={entry.sku || ''}
+          onChange={(e) => handleSkuChange(index, e.target.value)}
+          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${skuError
+            ? 'border-red-300 focus:ring-red-500'
+            : entry.stockinId
+              ? 'border-green-300 focus:ring-green-500'
+              : 'border-gray-300 focus:ring-blue-500'
+            }`}
+          placeholder="Enter SKU"
+        />
+        {isSkuLoading && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+          </div>
+        )}
+      </div>
+      {skuError && (
+        <p className="text-red-500 text-xs mt-1">{skuError}</p>
+      )}
+      {entry.stockinId && !skuError && !isOfflineData && (
+        <p className="text-green-600 text-xs mt-1">✓ Stock found & quantity auto-filled</p>
+      )}
+    </div>
+  ) : null;
+})()}
 
                         {/* Stock-In Selection */}
-                        <div className="md:col-span-4">
+                      {/* Stock-In Selection */}
+<div className={(() => {
+  const selectedStock = getStockInfo(entry.stockinId);
+  const isOfflineData = selectedStock && (selectedStock.synced === false || selectedStock.localId);
+  const shouldShowSku = !entry.stockinId || !isOfflineData;
+  return shouldShowSku ? 'md:col-span-4' : 'md:col-span-3';
+})()}>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Stock-In Entry <span className="text-red-500">*</span>
                           </label>
@@ -1112,7 +1157,12 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                         </div>
 
                         {/* Quantity */}
-                        <div className="md:col-span-2">
+                       <div className={(() => {
+  const selectedStock = getStockInfo(entry.stockinId);
+  const isOfflineData = selectedStock && (selectedStock.synced === false || selectedStock.localId);
+  const shouldShowSku = !entry.stockinId || !isOfflineData;
+  return shouldShowSku ? 'md:col-span-2' : 'md:col-span-3';
+})()}>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Quantity Sold <span className="text-red-500">*</span>
                           </label>
@@ -1155,12 +1205,12 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                             <div className="bg-gray-50 rounded-lg p-2 text-xs space-y-1">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Available:</span>
-                                <span className="font-medium">{stockInfo.quantity}</span>
+                                <span className="font-medium">{ stockInfo.offlineQuantity ?? stockInfo.quantity}</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Suggested:</span>
                                 <span className="font-medium text-blue-600">
-                                  {calculateSuggestedQuantity(stockInfo.quantity)} (½)
+                                  {calculateSuggestedQuantity(stockInfo.offlineQuantity ?? stockInfo.quantity)} (½)
                                 </span>
                               </div>
                               <div className="flex justify-between">
