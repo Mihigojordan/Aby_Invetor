@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import stockInService from "../../../services/stockinService";
 
-import { ChevronDownIcon, SearchIcon, XIcon } from 'lucide-react';
+import { ChevronDownIcon, SearchIcon, XIcon, Package, ShoppingCart } from 'lucide-react';
 
 // Searchable Stock-In Dropdown Component
 const SearchableStockInDropdown = ({
@@ -170,6 +170,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     clientEmail: '',
     clientPhone: '',
     paymentMethod: '',
+    backorderId: '',
     // Multiple entries fields (for create mode)
     salesEntries: []
   });
@@ -192,6 +193,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       // Update mode - single entry
       setFormData({
         stockinId: stockOut.stockinId || '',
+        backorderId: stockOut.backorderId || '',
         quantity: stockOut.quantity || '',
         clientName: stockOut.clientName || '',
         clientEmail: stockOut.clientEmail || '',
@@ -203,12 +205,13 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       // Create mode - multiple entries
       setFormData({
         stockinId: '',
+        backorderId: '',
         quantity: '',
         clientName: '',
         clientEmail: '',
         clientPhone: '',
         paymentMethod: '',
-        salesEntries: [{ stockinId: '', quantity: '', sku: '' }]
+        salesEntries: [{ stockinId: '', quantity: '', sku: '', isBackOrder: false, backOrder: null }]
       });
     }
 
@@ -253,7 +256,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       return 'Quantity must be a whole number';
     }
 
-    // Check if quantity exceeds available stock
+    // Check if quantity exceeds available stock (only for stock-in, not back orders)
     if (stockinId && stockIns) {
       const selectedStockIn = stockIns.find(stock => stock.id === stockinId);
       if (selectedStockIn && numQuantity > selectedStockIn.quantity) {
@@ -268,6 +271,13 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     if (!email) return ''; // Email is optional
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email) ? '' : 'Please enter a valid email address';
+  };
+
+  const validateBackOrder = (backOrder) => {
+    if (!backOrder) return 'Back order information is required';
+    if (!backOrder.productName?.trim()) return 'Product name is required for back order';
+    if (!backOrder.sellingPrice || backOrder.sellingPrice <= 0) return 'Selling price is required for back order';
+    return '';
   };
 
   // Calculate suggested quantity (half of available stock, minimum 1)
@@ -327,7 +337,9 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
             ...updatedEntries[index],
             stockinId: stockInData.id,
             sku: sku.trim(),
-            quantity: suggestedQuantity.toString()
+            quantity: suggestedQuantity.toString(),
+            isBackOrder: false,
+            backOrder: null
           };
           setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
 
@@ -438,7 +450,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
   const addSalesEntry = () => {
     setFormData(prev => ({
       ...prev,
-      salesEntries: [...prev.salesEntries, { stockinId: '', quantity: '', sku: '' }]
+      salesEntries: [...prev.salesEntries, { stockinId: '', quantity: '', sku: '', isBackOrder: false, backOrder: null }]
     }));
 
     setValidationErrors(prev => ({
@@ -477,6 +489,55 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         clearTimeout(window.skuSearchTimeouts[index]);
         delete window.skuSearchTimeouts[index];
       }
+    }
+  };
+
+  // Toggle entry type between stock-in and back order
+  const toggleEntryType = (index) => {
+    const updatedEntries = [...formData.salesEntries];
+    const currentEntry = updatedEntries[index];
+    
+    updatedEntries[index] = {
+      ...currentEntry,
+      isBackOrder: !currentEntry.isBackOrder,
+      // Reset fields when switching types
+      stockinId: '',
+      sku: '',
+      quantity: '',
+      backOrder: !currentEntry.isBackOrder ? {
+        productName: '',
+        sellingPrice: ''
+      } : null
+    };
+
+    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+
+    // Clear validation errors for this entry
+    const updatedErrors = [...validationErrors.salesEntries];
+    updatedErrors[index] = {};
+    setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
+
+    // Clear SKU errors
+    setSkuErrors(prev => ({ ...prev, [index]: '' }));
+  };
+
+  // Handle back order field changes
+  const handleBackOrderChange = (index, field, value) => {
+    const updatedEntries = [...formData.salesEntries];
+    updatedEntries[index] = {
+      ...updatedEntries[index],
+      backOrder: {
+        ...updatedEntries[index].backOrder,
+        [field]: value
+      }
+    };
+    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+
+    // Clear validation errors when user starts typing
+    const updatedErrors = [...validationErrors.salesEntries];
+    if (updatedErrors[index]) {
+      updatedErrors[index] = { ...updatedErrors[index], backOrder: '' };
+      setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
     }
   };
 
@@ -575,9 +636,28 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
     if (isUpdateMode) {
       // Single entry validation for update mode
-      const stockinError = validateStockInId(formData.stockinId);
-      const quantityError = validateQuantity(formData.quantity, formData.stockinId);
       const emailError = validateEmail(formData.clientEmail);
+
+      // Validate based on whether it's a stock-in or back order
+      let stockinError = '';
+      let quantityError = '';
+
+      if (stockOut.backorderId) {
+        // Back order update - only validate quantity
+        quantityError = !formData.quantity ? 'Quantity is required' : '';
+        if (formData.quantity) {
+          const numQuantity = Number(formData.quantity);
+          if (isNaN(numQuantity) || numQuantity <= 0) {
+            quantityError = 'Quantity must be a positive number';
+          } else if (!Number.isInteger(numQuantity)) {
+            quantityError = 'Quantity must be a whole number';
+          }
+        }
+      } else {
+        // Stock-in update
+        stockinError = validateStockInId(formData.stockinId);
+        quantityError = validateQuantity(formData.quantity, formData.stockinId);
+      }
 
       setValidationErrors({
         stockinId: stockinError,
@@ -590,7 +670,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         return;
       }
 
-      // Prepare single entry data - FIXED: Include paymentMethod
+      // Prepare single entry data for update
       const submitData = {};
       if (formData.stockinId) submitData.stockinId = formData.stockinId;
       if (formData.quantity) submitData.quantity = Number(formData.quantity);
@@ -603,10 +683,19 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     } else {
       // Multiple entries validation for create mode
       const emailError = validateEmail(formData.clientEmail);
-      const salesErrors = formData.salesEntries.map(entry => ({
-        stockinId: validateStockInId(entry.stockinId),
-        quantity: validateQuantity(entry.quantity, entry.stockinId)
-      }));
+      const salesErrors = formData.salesEntries.map(entry => {
+        if (entry.isBackOrder) {
+          return {
+            quantity: !entry.quantity ? 'Quantity is required' : '',
+            backOrder: validateBackOrder(entry.backOrder)
+          };
+        } else {
+          return {
+            stockinId: validateStockInId(entry.stockinId),
+            quantity: validateQuantity(entry.quantity, entry.stockinId)
+          };
+        }
+      });
 
       setValidationErrors({
         stockinId: '',
@@ -617,35 +706,58 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
       // Check if there are any validation errors
       const hasEmailError = !!emailError;
-      const hasSalesErrors = salesErrors.some(error => error.stockinId || error.quantity);
+      const hasSalesErrors = salesErrors.some(error => error.stockinId || error.quantity || error.backOrder);
       const hasSkuErrors = Object.values(skuErrors).some(error => !!error);
 
       if (hasEmailError || hasSalesErrors || hasSkuErrors) {
         return;
       }
 
-      // Check for duplicate stock entries
-      const stockinIds = formData.salesEntries.map(entry => entry.stockinId);
+      // Check for duplicate stock entries (only for stock-in entries)
+      const stockinIds = formData.salesEntries
+        .filter(entry => !entry.isBackOrder && entry.stockinId)
+        .map(entry => entry.stockinId);
       const uniqueStockinIds = new Set(stockinIds);
       if (stockinIds.length !== uniqueStockinIds.size) {
         alert('Cannot select the same stock-in entry multiple times');
         return;
       }
 
-      // Prepare multiple entries data
-      const salesArray = formData.salesEntries.map(entry => ({
-        stockinId: entry.stockinId,
-        quantity: Number(entry.quantity)
-      }));
+      // Prepare multiple entries data in the new format
+      const salesArray = formData.salesEntries.map(entry => {
+        if (entry.isBackOrder) {
+          return {
+            stockinId: null,
+            quantity: Number(entry.quantity),
+            isBackOrder: true,
+            backOrder: {
+              productName: entry.backOrder.productName,
+              quantity: Number(entry.quantity), // Back order quantity matches sales quantity
+              sellingPrice: Number(entry.backOrder.sellingPrice)
+            }
+          };
+        } else {
+          return {
+            stockinId: entry.stockinId,
+            quantity: Number(entry.quantity),
+            isBackOrder: false,
+            backOrder: null
+          };
+        }
+      });
 
-      // Include paymentMethod in clientInfo
+      // Prepare client info
       const clientInfo = {};
       if (formData.clientName.trim()) clientInfo.clientName = formData.clientName.trim();
       if (formData.clientEmail.trim()) clientInfo.clientEmail = formData.clientEmail.trim();
       if (formData.clientPhone.trim()) clientInfo.clientPhone = formData.clientPhone.trim();
       if (formData.paymentMethod) clientInfo.paymentMethod = formData.paymentMethod;
 
-      onSubmit({ salesArray, clientInfo });
+      // Submit data in the format expected by the backend
+      onSubmit({ 
+        salesEntries: salesArray,
+        ...clientInfo
+      });
     }
 
     onClose();
@@ -653,12 +765,13 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     // Reset form after submission
     setFormData({
       stockinId: '',
+      backorderId: '',
       quantity: '',
       clientName: '',
       clientEmail: '',
       clientPhone: '',
       paymentMethod: '',
-      salesEntries: [{ stockinId: '', quantity: '', sku: '' }]
+      salesEntries: [{ stockinId: '', quantity: '', sku: '', isBackOrder: false, backOrder: null }]
     });
 
     setValidationErrors({
@@ -680,21 +793,35 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
   const isFormValid = () => {
     if (isUpdateMode) {
-      return formData.stockinId &&
-        formData.quantity &&
-        !validationErrors.stockinId &&
-        !validationErrors.quantity &&
-        !validationErrors.clientEmail;
+      // For update mode, check if it's a back order or stock-in
+      if (stockOut.backorderId) {
+        // Back order: only quantity is required
+        return formData.quantity && !validationErrors.quantity && !validationErrors.clientEmail;
+      } else {
+        // Stock-in: stockinId and quantity required
+        return formData.stockinId &&
+          formData.quantity &&
+          !validationErrors.stockinId &&
+          !validationErrors.quantity &&
+          !validationErrors.clientEmail;
+      }
     } else {
-      const allEntriesValid = formData.salesEntries.every(entry =>
-        entry.stockinId && entry.quantity
-      ) && validationErrors.salesEntries.every(error =>
-        !error.stockinId && !error.quantity
+      // Create mode: validate all entries
+      const allEntriesValid = formData.salesEntries.every(entry => {
+        if (entry.isBackOrder) {
+          return entry.quantity && entry.backOrder?.productName && entry.backOrder?.sellingPrice;
+        } else {
+          return entry.stockinId && entry.quantity;
+        }
+      });
+
+      const noValidationErrors = validationErrors.salesEntries.every(error =>
+        !error.stockinId && !error.quantity && !error.backOrder
       );
 
       const noSkuErrors = !Object.values(skuErrors).some(error => !!error);
 
-      return allEntriesValid && !validationErrors.clientEmail && noSkuErrors;
+      return allEntriesValid && !validationErrors.clientEmail && noValidationErrors && noSkuErrors;
     }
   };
 
@@ -702,7 +829,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-7xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold mb-4">{title}</h2>
           <div className="cursor-pointer" onClick={onClose}>
@@ -714,54 +841,104 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
           {isUpdateMode ? (
             // Single entry form for update mode
             <>
-              {/* Stock-In Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stock-In Entry <span className="text-red-500">*</span>
-                </label>
-                <SearchableStockInDropdown
-                  stockIns={stockIns}
-                  value={formData.stockinId}
-                  onChange={handleStockInChange}
-                  error={!!validationErrors.stockinId}
-                  formatCurrency={formatCurrency}
-                />
-                {validationErrors.stockinId && (
-                  <p className="text-red-500 text-xs mt-1">{validationErrors.stockinId}</p>
-                )}
-              </div>
+              {stockOut.backorderId ? (
+                // Back order update form
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ShoppingCart size={20} className="text-orange-600" />
+                    <h3 className="font-medium text-orange-800">Updating Back Order</h3>
+                  </div>
+                  
+                  {/* Display back order info if available */}
+                  {stockOut.backorder && (
+                    <div className="mb-4 p-3 bg-white rounded border">
+                      <div className="text-sm space-y-1">
+                        <div><strong>Product:</strong> {stockOut.backorder.productName}</div>
+                        <div><strong>Price:</strong> {formatCurrency(stockOut.backorder.soldPrice || 0)}</div>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantity Sold <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={handleQuantityChange}
-                  min="1"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${validationErrors.quantity
-                    ? 'border-red-300 focus:ring-red-500'
-                    : 'border-gray-300 focus:ring-blue-500'
-                    }`}
-                  placeholder="Enter quantity sold"
-                />
-                {validationErrors.quantity && (
-                  <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
-                )}
-                {formData.stockinId && stockIns && (
-                  <p className="text-gray-500 text-xs mt-1">
-                    Available stock: {stockIns.find(stock => stock.id === formData.stockinId)?.quantity || 0}
-                  </p>
-                )}
-              </div>
+                  {/* Quantity for back order */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity Sold <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.quantity}
+                      onChange={handleQuantityChange}
+                      min="1"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${validationErrors.quantity
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-300 focus:ring-blue-500'
+                        }`}
+                      placeholder="Enter quantity sold"
+                    />
+                    {validationErrors.quantity && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                // Stock-in update form
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Package size={20} className="text-blue-600" />
+                    <h3 className="font-medium text-blue-800">Updating Stock-In Transaction</h3>
+                  </div>
+
+                  {/* Stock-In Selection */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Stock-In Entry <span className="text-red-500">*</span>
+                    </label>
+                    <SearchableStockInDropdown
+                      stockIns={stockIns}
+                      value={formData.stockinId}
+                      onChange={handleStockInChange}
+                      error={!!validationErrors.stockinId}
+                      formatCurrency={formatCurrency}
+                    />
+                    {validationErrors.stockinId && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.stockinId}</p>
+                    )}
+                  </div>
+
+                  {/* Quantity */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity Sold <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.quantity}
+                      onChange={handleQuantityChange}
+                      min="1"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${validationErrors.quantity
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-300 focus:ring-blue-500'
+                        }`}
+                      placeholder="Enter quantity sold"
+                    />
+                    {validationErrors.quantity && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
+                    )}
+                    {formData.stockinId && stockIns && (
+                      <p className="text-gray-500 text-xs mt-1">
+                        Available stock: {stockIns.find(stock => stock.id === formData.stockinId)?.quantity || 0}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             // Multiple entries form for create mode
             <div className="min-h-[50vh] max-h-96 overflow-y-auto">
               <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-800">Sales Entries</h3>
+                <p className="text-sm text-gray-600">Add stock-in items or back orders for this transaction</p>
               </div>
 
               {formData.salesEntries.map((entry, index) => {
@@ -770,160 +947,276 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                 const skuError = skuErrors[index];
 
                 return (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
+                  <div key={index} className={`border rounded-lg p-4 mb-4 ${entry.isBackOrder ? 'border-orange-200 bg-orange-50' : 'border-gray-200'}`}>
                     <div className="flex justify-between items-center mb-3">
-                      <h4 className="font-medium text-gray-700">Entry #{index + 1}</h4>
-                      {formData.salesEntries.length > 1 && (
+                      <div className="flex items-center gap-2">
+                        {entry.isBackOrder ? (
+                          <ShoppingCart size={16} className="text-orange-600" />
+                        ) : (
+                          <Package size={16} className="text-blue-600" />
+                        )}
+                        <h4 className="font-medium text-gray-700">
+                          Entry #{index + 1} - {entry.isBackOrder ? 'Back Order' : 'Stock Item'}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => removeSalesEntry(index)}
-                          className="text-red-500 hover:text-red-700 text-sm"
+                          onClick={() => toggleEntryType(index)}
+                          className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                            entry.isBackOrder 
+                              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' 
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
                         >
-                          Remove
+                          Switch to {entry.isBackOrder ? 'Stock Item' : 'Back Order'}
                         </button>
-                      )}
+                        {formData.salesEntries.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeSalesEntry(index)}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                      {/* SKU Input */}
-                      <div className="md:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          SKU <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
+                    {entry.isBackOrder ? (
+                      // Back Order Form
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Product Name <span className="text-red-500">*</span>
+                          </label>
                           <input
                             type="text"
-                            value={entry.sku || ''}
-                            onChange={(e) => handleSkuChange(index, e.target.value)}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${skuError
-                              ? 'border-red-300 focus:ring-red-500'
-                              : entry.stockinId
-                                ? 'border-green-300 focus:ring-green-500'
+                            value={entry.backOrder?.productName || ''}
+                            onChange={(e) => handleBackOrderChange(index, 'productName', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                              validationErrors.salesEntries[index]?.backOrder
+                                ? 'border-red-300 focus:ring-red-500'
                                 : 'border-gray-300 focus:ring-blue-500'
-                              }`}
-                            placeholder="Enter SKU"
+                            }`}
+                            placeholder="Enter product name"
                           />
-                          {isSkuLoading && (
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                            </div>
-                          )}
                         </div>
-                        {skuError && (
-                          <p className="text-red-500 text-xs mt-1">{skuError}</p>
-                        )}
-                        {entry.stockinId && !skuError && (
-                          <p className="text-green-600 text-xs mt-1">✓ Stock found & quantity auto-filled</p>
-                        )}
-                      </div>
 
-                      {/* Stock-In Selection */}
-                      <div className="md:col-span-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Stock-In Entry <span className="text-red-500">*</span>
-                        </label>
-                        <SearchableStockInDropdown
-                          stockIns={stockIns}
-                          value={entry.stockinId}
-                          onChange={(e) => handleSalesEntryChange(index, 'stockinId', e.target.value)}
-                          error={!!validationErrors.salesEntries[index]?.stockinId}
-                          formatCurrency={formatCurrency}
-                          placeholder="Select a stock-in entry"
-                        />
-                        {validationErrors.salesEntries[index]?.stockinId && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {validationErrors.salesEntries[index].stockinId}
-                          </p>
-                        )}
-                      </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Selling Price <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            value={entry.backOrder?.sellingPrice || ''}
+                            onChange={(e) => handleBackOrderChange(index, 'sellingPrice', e.target.value)}
+                            min="0"
+                            step="0.01"
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                              validationErrors.salesEntries[index]?.backOrder
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-gray-300 focus:ring-blue-500'
+                            }`}
+                            placeholder="Enter selling price"
+                          />
+                        </div>
 
-                      {/* Quantity */}
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Quantity Sold <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Quantity <span className="text-red-500">*</span>
+                          </label>
                           <input
                             type="number"
                             value={entry.quantity}
                             onChange={(e) => handleSalesEntryChange(index, 'quantity', e.target.value)}
                             min="1"
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${validationErrors.salesEntries[index]?.quantity
-                              ? 'border-red-300 focus:ring-red-500'
-                              : 'border-gray-300 focus:ring-blue-500'
-                              }`}
-                            placeholder="Qty"
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                              validationErrors.salesEntries[index]?.quantity
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-gray-300 focus:ring-blue-500'
+                            }`}
+                            placeholder="Enter quantity"
                           />
-                          {entry.stockinId && (
-                            <button
-                              type="button"
-                              onClick={() => setSuggestedQuantity(index)}
-                              className="absolute right-1 top-1 bottom-1 px-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-600 rounded transition-colors"
-                              title="Fill half quantity"
-                            >
-                              ½
-                            </button>
+                          {validationErrors.salesEntries[index]?.quantity && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {validationErrors.salesEntries[index].quantity}
+                            </p>
+                          )}
+                          {entry.backOrder?.sellingPrice && entry.quantity && (
+                            <p className="text-green-600 text-xs mt-1">
+                              Total: {formatCurrency(entry.backOrder.sellingPrice * Number(entry.quantity || 0))}
+                            </p>
                           )}
                         </div>
-                        {validationErrors.salesEntries[index]?.quantity && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {validationErrors.salesEntries[index].quantity}
-                          </p>
+
+                        {validationErrors.salesEntries[index]?.backOrder && (
+                          <div className="md:col-span-3">
+                            <p className="text-red-500 text-xs">{validationErrors.salesEntries[index].backOrder}</p>
+                          </div>
                         )}
                       </div>
-
-                      {/* Stock Information Display */}
-                      <div className="md:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Stock Information
-                        </label>
-                        {stockInfo ? (
-                          <div className="bg-gray-50 rounded-lg p-2 text-xs space-y-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Available:</span>
-                              <span className="font-medium">{stockInfo.quantity}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Suggested:</span>
-                              <span className="font-medium text-blue-600">
-                                {calculateSuggestedQuantity(stockInfo.quantity)} (½)
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Price:</span>
-                              <span className="font-medium text-green-600">
-                                {formatCurrency(stockInfo.sellingPrice)}
-                              </span>
-                            </div>
-                            {entry.quantity && (
-                              <div className="flex justify-between border-t pt-1">
-                                <span className="text-gray-600">Total:</span>
-                                <span className="font-bold text-blue-600">
-                                  {formatCurrency(stockInfo.sellingPrice * Number(entry.quantity || 0))}
-                                </span>
+                    ) : (
+                      // Stock-In Form (existing code)
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        {/* SKU Input */}
+                        <div className="md:col-span-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            SKU <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={entry.sku || ''}
+                              onChange={(e) => handleSkuChange(index, e.target.value)}
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${skuError
+                                ? 'border-red-300 focus:ring-red-500'
+                                : entry.stockinId
+                                  ? 'border-green-300 focus:ring-green-500'
+                                  : 'border-gray-300 focus:ring-blue-500'
+                                }`}
+                              placeholder="Enter SKU"
+                            />
+                            {isSkuLoading && (
+                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                               </div>
                             )}
                           </div>
-                        ) : (
-                          <div className="bg-gray-50 rounded-lg p-2 text-xs text-gray-500">
-                            Select a stock item
+                          {skuError && (
+                            <p className="text-red-500 text-xs mt-1">{skuError}</p>
+                          )}
+                          {entry.stockinId && !skuError && (
+                            <p className="text-green-600 text-xs mt-1">✓ Stock found & quantity auto-filled</p>
+                          )}
+                        </div>
+
+                        {/* Stock-In Selection */}
+                        <div className="md:col-span-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Stock-In Entry <span className="text-red-500">*</span>
+                          </label>
+                          <SearchableStockInDropdown
+                            stockIns={stockIns}
+                            value={entry.stockinId}
+                            onChange={(e) => handleSalesEntryChange(index, 'stockinId', e.target.value)}
+                            error={!!validationErrors.salesEntries[index]?.stockinId}
+                            formatCurrency={formatCurrency}
+                            placeholder="Select a stock-in entry"
+                          />
+                          {validationErrors.salesEntries[index]?.stockinId && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {validationErrors.salesEntries[index].stockinId}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Quantity */}
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Quantity Sold <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={entry.quantity}
+                              onChange={(e) => handleSalesEntryChange(index, 'quantity', e.target.value)}
+                              min="1"
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${validationErrors.salesEntries[index]?.quantity
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-gray-300 focus:ring-blue-500'
+                                }`}
+                              placeholder="Qty"
+                            />
+                            {entry.stockinId && (
+                              <button
+                                type="button"
+                                onClick={() => setSuggestedQuantity(index)}
+                                className="absolute right-1 top-1 bottom-1 px-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-600 rounded transition-colors"
+                                title="Fill half quantity"
+                              >
+                                ½
+                              </button>
+                            )}
                           </div>
-                        )}
+                          {validationErrors.salesEntries[index]?.quantity && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {validationErrors.salesEntries[index].quantity}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Stock Information Display */}
+                        <div className="md:col-span-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Stock Information
+                          </label>
+                          {stockInfo ? (
+                            <div className="bg-gray-50 rounded-lg p-2 text-xs space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Available:</span>
+                                <span className="font-medium">{stockInfo.quantity}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Suggested:</span>
+                                <span className="font-medium text-blue-600">
+                                  {calculateSuggestedQuantity(stockInfo.quantity)} (½)
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Price:</span>
+                                <span className="font-medium text-green-600">
+                                  {formatCurrency(stockInfo.sellingPrice)}
+                                </span>
+                              </div>
+                              {entry.quantity && (
+                                <div className="flex justify-between border-t pt-1">
+                                  <span className="text-gray-600">Total:</span>
+                                  <span className="font-bold text-blue-600">
+                                    {formatCurrency(stockInfo.sellingPrice * Number(entry.quantity || 0))}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="bg-gray-50 rounded-lg p-2 text-xs text-gray-500">
+                              Select a stock item
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
 
               {/* Add Sales Entry Button */}
-              <div className="flex justify-center mb-4">
+              <div className="flex justify-center mb-4 gap-2">
                 <button
                   type="button"
                   onClick={addSalesEntry}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                 >
-                  <span className="text-lg">+</span>
-                  Add Another Entry
+                  <Package size={16} />
+                  Add Stock Item
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newEntry = { stockinId: '', quantity: '', sku: '', isBackOrder: true, backOrder: { productName: '', sellingPrice: '' } };
+                    setFormData(prev => ({
+                      ...prev,
+                      salesEntries: [...prev.salesEntries, newEntry]
+                    }));
+                    setValidationErrors(prev => ({
+                      ...prev,
+                      salesEntries: [...prev.salesEntries, {}]
+                    }));
+                  }}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+                >
+                  <ShoppingCart size={16} />
+                  Add Back Order
                 </button>
               </div>
             </div>
@@ -1024,19 +1317,15 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         {/* Help Text */}
         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
           <p className="text-xs text-blue-700">
-            <strong>SKU Search:</strong> Enter a SKU to automatically find and select the corresponding stock item with auto-filled quantity (half of available stock).
+            <strong>Create Mode:</strong> Add multiple stock items and back orders to create a single transaction.
             <br />
-            <strong>Auto Quantity:</strong> When a stock is found, quantity is automatically set to half of available stock. Use the "½" button to reset to this value.
+            <strong>Stock Items:</strong> Use SKU search to automatically find and select stock with auto-filled quantity (half of available stock).
             <br />
-            <strong>Required fields:</strong> SKU (or Stock-In Entry) and Quantity Sold are required for each entry.
+            <strong>Back Orders:</strong> For items not in stock, manually enter product details and pricing.
             <br />
-            {!isUpdateMode && (
-              <>
-                <strong>Multiple entries:</strong> You can add multiple products to create a single transaction.
-                <br />
-              </>
-            )}
-            <strong>Note:</strong> The transaction ID will be generated automatically. Stock information updates in real-time.
+            <strong>Update Mode:</strong> {isUpdateMode && stockOut?.backorderId ? 'Updating a back order - only quantity can be modified.' : 'Updating a stock transaction - modify stock selection and quantity.'}
+            <br />
+            <strong>Required fields:</strong> Quantity is always required. For stock items: SKU or Stock-In selection. For back orders: Product name and selling price.
           </p>
         </div>
       </div>

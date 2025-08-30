@@ -14,7 +14,7 @@ export const useNetworkStatus = (retryInterval = 5000) => {
 
       setIsChecking(true);
       try {
-        const status = await isOnline();
+        const status = await isOnline(retryInterval);
         if (mounted) {
           setOnline(status);
           setIsChecking(false);
@@ -120,7 +120,7 @@ export const useNetworkStatus = (retryInterval = 5000) => {
   };
 };
 
-export const isOnline = async () => {
+export const isOnline = async (retryInterval = 5000) => {
   if (!navigator.onLine) return false;
 
   const testUrls = [
@@ -132,7 +132,7 @@ export const isOnline = async () => {
   const testPromises = testUrls.map(async (url) => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), retryInterval);
 
       const response = await fetch(url, {
         method: "HEAD",

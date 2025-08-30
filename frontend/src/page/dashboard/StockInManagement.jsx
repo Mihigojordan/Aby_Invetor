@@ -14,6 +14,7 @@ import  stockInService from '../../services/stockinService'
 import { db } from '../../db/database';
 import { useStockInOfflineSync } from '../../hooks/useStockInOfflineSync';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useNetworkStatusContext } from '../../context/useNetworkContext';
 
 // Barcode Service Class
 class BarcodeService {
@@ -281,10 +282,11 @@ const StockInManagement = ({ role }) => {
   const [selectedStockIn, setSelectedStockIn] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-  const { isOnline } = useNetworkStatus();
+  const { isOnline } = useNetworkStatusContext();
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
   const { triggerSync, syncError } = useStockInOfflineSync();
+  
 
   const [itemsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
@@ -295,6 +297,7 @@ const StockInManagement = ({ role }) => {
   useEffect(() => {
     console.log('Starting loadData');
     loadData();
+    if (isOnline) handleManualSync()
   }, [isOnline]);
 
   
@@ -315,7 +318,29 @@ const StockInManagement = ({ role }) => {
           });
         }
       }
-      return await db.products_all.toArray();
+
+        // 3. Merge all data (works offline too)
+    const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+      db.products_all.toArray(),
+      db.products_offline_add.toArray(),
+      db.products_offline_update.toArray(),
+      db.products_offline_delete.toArray()
+    ]);
+
+    const deleteIds = new Set(offlineDeletes.map(d => d.id));
+    const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+    const combinedProducts = allProducts
+      .filter(c => !deleteIds.has(c.id))
+      .map(c => ({
+        ...c,
+        ...updateMap.get(c.id),
+        synced: true
+      }))
+      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+       .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
     } catch (error) {
       console.error('Error fetching products:', error);
       if(!error?.response){
@@ -354,8 +379,8 @@ const StockInManagement = ({ role }) => {
           .concat(offlineAdds.map(a => ({
             ...a,
             synced: false,
-            product: productData.find(p => p.id === a.productId) || { productName: 'Unknown Product' }
-          })));
+            product: productData.find(p => p.id === a.productId ||  p.localId === a.productId) || { productName: 'Unknown Product' }
+          }))) .sort((a, b) => a.synced - b.synced);
 
         setStockIns(combinedStockIns);
         setFilteredStockIns(combinedStockIns);
@@ -945,13 +970,13 @@ const StockInManagement = ({ role }) => {
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <button
+                    {/* <button
                       onClick={() => handlePrintSingleBarcode(stockIn)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                       title="Print Barcode"
                     >
                       <Printer size={16} />
-                    </button>
+                    </button> */}
                     <button
                       onClick={() => openViewModal(stockIn)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"

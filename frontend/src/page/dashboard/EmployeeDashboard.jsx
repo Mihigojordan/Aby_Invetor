@@ -561,9 +561,7 @@ const Dashboard = () => {
 
   // Refresh data
   const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadDashboardData();
-    setRefreshing(false);
+    window.location.reload()
   };
 
   // Format currency
@@ -1185,24 +1183,7 @@ const Dashboard = () => {
                   )}
 
                   {/* Returns Rate - Only show if user can view returns */}
-                  {canViewReturns && (
-                    <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-amber-600">Returns</p>
-                          <p className="text-2xl font-bold text-amber-900">
-                            {dashboardData.salesReturns.length}
-                          </p>
-                          {canViewSales && (
-                            <p className="text-sm text-amber-700">
-                              {salesData.length > 0 ? ((dashboardData.salesReturns.length / salesData.length) * 100).toFixed(1) : 0}% return rate
-                            </p>
-                          )}
-                        </div>
-                        <RefreshCw className="w-8 h-8 text-amber-600" />
-                      </div>
-                    </div>
-                  )}
+                  
                 </div>
               </div>
             </div>

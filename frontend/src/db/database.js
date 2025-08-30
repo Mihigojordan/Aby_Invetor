@@ -4,7 +4,7 @@ export class AppDatabase extends Dexie {
   constructor() {
     super('AppDatabase');
 
-    this.version(12).stores({
+    this.version(13).stores({
       // product
       products_all: 'id, productName, brand, categoryId, lastModified, updatedAt',
       products_offline_add: '++localId, productName, brand, categoryId, description, adminId, employeeId, lastModified, createdAt, updatedAt',
@@ -25,11 +25,15 @@ export class AppDatabase extends Dexie {
       stockins_offline_delete: 'id, deletedAt, adminId, employeeId',
       synced_stockin_ids: 'localId, serverId, syncedAt',
       // stockout
-      stockouts_all: 'id, stockinId, quantity, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
-      stockouts_offline_add: '++localId, stockinId, quantity, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
-      stockouts_offline_update: 'id, stockinId, quantity, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, updatedAt',
+      stockouts_all: 'id, stockinId, quantity, soldPrice, backorderId , clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
+      stockouts_offline_add: '++localId, stockinId, quantity, backorderLocalId,soldPrice, clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
+      stockouts_offline_update: 'id, stockinId, quantity, backorderUpdateId,soldPrice ,clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, updatedAt',
       stockouts_offline_delete: 'id, deletedAt, adminId, employeeId',
-      synced_stockout_ids: 'localId, serverId, syncedAt'
+      synced_stockout_ids: 'localId, serverId, syncedAt',
+      // backorder
+      backorders_all: 'id, quantity, soldPrice, productName, adminId, employeeId, lastModified, createdAt, updatedAt',
+      backorders_offline_add: '++localId, quantity, soldPrice, productName, adminId, employeeId, lastModified, createdAt, updatedAt',
+     
     }).upgrade(trans => {
       trans.products_offline_add?.toCollection().modify(prod => {
         if (prod.id) {
@@ -55,7 +59,15 @@ export class AppDatabase extends Dexie {
           trans.stockouts_offline_add.delete(stockout.localId);
         }
       });
+      trans.backorders_offline_add?.toCollection().modify(backorder => {
+        if (backorder.id) {
+          // if later you add backorders_offline_update, migrate here
+          
+          trans.backorders_offline_add.delete(backorder.localId);
+        }
+      });
     });
+
     // product
     this.products_all = this.table('products_all');
     this.products_offline_add = this.table('products_offline_add');
@@ -81,6 +93,10 @@ export class AppDatabase extends Dexie {
     this.stockouts_offline_update = this.table('stockouts_offline_update');
     this.stockouts_offline_delete = this.table('stockouts_offline_delete');
     this.synced_stockout_ids = this.table('synced_stockout_ids');
+    // backorder
+    this.backorders_all = this.table('backorders_all');
+    this.backorders_offline_add = this.table('backorders_offline_add');
+    
   }
 }
 

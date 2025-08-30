@@ -197,7 +197,9 @@ const ViewStockoutReport = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Product Information */}
-          <div className="bg-white rounded-lg shadow">
+        {
+          stockOut?.stockin && (
+             <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                 <Package className="w-5 h-5 mr-2" />
@@ -239,6 +241,51 @@ const ViewStockoutReport = () => {
               </div>
             </div>
           </div>
+          )
+        }
+
+
+          {/* Backorder Details */}
+
+           {
+          stockOut?.backorder && (
+             <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Package className="w-5 h-5 mr-2" />
+              Backorder  Product Information
+              </h2>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700">Product Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{stockOut?.backorder?.productName || 'N/A'}</p>
+                </div>
+               
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700">quantity</label>
+                    <div className="flex items-center mt-1">
+                      <Hash className="w-4 h-4 text-gray-400 mr-1" />
+                      <p className="text-sm text-gray-900">{stockOut?.backorder?.quantity || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700">SoldPrice</label>
+                    <div className="flex items-center mt-1">
+                      <DollarSign className="w-4 h-4 text-gray-400 mr-1" />
+                      <p className="text-sm text-gray-900">{stockOut.backorder?.soldPrice || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          )
+        }
+
+
 
           {/* Transaction Details */}
           <div className="bg-white rounded-lg shadow">

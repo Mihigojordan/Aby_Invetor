@@ -1,10 +1,11 @@
 // useCategoryOfflineSync.js
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { categorySyncService } from '../services/sync/categorySyncService';
-import { useNetworkStatus } from './useNetworkStatus';
+
+import { useNetworkStatusContext } from '../context/useNetworkContext';
 
 export const useCategoryOfflineSync = (options = {}) => {
-  const { isOnline } = useNetworkStatus();
+  const { isOnline } = useNetworkStatusContext();
   const { autoSync = true, syncInterval = 30000, enableDebugLogs = true } = options;
 
   const [syncStatus, setSyncStatus] = useState({

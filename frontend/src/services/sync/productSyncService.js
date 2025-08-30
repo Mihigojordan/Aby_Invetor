@@ -39,11 +39,11 @@ class ProductSyncService {
       };
 
       // Only fetch if we made changes or it's been a while
-      const shouldFetchFresh = results.adds.processed > 0 || 
-                              results.updates.processed > 0 || 
-                              results.deletes.processed > 0 ||
-                              !this.lastSyncTime ||
-                              (Date.now() - this.lastSyncTime) > 120000; // 5 minutes
+      const shouldFetchFresh = results.adds.processed > 0 ||
+        results.updates.processed > 0 ||
+        results.deletes.processed > 0 ||
+        !this.lastSyncTime ||
+        (Date.now() - this.lastSyncTime) > 10000; // 5 minutes
 
       if (shouldFetchFresh) {
         await this.fetchAndUpdateLocal();
@@ -78,6 +78,8 @@ class ProductSyncService {
         continue;
       }
 
+
+
       this.processingLocalIds.add(product.localId);
 
       try {
@@ -86,13 +88,15 @@ class ProductSyncService {
           .where('localId')
           .equals(product.localId)
           .first();
-        
+
         if (syncedRecord) {
           console.log(`✓ Product ${product.localId} already synced to server ID ${syncedRecord.serverId}`);
           await this.cleanupSyncedProduct(product.localId);
           skipped++;
           continue;
         }
+
+
 
         // 🔍 Check for potential content duplicates
         const isDuplicateContent = await this.checkForContentDuplicate(product);
@@ -124,13 +128,13 @@ class ProductSyncService {
           clientTimestamp: product.createdAt || product.lastModified,
           images: images
             .filter(img => img.from === 'local' && img.imageData instanceof Blob)
-            .map((img, index) => new File([img.imageData], `image_${product.localId}_${index}.png`, { 
-              type: img.imageData.type 
+            .map((img, index) => new File([img.imageData], `image_${product.localId}_${index}.png`, {
+              type: img.imageData.type
             }))
         };
 
         console.log(`📤 Sending product ${product.localId} to server...`);
-        
+
         // 🌐 Send to server with error handling
         let response;
         try {
@@ -152,17 +156,17 @@ class ProductSyncService {
         }
 
         // 💾 Update local database atomically
-        await db.transaction('rw', db.products_all, db.product_images, db.products_offline_add, db.synced_product_ids, async () => {
+        await db.transaction('rw', db.products_all, db.product_images, db.products_offline_add, db.synced_product_ids, db.stockins_offline_add, db.stockins_offline_update, async () => {
           // Check for existing record in products_all
           const existingProduct = await db.products_all.get(serverProductId);
-          
+
           const productRecord = {
             id: serverProductId,
             productName: product.productName,
             brand: product.brand,
             categoryId: product.categoryId,
             description: product.description,
-            lastModified: new Date(),
+            lastModified: response.product?.createdAt || new Date(),
             updatedAt: response.product?.updatedAt || new Date()
           };
 
@@ -179,7 +183,7 @@ class ProductSyncService {
           for (let i = 0; i < images.length; i++) {
             const image = images[i];
             const serverUrl = serverImageUrls[i] || null;
-            
+
             if (serverUrl) {
               await db.product_images.update(image.localId, {
                 entityId: serverProductId,
@@ -199,6 +203,45 @@ class ProductSyncService {
             syncedAt: new Date()
           });
 
+
+          const relatedStockIns = await db.stockins_offline_add
+            .where('productId')
+            .equals(product.localId)
+            .toArray();
+
+          if (relatedStockIns.length > 0) {
+
+
+            for (const stockin of relatedStockIns) {
+              await db.stockins_offline_add.update(stockin.localId, {
+                productId: serverProductId
+              });
+              console.log(`✅ Updated stockin ${stockin.localId} product ID: ${product.localId} → ${serverProductId}`);
+            }
+          }
+
+
+
+
+
+
+          const relatedStockInUpdates = await db.stockins_offline_update
+            .where('productId')
+            .equals(product.localId)
+            .toArray();
+
+          if (relatedStockInUpdates.length > 0) {
+
+
+            for (const stockin of relatedStockInUpdates) {
+              await db.stockins_offline_update.update(stockin.id, {
+                productId: serverProductId
+              });
+              console.log(`✅ Updated stockin update ${stockin.id} product ID: ${product.localId} → ${serverProductId}`);
+            }
+
+
+          }
           // Remove from offline queue
           await db.products_offline_add.delete(product.localId);
         });
@@ -208,7 +251,7 @@ class ProductSyncService {
 
       } catch (error) {
         console.error(`❌ Error syncing product ${product.localId}:`, error);
-        
+
         const retryCount = (product.syncRetryCount || 0) + 1;
         const maxRetries = 5;
 
@@ -230,6 +273,8 @@ class ProductSyncService {
 
     return { processed, skipped, errors, total: unsyncedAdds.length };
   }
+
+
 
   async syncUnsyncedUpdates() {
     const unsyncedUpdates = await db.products_offline_update.toArray();
@@ -262,8 +307,8 @@ class ProductSyncService {
           lastModified: product.lastModified, // For optimistic locking
           newImages: images
             .filter(img => img.from === 'local' && img.imageData instanceof Blob)
-            .map((img, index) => new File([img.imageData], `image_${product.id}_${index}.png`, { 
-              type: img.imageData.type 
+            .map((img, index) => new File([img.imageData], `image_${product.id}_${index}.png`, {
+              type: img.imageData.type
             })),
           keepImages: images
             .filter(img => img.synced)
@@ -279,8 +324,8 @@ class ProductSyncService {
             brand: product.brand,
             categoryId: product.categoryId,
             description: product.description,
-            lastModified: new Date(),
-            updatedAt: response.product?.updatedAt || new Date()
+            lastModified: response?.product?.createdAt || new Date(),
+            updatedAt: response?.product?.updatedAt || new Date()
           });
 
           // Update images - only remove and re-add if server returned new URLs
@@ -308,7 +353,7 @@ class ProductSyncService {
         processed++;
       } catch (error) {
         console.error(`Error syncing product update ${product.id}:`, error);
-        
+
         const retryCount = (product.syncRetryCount || 0) + 1;
         if (retryCount >= 5) {
           await db.products_offline_update.delete(product.id);
@@ -346,7 +391,7 @@ class ProductSyncService {
           await db.products_all.delete(deletedProduct.id);
           await db.product_images.where('[entityId+entityType]').equals([deletedProduct.id, 'product']).delete();
           await db.products_offline_delete.delete(deletedProduct.id);
-          
+
           // Clean up sync tracking
           const syncRecord = await db.synced_product_ids
             .where('serverId')
@@ -371,7 +416,7 @@ class ProductSyncService {
         }
 
         console.error('Error syncing product delete:', error);
-        
+
         const retryCount = (deletedProduct.syncRetryCount || 0) + 1;
         if (retryCount >= 5) {
           await db.products_offline_delete.delete(deletedProduct.id);
@@ -396,7 +441,7 @@ class ProductSyncService {
 
       await db.transaction('rw', db.products_all, db.product_images, db.synced_product_ids, async () => {
         // Merge strategy instead of clearing all data
-          await db.products_all.clear();
+        await db.products_all.clear();
         console.log('✨ Cleared local products, replacing with server data');;
 
         // Update/add products from server
@@ -407,7 +452,7 @@ class ProductSyncService {
             brand: serverProduct.brand,
             categoryId: serverProduct.categoryId,
             description: serverProduct.description,
-            lastModified: new Date(),
+            lastModified: serverProduct.createdAt || new Date(),
             updatedAt: serverProduct.updatedAt || new Date()
           });
 
@@ -456,7 +501,7 @@ class ProductSyncService {
 
     const potentialDuplicates = await db.products_all
       .where('productName').equals(product.productName)
-      .and(item => 
+      .and(item =>
         item.brand === product.brand &&
         item.categoryId === product.categoryId &&
         item.description === product.description &&
@@ -520,21 +565,21 @@ class ProductSyncService {
   // 🧹 Clean up failed sync attempts
   async cleanupFailedSyncs() {
     const maxRetries = 5;
-    
+
     const failedAdds = await db.products_offline_add
       .where('syncRetryCount')
       .above(maxRetries)
       .toArray();
-    
+
     for (const failed of failedAdds) {
       await this.cleanupSyncedProduct(failed.localId);
     }
-    
+
     await db.products_offline_update
       .where('syncRetryCount')
       .above(maxRetries)
       .delete();
-      
+
     await db.products_offline_delete
       .where('syncRetryCount')
       .above(maxRetries)
@@ -544,7 +589,7 @@ class ProductSyncService {
   setupAutoSync() {
     window.addEventListener('online', this.handleOnline.bind(this));
     window.addEventListener('focus', this.handleFocus.bind(this));
-    
+
     // Periodic cleanup
     this.cleanupInterval = setInterval(() => {
       this.cleanupFailedSyncs();

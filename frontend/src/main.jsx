@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { AdminAuthContextProvider } from './context/AdminAuthContext.jsx'
 import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
 
+
 // // PWA Auto-Update Registration
 // import { registerSW } from 'virtual:pwa-register'
 
@@ -65,9 +66,9 @@ import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
 //       }
 //     </style>
 //   `
-  
+
 //   document.body.appendChild(notification)
-  
+
 //   // Remove notification after reload
 //   setTimeout(() => {
 //     notification.remove()
@@ -84,10 +85,10 @@ import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
 //       })
 //     }
 //   },
-  
+
 //   // Get update status
 //   isUpdateAvailable: false,
-  
+
 //   // Manual update trigger (if you want to add manual control later)
 //   manualUpdate: () => {
 //     updateSW(true)
@@ -103,10 +104,13 @@ import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AdminAuthContextProvider>
-      <EmployeeAuthContextProvider>
-        <App />
-      </EmployeeAuthContextProvider>
-    </AdminAuthContextProvider>
+   
+      <AdminAuthContextProvider>
+        <EmployeeAuthContextProvider>
+
+          <App />
+        </EmployeeAuthContextProvider>
+      </AdminAuthContextProvider>
+    
   </StrictMode>,
 )

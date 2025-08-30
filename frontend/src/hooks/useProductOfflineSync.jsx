@@ -1,10 +1,10 @@
 // useProductOfflineSync.js
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { productSyncService } from '../services/sync/productSyncService';
-import { useNetworkStatus } from './useNetworkStatus';
+import { useNetworkStatusContext } from '../context/useNetworkContext';
 
 export const useProductOfflineSync = (options = {}) => {
-  const { isOnline } = useNetworkStatus();
+  const { isOnline } = useNetworkStatusContext();
   const { autoSync = true, syncInterval = 30000, enableDebugLogs = true } = options;
 
   const [syncStatus, setSyncStatus] = useState({

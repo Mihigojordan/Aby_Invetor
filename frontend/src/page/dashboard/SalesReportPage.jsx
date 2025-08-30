@@ -359,11 +359,16 @@ const CardView = () => (
               {/* Product Info */}
               <div className="mb-4">
                 <h3 className="font-semibold text-gray-900 text-lg mb-1 leading-tight">
-                  {stockOut.stockin?.product?.productName || 'Sale Transaction'}
+                  {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
                 </h3>
                 {stockOut.transactionId && (
-                  <div className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded inline-block">
+                  <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">
                     {stockOut.transactionId}
+                  </div>
+                )}
+                {stockOut.backorderId && (
+                  <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
+                    {stockOut.backorderId && 'backordered'}
                   </div>
                 )}
               </div>
@@ -495,11 +500,20 @@ const CardView = () => (
                       </div>
                       <div>
                         <div className="font-medium text-gray-900">
-                          {stockOut.stockin?.product?.productName || 'Sale Transaction'}
+                              {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
+                              
                         </div>
-                        {stockOut.transactionId && (
-                          <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
-                        )}
+                      <div className="flex gap-2 items-center">
+                        {stockOut.backorderId && (
+                  <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
+                    {stockOut.backorderId && 'backordered'}
+                  </div>
+                )}
+                    {stockOut.transactionId && (
+                      <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
+                    )}
+                      </div>
+                        
                         
                       </div>
                     </div>

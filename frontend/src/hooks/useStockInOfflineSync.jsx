@@ -1,9 +1,10 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { stockInSyncService } from '../services/sync/stockInSyncService';
-import { useNetworkStatus } from './useNetworkStatus';
+import { useNetworkStatusContext } from '../context/useNetworkContext';
 
 export const useStockInOfflineSync = (options = {}) => {
-  const { isOnline } = useNetworkStatus();
+ 
+  const { isOnline } = useNetworkStatusContext();
   const { autoSync = true, syncInterval = 30000, enableDebugLogs = true } = options;
 
   const [syncStatus, setSyncStatus] = useState({
@@ -66,7 +67,10 @@ export const useStockInOfflineSync = (options = {}) => {
     if (autoSync) stockInSyncService.setupAutoSync();
     updateSyncStatus();
 
-    if (isOnline && autoSync) triggerSync();
+    if (isOnline && autoSync) {
+      
+      triggerSync()
+    };
 
     if (autoSync && syncInterval > 0) {
       intervalRef.current = setInterval(() => {
