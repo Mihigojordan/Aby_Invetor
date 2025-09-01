@@ -265,7 +265,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       return 'Quantity must be a whole number';
     }
 
-    // Check if quantity exceeds available stock (only for stock-in, not back orders)
+    // Check if quantity exceeds available stock (only for stock-in, not Non-Stock Sales)
     if (stockinId && stockIns) {
       const selectedStockIn = stockIns.find(stock => stock.id === stockinId || stock.localId === stockinId);
     if (selectedStockIn) {
@@ -287,9 +287,9 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
   };
 
   const validateBackOrder = (backOrder) => {
-    if (!backOrder) return 'Back order information is required';
-    if (!backOrder.productName?.trim()) return 'Product name is required for back order';
-    if (!backOrder.sellingPrice || backOrder.sellingPrice <= 0) return 'Selling price is required for back order';
+    if (!backOrder) return 'Non-Stock Sale information is required';
+    if (!backOrder.productName?.trim()) return 'Product name is required for Non-Stock Sale';
+    if (!backOrder.sellingPrice || backOrder.sellingPrice <= 0) return 'Selling price is required for Non-Stock Sale';
     return '';
   };
 
@@ -514,7 +514,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     }
   };
 
-  // Toggle entry type between stock-in and back order
+  // Toggle entry type between stock-in and Non-Stock Sale
   const toggleEntryType = (index) => {
     const updatedEntries = [...formData.salesEntries];
     const currentEntry = updatedEntries[index];
@@ -543,7 +543,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     setSkuErrors(prev => ({ ...prev, [index]: '' }));
   };
 
-  // Handle back order field changes
+  // Handle Non-Stock Sale field changes
   const handleBackOrderChange = (index, field, value) => {
     const updatedEntries = [...formData.salesEntries];
     updatedEntries[index] = {
@@ -660,12 +660,12 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       // Single entry validation for update mode
       const emailError = validateEmail(formData.clientEmail);
 
-      // Validate based on whether it's a stock-in or back order
+      // Validate based on whether it's a stock-in or Non-Stock Sale
       let stockinError = '';
       let quantityError = '';
 
       if (stockOut.backorderId) {
-        // Back order update - only validate quantity
+        // Non-Stock Sale update - only validate quantity
         quantityError = !formData.quantity ? 'Quantity is required' : '';
         if (formData.quantity) {
           const numQuantity = Number(formData.quantity);
@@ -754,7 +754,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
             isBackOrder: true,
             backOrder: {
               productName: entry.backOrder.productName,
-              quantity: Number(entry.quantity), // Back order quantity matches sales quantity
+              quantity: Number(entry.quantity), // Non-Stock Sale quantity matches sales quantity
               sellingPrice: Number(entry.backOrder.sellingPrice)
             }
           };
@@ -815,9 +815,9 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
   const isFormValid = () => {
     if (isUpdateMode) {
-      // For update mode, check if it's a back order or stock-in
+      // For update mode, check if it's a Non-Stock Sale or stock-in
       if (stockOut.backorderId) {
-        // Back order: only quantity is required
+        // Non-Stock Sale: only quantity is required
         return formData.quantity && !validationErrors.quantity && !validationErrors.clientEmail;
       } else {
         // Stock-in: stockinId and quantity required
@@ -864,14 +864,14 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
             // Single entry form for update mode
             <>
               {stockOut.backorderId ? (
-                // Back order update form
+                // Non-Stock Sale update form
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <ShoppingCart size={20} className="text-orange-600" />
-                    <h3 className="font-medium text-orange-800">Updating Back Order</h3>
+                    <h3 className="font-medium text-orange-800">Updating Non-Stock Sale</h3>
                   </div>
                   
-                  {/* Display back order info if available */}
+                  {/* Display Non-Stock Sale info if available */}
                   {stockOut.backorder && (
                     <div className="mb-4 p-3 bg-white rounded border">
                       <div className="text-sm space-y-1">
@@ -881,7 +881,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                     </div>
                   )}
 
-                  {/* Quantity for back order */}
+                  {/* Quantity for Non-Stock Sale */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Quantity Sold <span className="text-red-500">*</span>
@@ -963,7 +963,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
             <div className="min-h-[50vh] max-h-96 overflow-y-auto">
               <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-800">Sales Entries</h3>
-                <p className="text-sm text-gray-600">Add stock-in items or back orders for this transaction</p>
+                <p className="text-sm text-gray-600">Add stock-in items or Non-Stock Sales for this transaction</p>
               </div>
 
               {formData.salesEntries.map((entry, index) => {
@@ -981,7 +981,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                           <Package size={16} className="text-blue-600" />
                         )}
                         <h4 className="font-medium text-gray-700">
-                          Entry #{index + 1} - {entry.isBackOrder ? 'Back Order' : 'Stock Item'}
+                          Entry #{index + 1} - {entry.isBackOrder ? 'Non-Stock Sale' : 'Stock Item'}
                         </h4>
                       </div>
                       <div className="flex items-center gap-2">
@@ -994,7 +994,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                               : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                           }`}
                         >
-                          Switch to {entry.isBackOrder ? 'Stock Item' : 'Back Order'}
+                          Switch to {entry.isBackOrder ? 'Stock Item' : 'Non-Stock Sale'}
                         </button>
                         {formData.salesEntries.length > 1 && (
                           <button
@@ -1009,7 +1009,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                     </div>
 
                     {entry.isBackOrder ? (
-                      // Back Order Form
+                      // Non-Stock Sale Form
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1266,7 +1266,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                   className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
                 >
                   <ShoppingCart size={16} />
-                  Add Back Order
+                  Add Non-Stock Sale
                 </button>
               </div>
             </div>
@@ -1367,15 +1367,15 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         {/* Help Text */}
         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
           <p className="text-xs text-blue-700">
-            <strong>Create Mode:</strong> Add multiple stock items and back orders to create a single transaction.
+            <strong>Create Mode:</strong> Add multiple stock items and Non-Stock Sales to create a single transaction.
             <br />
             <strong>Stock Items:</strong> Use SKU search to automatically find and select stock with auto-filled quantity (half of available stock).
             <br />
-            <strong>Back Orders:</strong> For items not in stock, manually enter product details and pricing.
+            <strong>Non-Stock Sales:</strong> For items not in stock, manually enter product details and pricing.
             <br />
-            <strong>Update Mode:</strong> {isUpdateMode && stockOut?.backorderId ? 'Updating a back order - only quantity can be modified.' : 'Updating a stock transaction - modify stock selection and quantity.'}
+            <strong>Update Mode:</strong> {isUpdateMode && stockOut?.backorderId ? 'Updating a Non-Stock Sale - only quantity can be modified.' : 'Updating a stock transaction - modify stock selection and quantity.'}
             <br />
-            <strong>Required fields:</strong> Quantity is always required. For stock items: SKU or Stock-In selection. For back orders: Product name and selling price.
+            <strong>Required fields:</strong> Quantity is always required. For stock items: SKU or Stock-In selection. For Non-Stock Sales: Product name and selling price.
           </p>
         </div>
       </div>

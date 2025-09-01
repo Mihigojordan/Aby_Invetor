@@ -34,6 +34,7 @@ import ReportManagement from "../page/dashboard/ReportManagment";
 import ViewReportsPage from "../components/dashboard/report/ViewReportPage";
 import EmployeeReportManagement from "../page/dashboard/EmployeeReportManagement";
 import EmployeeReportViewMore from "../page/dashboard/EmployeeReportViewMore";
+import ViewEmployeePage from "../components/dashboard/employee/ViewEmployeeModal";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -168,6 +169,14 @@ const routes = createBrowserRouter([
                                  element: (
                                     <SuspenseWrapper>
                                         <EmployeeReportManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"employee/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <ViewEmployeePage role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },

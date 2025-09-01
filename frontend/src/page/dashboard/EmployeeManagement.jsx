@@ -4,11 +4,12 @@ import { Search, Plus, Edit3, Trash2, Users, Mail, Phone, MapPin, Check, AlertTr
 import UpsertEmployeeModal from '../../components/dashboard/employee/UpsertEmployeeModal';
 import DeleteModal from '../../components/dashboard/employee/DeleteModal';
 import AssignModal from '../../components/dashboard/employee/AssignModal';
-import ViewEmployeeModal from '../../components/dashboard/employee/ViewEmployeeModal';
+
 import employeeService from '../../services/employeeService';
 import taskService from '../../services/taskService';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const EmployeeManagement = ({role}) => {
   const [employees, setEmployees] = useState([]);
@@ -27,6 +28,9 @@ const EmployeeManagement = ({role}) => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+
+
+  const navigate = useNavigate();
 
   // Fetch all employees with better error handling
   const fetchEmployees = async (showRefreshLoader = false) => {
@@ -219,8 +223,8 @@ const EmployeeManagement = ({role}) => {
   };
 
   const openViewModal = (employee) => {
-    setSelectedEmployee(employee);
-    setIsViewModalOpen(true);
+    if(!employee.id) return
+   return navigate(`/admin/dashboard/employee/${employee.id}`)
   };
 
   const formatDate = (dateString) => {
@@ -728,11 +732,7 @@ const EmployeeManagement = ({role}) => {
           title={isEditModalOpen ? 'Edit Employee' : 'Add New Employee'}
         />
 
-        <ViewEmployeeModal
-          isOpen={isViewModalOpen}
-          onClose={() => setIsViewModalOpen(false)}
-          employee={selectedEmployee}
-        />
+      
 
         <DeleteModal
           isOpen={isDeleteModalOpen}

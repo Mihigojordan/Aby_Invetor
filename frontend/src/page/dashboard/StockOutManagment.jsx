@@ -1045,7 +1045,7 @@ const StockOutManagement = ({ role }) => {
                       {
                         stockOut.transactionId &&
                         <button
-                        onClick={() => handleShowInvoiceComponent( stockOut.transactionId)}
+                        onClick={() => handleShowInvoiceComponent(stockOut.transactionId)}
                           className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                           title="Edit"
                         >
