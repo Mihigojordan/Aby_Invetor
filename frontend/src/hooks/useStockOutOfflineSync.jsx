@@ -51,8 +51,11 @@ export const useStockOutOfflineSync = (options = {}) => {
     setSyncStatus(prev => ({ ...prev, isSyncing: true, syncError: null }));
     try {
       const result = force ? await stockOutSyncService.forceSync() : await stockOutSyncService.syncStockOuts();
+      console.warn('finished the KING');
+      
       setSyncStatus(prev => ({ ...prev, isSyncing: false, lastSync: new Date(), syncError: result?.success === false ? result.error : null }));
       await updateSyncStatus();
+      
       return result;
     } catch (error) {
       log('Stock-out sync failed', error);

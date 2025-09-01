@@ -2,20 +2,33 @@ import React, { useEffect, useState } from 'react';
 import stockOutService from '../../../services/stockoutService';
 import Swal from 'sweetalert2';
 import CompanyLogo from '../../../assets/images/applogo_rm_bg.png'
+import { useNetworkStatusContext } from '../../../context/useNetworkContext';
+import { db } from '../../../db/database';
 
 const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
   const [invoiceData, setInvoiceData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const {isOnline} = useNetworkStatusContext()
   const [actionLoading, setActionLoading] = useState({
     print: false
   });
 
   useEffect(() => {
     const getInvoiceData = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
+
+        if(isOnline){
         const response = await stockOutService.getStockOutByTransactionId(transactionId);
         setInvoiceData(response);
+        }
+
+        else if(!isOnline){
+       const response = await   fetchStockOutWithTrID()
+
+       setInvoiceData(response)
+        }
+    
       } catch (error) {
         console.log(error.message);
         Swal.fire({
@@ -33,6 +46,303 @@ const InvoiceComponent = ({ isOpen, onClose, transactionId }) => {
       getInvoiceData();
     }
   }, [transactionId, isOpen]);
+
+
+
+  
+  const fetchStockOutWithTrID = async () => {
+    try {
+      if (isOnline) {
+         const response = await stockOutService.getStockOutByTransactionId(transactionId);
+         return response
+      }
+const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
+        db.stockouts_all.toArray(),
+        db.stockouts_offline_add.toArray(),
+        db.stockouts_offline_update.toArray(),
+        db.stockouts_offline_delete.toArray(),
+        fetchStockIns(),
+        fetchProducts(),
+        fetchBackorders()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
+      const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
+
+      const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
+
+      const combinedStockOuts = allStockOuts
+        .filter(so => !deleteIds.has(so.id))
+        .filter(so=> so.transactionId == transactionId )
+        .map(so => ({
+          ...so,
+          ...updateMap.get(so.id),
+          synced: true,
+          stockin: stockinMap.get(so.stockinId),
+          backorder: backOrderMap.get(so.backorderId)
+        }))
+        .concat(offlineAdds.map(a => ({
+          ...a,
+          synced: false,
+          backorder: backOrderMap.get(a.backorderLocalId),
+          stockin: stockinMap.get(a.stockinId)
+        })))
+        .sort((a, b) => a.synced - b.synced)
+        ;
+
+        return combinedStockOuts;
+
+    } catch (error) {
+      console.error('Error fetching stockouts:', error);
+      if (!error?.response) {
+
+        // 3. Merge all data (works offline too)
+         const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.stockouts_all.toArray(),
+        db.stockouts_offline_add.toArray(),
+        db.stockouts_offline_update.toArray(),
+        db.stockouts_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedProducts = allStockOuts
+        .filter(c => !deleteIds.has(c.id))
+        .filter(c=> c.transactionId == transactionId)
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
+
+      }
+
+    }
+  };
+
+
+  
+
+  const fetchStockIns = async () => {
+    try {
+      if (isOnline) {
+        const response = await stockInService.getAllStockIns();
+        for (const si of response) {
+          await db.stockins_all.put({
+            id: si.id,
+            productId: si.productId,
+            quantity: si.quantity,
+            price: si.price,
+            sellingPrice: si.sellingPrice,
+            supplier: si.supplier,
+            sku: si.sku,
+            barcodeUrl: si.barcodeUrl,
+            lastModified: new Date(),
+            updatedAt: si.updatedAt || new Date()
+          });;
+          if (si.product && !(await db.products_all.get(si.product.id))) {
+            await db.products_all.put({
+              id: si.product.id,
+              productName: si.product.productName,
+              categoryId: si.product.categoryId,
+              description: si.product.description,
+              brand: si.product.brand,
+              lastModified: new Date(),
+              updatedAt: new Date()
+            });
+          }
+        }
+      }
+
+      // 3. Merge all data (works offline too)
+      const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.stockins_all.toArray(),
+        db.stockins_offline_add.toArray(),
+        db.stockins_offline_update.toArray(),
+        db.stockins_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedStockin = allStockin
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      console.warn('THIS THE COMBINED STOCK IN :', combinedStockin);
+
+
+      return combinedStockin;
+
+    } catch (error) {
+      console.error('Error fetching stock-ins:', error);
+      if (!error.response) {
+        return await db.stockins_all.toArray();
+      }
+
+    }
+  };
+
+  const fetchBackorders = async () => {
+    try {
+      if (isOnline) {
+        // Assuming you have a backorderService similar to productService
+        const response = await backOrderService.getAllBackOrders();
+
+        for (const b of response.backorders || response) {
+          await db.backorders_all.put({
+            id: b.id,
+            quantity: b.quantity,
+            soldPrice: b.soldPrice,
+            productName: b.productName,
+            adminId: b.adminId,
+            employeeId: b.employeeId,
+            lastModified: b.lastModified || new Date(),
+            createdAt: b.createdAt || new Date(),
+            updatedAt: b.updatedAt || new Date()
+          });
+        }
+        // 3. Merge all data (works offline too)
+
+
+      }
+
+      const [allBackOrder, offlineAdds] = await Promise.all([
+        db.backorders_all.toArray(),
+        db.backorders_offline_add.toArray(),
+
+      ]);
+
+      const combinedBackOrder = allBackOrder
+
+        .map(c => ({
+          ...c,
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+      console.warn('backend', combinedBackOrder);
+
+      return combinedBackOrder;
+
+    } catch (error) {
+      console.error('Error fetching backorders:', error);
+
+      // Fallback: return local cache if API fails or offline
+      if (!error?.response) {
+
+        const [allBackOrder, offlineAdds] = await Promise.all([
+          db.backorders_all.toArray(),
+          db.backorders_offline_add.toArray(),
+
+        ]);
+
+        const combinedBackOrder = allBackOrder
+
+          .map(c => ({
+            ...c,
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+        console.warn('backend', combinedBackOrder);
+
+        return combinedBackOrder;
+
+      }
+    }
+  };
+
+
+  const fetchProducts = async () => {
+    try {
+      if (isOnline) {
+        // Assuming a productService.getAllProducts() exists, similar to categories
+        const response = await productService.getAllProducts(); // Adjust if needed
+        for (const p of response.products || response) {
+          await db.products_all.put({
+            id: p.id,
+            productName: p.productName,
+            categoryId: p.categoryId,
+            description: p.description,
+            brand: p.brand,
+            lastModified: p.createdAt || new Date(),
+            updatedAt: p.updatedAt || new Date()
+          });
+        }
+      }
+
+      // 3. Merge all data (works offline too)
+      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.products_all.toArray(),
+        db.products_offline_add.toArray(),
+        db.products_offline_update.toArray(),
+        db.products_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedProducts = allProducts
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
+
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      if (!error?.response) {
+
+        // 3. Merge all data (works offline too)
+        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.products_all.toArray(),
+          db.products_offline_add.toArray(),
+          db.products_offline_update.toArray(),
+          db.products_offline_delete.toArray()
+        ]);
+
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+        const combinedProducts = allProducts
+          .filter(c => !deleteIds.has(c.id))
+          .map(c => ({
+            ...c,
+            ...updateMap.get(c.id),
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+
+        return combinedProducts;
+
+      }
+
+    }
+  };
+
+
+
 
   const companyInfo = {
     logo: CompanyLogo,

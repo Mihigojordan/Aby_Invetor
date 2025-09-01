@@ -60,15 +60,11 @@ async syncStockIns(skipLocalFetch) {
       results.deletes.processed > 0 ||
       !this.lastSyncTime ||
       (Date.now() - this.lastSyncTime) > 120000; // 2 minutes
-      if(skipLocalFetch){
-        console.warn('NOT REFRESHING THE STOCKINS');
-        
-      }
+ 
 
-    if (shouldFetchFresh && !skipLocalFetch) {
       console.warn(' REFRESHING   ');
       await this.fetchAndUpdateLocal();
-    }
+   
 
     this.lastSyncTime = Date.now();
     console.log('✅ StockIn sync completed successfully', results);

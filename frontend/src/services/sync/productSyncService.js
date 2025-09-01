@@ -43,7 +43,7 @@ class ProductSyncService {
         results.updates.processed > 0 ||
         results.deletes.processed > 0 ||
         !this.lastSyncTime ||
-        (Date.now() - this.lastSyncTime) > 10000; // 5 minutes
+        (Date.now() - this.lastSyncTime) > 120000; // 5 minutes
 
       if (shouldFetchFresh) {
         await this.fetchAndUpdateLocal();
