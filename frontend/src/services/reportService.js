@@ -47,6 +47,7 @@ class ReportService {
       return response.data;
     } catch (error) {
       console.error('Error creating report:', error);
+      console.error('Error creating report:', error.response?.data?.message);
       throw new Error(error.response?.data?.message || error.message || 'Failed to create report');
     }
   }
