@@ -488,7 +488,7 @@ const ViewStockoutReport = () => {
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                 <Package className="w-5 h-5 mr-2" />
-              Backorder  Product Information
+              Non-Stock Product Information
               </h2>
             </div>
             <div className="p-6">
