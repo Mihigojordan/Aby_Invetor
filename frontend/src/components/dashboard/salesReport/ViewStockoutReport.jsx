@@ -42,8 +42,8 @@ const ViewStockoutReport = () => {
         const data = await stockOutService.getStockOutById(id);
         setStockOut(data);
       } catch (err) {
-        setError('Failed to fetch stock out details');
-        console.error(err);
+        loadStockOuts();       
+         console.error(err);
       } finally {
         setLoading(false);
       }

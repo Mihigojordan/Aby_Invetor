@@ -276,7 +276,7 @@ const TransactionAnalysisDetails = () => {
 
   if (loading) {
     return (
-      <div className="p-6 bg-gray-50 min-h-[90vh] overflow-y-auto">
+      <div className="p-6 bg-gray-50 h-[90vh] overflow-y-auto">
         <div className="animate-pulse">
           <div className="flex items-center gap-4 mb-8">
             <div className="w-8 h-8 bg-gray-200 rounded"></div>
@@ -296,7 +296,7 @@ const TransactionAnalysisDetails = () => {
 
   if (error) {
     return (
-      <div className="p-6 bg-gray-50 min-h-[90vh] overflow-y-auto">
+      <div className="p-6 bg-gray-50 h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={() => navigate(-1)}
@@ -318,7 +318,7 @@ const TransactionAnalysisDetails = () => {
 
   if (!transaction) {
     return (
-      <div className="p-6 bg-gray-50 min-h-[90vh] overflow-y-auto">
+      <div className="p-6 bg-gray-50 h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={() => navigate(-1)}
@@ -339,7 +339,7 @@ const TransactionAnalysisDetails = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-[90vh] overflow-y-auto">
+    <div className="p-6 bg-gray-50 h-[90vh] overflow-y-auto">
       {/* Notification */}
       {notification && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
