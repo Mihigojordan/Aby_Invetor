@@ -178,6 +178,8 @@ useEffect(() => {
     const handleSubmit = () => {
         if (validateForm()) {
             const submissionData = {
+                ...product,
+                
                 productName: formData.productName.trim(),
                 brand: formData.brand.trim(),
                 categoryId: formData.categoryId,
@@ -407,6 +409,7 @@ useEffect(() => {
                             {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
                         </div>
 
+                        
                         <div className="flex gap-3 pt-4 mt-16">
                             <button
                                 type="button"

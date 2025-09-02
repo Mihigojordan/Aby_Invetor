@@ -175,7 +175,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
       // Update mode - single entry
       setFormData({
         productId: stockIn.productId || '',
-        quantity: stockIn.quantity || '',
+        quantity: stockIn.offlineQuantity ?? stockIn.quantity ?? '',
         price: stockIn.price || '',
         supplier: stockIn.supplier || '',
         sellingPrice: stockIn.sellingPrice || '',
@@ -363,10 +363,13 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
       
       // Prepare single entry data
       const submitData = {
+        ...stockIn,
         productId: formData.productId,
         quantity: Number(formData.quantity),
+        offlineQuantity: Number(formData.quantity),
         price: Number(formData.price),
         sellingPrice: Number(formData.sellingPrice)
+
       };
       
       if (formData.supplier.trim()) {

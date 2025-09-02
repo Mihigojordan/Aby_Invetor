@@ -121,7 +121,7 @@ const ViewEmployeePage = () => {
   if (error) {
     return (
       <div className=" flex items-center justify-center p-4 z-50">
-        <div className="flex min-h-[90vh] w-11/12 bg-white p-5 rounded-md items-center justify-center">
+        <div className="flex  w-11/12 bg-white p-5 rounded-md items-center justify-center">
           <div className="text-center">
             <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Employee</h3>
@@ -154,10 +154,10 @@ const ViewEmployeePage = () => {
   }
 
   return (
-    <div className="  w-full h-[90vh]  overflow-y-auto bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="flex flex-col w-full  bg-white rounded-md">
+    <div className="  w-full h-[90vh]   overflow-y-auto flex items-center justify-center p-2 md:p-4 z-50">
+      <div className="flex flex-col w-full h-full bg-white rounded-md">
         {/* Navbar */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="bg-white border-b flex-1 border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
               <button
@@ -197,7 +197,7 @@ const ViewEmployeePage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className=" p-2 ">
           {activeTab === 'general' && (
             <GeneralInformation 
               employee={employee} 

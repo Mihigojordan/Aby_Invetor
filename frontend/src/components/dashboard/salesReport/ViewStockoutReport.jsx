@@ -20,6 +20,10 @@ import {
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import stockOutService from '../../../services/stockoutService';
+import productService from '../../../services/productService';
+import { db } from '../../../db/database';
+import { useNetworkStatusContext } from '../../../context/useNetworkContext';
+import stockInService from '../../../services/stockinService';
 
 
 
@@ -27,7 +31,9 @@ const ViewStockoutReport = () => {
   const {id} = useParams();
   const [stockOut, setStockOut] = useState(null);
   const [loading, setLoading] = useState(true);
+ const [notification, setNotification] = useState(null);
   const [error, setError] = useState(null);
+  const {isOnline} = useNetworkStatusContext()
 
   useEffect(() => {
     const fetchStockOut = async () => {
@@ -43,10 +49,232 @@ const ViewStockoutReport = () => {
       }
     };
 
-    if (id) {
-      fetchStockOut();
+    if(id){
+
+      if (isOnline) {
+        fetchStockOut();
+      }
+      else{
+        loadStockOuts();
+      }
     }
   }, [id]);
+
+
+    const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  
+  const loadStockOuts = async () => {
+    setLoading(true);
+    try {
+     
+      const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
+        db.stockouts_all.toArray(),
+        db.stockouts_offline_add.toArray(),
+        db.stockouts_offline_update.toArray(),
+        db.stockouts_offline_delete.toArray(),
+        fetchStockIns(),
+        fetchProducts(),
+        fetchBackorders()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
+      const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
+
+      const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
+
+      const combinedStockOuts = allStockOuts
+        .filter(so => !deleteIds.has(so.id))
+        .map(so => ({
+          ...so,
+          ...updateMap.get(so.id),
+          synced: true,
+          stockin: stockinMap.get(so.stockinId),
+          backorder: backOrderMap.get(so.backorderId)
+        }))
+        .sort((a, b) => a.synced - b.synced)
+        ;
+
+      const convertedStockIns = Array.from(stockinMap.values())
+
+      console.warn('STOCK INS', backOrderMap);
+
+      const found_stock_out =  combinedStockOuts.find(out=> out?.id == id)
+      setStockOut(found_stock_out);
+  
+    
+
+      if (!isOnline && combinedStockOuts.length === 0) {
+        showNotification('No offline data available', 'warning');
+      }
+    } catch (error) {
+      console.error('Error loading stock-outs:', error);
+      showNotification('Failed to load stock-outs', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  const fetchStockIns = async () => {
+    try {
+  
+
+      // 3. Merge all data (works offline too)
+      const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.stockins_all.toArray(),
+        db.stockins_offline_add.toArray(),
+        db.stockins_offline_update.toArray(),
+        db.stockins_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedStockin = allStockin
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      console.warn('THIS THE COMBINED STOCK IN :', combinedStockin);
+
+
+      return combinedStockin;
+
+    } catch (error) {
+      console.error('Error fetching stock-ins:', error);
+      if (!error.response) {
+        return await db.stockins_all.toArray();
+      }
+
+    }
+  };
+
+  const fetchBackorders = async () => {
+    try {
+     
+
+      const [allBackOrder, offlineAdds] = await Promise.all([
+        db.backorders_all.toArray(),
+        db.backorders_offline_add.toArray(),
+
+      ]);
+
+      const combinedBackOrder = allBackOrder
+
+        .map(c => ({
+          ...c,
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+      console.warn('backend', combinedBackOrder);
+
+      return combinedBackOrder;
+
+    } catch (error) {
+      console.error('Error fetching backorders:', error);
+
+      // Fallback: return local cache if API fails or offline
+      if (!error?.response) {
+
+        const [allBackOrder, offlineAdds] = await Promise.all([
+          db.backorders_all.toArray(),
+          db.backorders_offline_add.toArray(),
+
+        ]);
+
+        const combinedBackOrder = allBackOrder
+
+          .map(c => ({
+            ...c,
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+        console.warn('backend', combinedBackOrder);
+
+        return combinedBackOrder;
+
+      }
+    }
+  };
+
+
+  const fetchProducts = async () => {
+    try {
+    
+
+      // 3. Merge all data (works offline too)
+      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.products_all.toArray(),
+        db.products_offline_add.toArray(),
+        db.products_offline_update.toArray(),
+        db.products_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedProducts = allProducts
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
+
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      if (!error?.response) {
+
+        // 3. Merge all data (works offline too)
+        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.products_all.toArray(),
+          db.products_offline_add.toArray(),
+          db.products_offline_update.toArray(),
+          db.products_offline_delete.toArray()
+        ]);
+
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+        const combinedProducts = allProducts
+          .filter(c => !deleteIds.has(c.id))
+          .map(c => ({
+            ...c,
+            ...updateMap.get(c.id),
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+
+        return combinedProducts;
+
+      }
+
+    }
+  };
+
+
+  
+
 
   console.log(stockOut);
   
@@ -116,6 +344,13 @@ const ViewStockoutReport = () => {
 
   return (
     <div className="h-[90vh] overflow-y-auto bg-gray-50 py-8">
+          {notification && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'} animate-in slide-in-from-top-2 duration-300`}>
+          {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
+          {notification.message}
+        </div>
+      )}
+    
       <div className=" mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">

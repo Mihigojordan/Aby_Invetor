@@ -24,38 +24,40 @@ class StockOutService {
     try {
     
 
-       if (stockOutData.isBackOrder) {
-          // Validate back order
-          if (!stockOutData.quantity) {
-            throw new Error('Quantity is required for back order');
-          }
-          if (!stockOutData.backOrder || !stockOutData.backOrder.productName || !stockOutData.backOrder.sellingPrice) {
-            throw new Error('Back order must have product name and selling price');
-          }
-        } else {
-          // Validate stock-in sale
-          if (!stockOutData.stockinId || !stockOutData.quantity) {
-            throw new Error('Each stock-in sale must have stockinId and quantity');
-          }
-        }
-      
+    if (stockOutData.isBackOrder) {
+  // Validate back order
+  if (!stockOutData.quantity) {
+    throw new Error('Quantity is required for back order');
+  }
+  if (!stockOutData.soldPrice) {
+    throw new Error('Sold price is required for back order');
+  }
+  if (!stockOutData.backOrder || !stockOutData.backOrder.productName || !stockOutData.backOrder.sellingPrice) {
+    throw new Error('Back order must have product name and selling price');
+  }
+} else {
+  // Validate stock-in sale
+  if (!stockOutData.stockinId || !stockOutData.quantity || !stockOutData.soldPrice) {
+    throw new Error('Each stock-in sale must have stockinId, quantity, and soldPrice');
+  }
+}
 
       // Transform single stock-out data to match backend expected format
-      const requestData = {
-        sales: [{
-          stockinId: stockOutData.stockinId,
-          quantity: Number(stockOutData.quantity),
-          isBackOrder: stockOutData.isBackOrder || false,
-          backOrder: stockOutData.backOrder ||  null
-        }],
-        clientName: stockOutData.clientName || undefined,
-        clientEmail: stockOutData.clientEmail || undefined,
-        clientPhone: stockOutData.clientPhone || undefined,
-        paymentMethod: stockOutData.paymentMethod || undefined,
-        adminId: stockOutData.adminId || undefined,
-        employeeId: stockOutData.employeeId || undefined
-      };
-
+   const requestData = {
+  sales: [{
+    stockinId: stockOutData.stockinId,
+    quantity: Number(stockOutData.quantity),
+    soldPrice: Number(stockOutData.soldPrice), // Add this line
+    isBackOrder: stockOutData.isBackOrder || false,
+    backOrder: stockOutData.backOrder || null
+  }],
+  clientName: stockOutData.clientName || undefined,
+  clientEmail: stockOutData.clientEmail || undefined,
+  clientPhone: stockOutData.clientPhone || undefined,
+  paymentMethod: stockOutData.paymentMethod || undefined,
+  adminId: stockOutData.adminId || undefined,
+  employeeId: stockOutData.employeeId || undefined
+};
       const response = await api.post('/stockout/create', requestData);
       return response.data;
     } catch (error) {
@@ -79,6 +81,8 @@ class StockOutService {
      */
      async createMultipleStockOut(salesArray, clientInfo = {}, userInfo = {}) {
     try {
+      
+      
       // Validate sales array
       if (!Array.isArray(salesArray) || salesArray.length === 0) {
         throw new Error('At least one sale is required');
@@ -88,46 +92,50 @@ class StockOutService {
     
 
       // Validate each sale item
-      for (const sale of salesArray) {
-        if (sale.isBackOrder) {
-          // Validate back order
-          if (!sale.quantity) {
-            throw new Error('Quantity is required for back order');
-          }
-          if (!sale.backOrder || !sale.backOrder.productName || !sale.backOrder.sellingPrice) {
-            throw new Error('Back order must have product name and selling price');
-          }
-        } else {
-          // Validate stock-in sale
-          if (!sale.stockinId || !sale.quantity) {
-            throw new Error('Each stock-in sale must have stockinId and quantity');
-          }
-        }
-      }
+for (const sale of salesArray) {
+  if (sale.isBackOrder) {
+    // Validate back order
+    if (!sale.quantity) {
+      throw new Error('Quantity is required for back order');
+    }
+    if (!sale.soldPrice) {
+      throw new Error('Sold price is required for back order');
+    }
+    if (!sale.backOrder || !sale.backOrder.productName || !sale.backOrder.sellingPrice) {
+      throw new Error('Back order must have product name and selling price');
+    }
+  } else {
+    // Validate stock-in sale
+    if (!sale.stockinId || !sale.quantity || !sale.soldPrice) {
+      throw new Error('Each stock-in sale must have stockinId, quantity, and soldPrice');
+    }
+  }
+}
 
       // Format sales data to match backend expectations
-      const formattedSales = salesArray.map(sale => {
-        if (sale.isBackOrder) {
-          return {
-            stockinId: null, // No stockinId for back orders
-            quantity: Number(sale.quantity),
-            isBackOrder: true,
-            backOrder: {
-              productName: sale.backOrder.productName,
-              quantity: Number(sale.quantity), // Back order quantity matches sales quantity
-              sellingPrice: Number(sale.backOrder.sellingPrice)
-            }
-          };
-        } else {
-          return {
-            stockinId: sale.stockinId,
-            quantity: Number(sale.quantity),
-            isBackOrder: false,
-            backOrder: null
-          };
-        }
-      });
-
+const formattedSales = salesArray.map(sale => {
+  if (sale.isBackOrder) {
+    return {
+      stockinId: null, // No stockinId for back orders
+      quantity: Number(sale.quantity),
+      soldPrice: Number(sale.soldPrice), // Add this
+      isBackOrder: true,
+      backOrder: {
+        productName: sale.backOrder.productName,
+        quantity: Number(sale.quantity), // Back order quantity matches sales quantity
+        sellingPrice: Number(sale.backOrder.sellingPrice)
+      }
+    };
+  } else {
+    return {
+      stockinId: sale.stockinId,
+      quantity: Number(sale.quantity),
+      soldPrice: Number(sale.soldPrice), // Add this
+      isBackOrder: false,
+      backOrder: null
+    };
+  }
+});
       const requestData = {
         sales: formattedSales,
         clientName: clientInfo.clientName || undefined,

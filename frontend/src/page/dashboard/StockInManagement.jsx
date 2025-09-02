@@ -575,6 +575,25 @@ const StockInManagement = ({ role }) => {
     try {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
+
+
+      
+            if (!isOnline && stockInData && stockInData.localId && !stockInData.synced) {
+      
+              const localId = await db.stockins_offline_add.update(stockInData.localId, {
+                ...stockInData,
+                ...userData,
+                lastModified: now,
+                updatedAt: now
+              })
+      
+              await loadData()
+              setIsEditModalOpen(false);
+              setSelectedProduct(null);
+              return
+            }
+
+
       const updatedData = {
         id: selectedStockIn.id,
         quantity: stockInData.quantity,

@@ -35,6 +35,9 @@ import ViewReportsPage from "../components/dashboard/report/ViewReportPage";
 import EmployeeReportManagement from "../page/dashboard/EmployeeReportManagement";
 import EmployeeReportViewMore from "../page/dashboard/EmployeeReportViewMore";
 import ViewEmployeePage from "../components/dashboard/employee/ViewEmployeeModal";
+import BackOrderDashboard from "../components/dashboard/salesReport/BackOrderOverview";
+import TransactionAnalysis from "../components/dashboard/salesReport/TransactionAnalysis";
+import TransactionAnalysisDetails from "../components/dashboard/salesReport/TransactionAnalysisDetails";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -161,6 +164,30 @@ const routes = createBrowserRouter([
                                  element: (
                                     <SuspenseWrapper>
                                         <StockOutAnalysisPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/non-stock-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <BackOrderDashboard role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/transaction-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <TransactionAnalysis role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/transaction-analysis/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <TransactionAnalysisDetails role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },

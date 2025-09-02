@@ -646,8 +646,10 @@ async prepareSaleForSync(stockOut) {
     if (localBackOrder) {
       backOrderPayload = {
         quantity: localBackOrder.quantity,
-        sellingPrice: localBackOrder.soldPrice / localBackOrder.quantity, // Convert back to unit price
-        productName: localBackOrder.productName
+        sellingPrice: localBackOrder.soldPrice , // Convert back to unit price
+        soldPrice: localBackOrder.soldPrice , // Convert back to unit price
+        productName: localBackOrder.productName,
+
       };
     }
   }
@@ -658,16 +660,21 @@ async prepareSaleForSync(stockOut) {
       stockinId: null,
       quantity: Number(stockOut.quantity),
       isBackOrder: true,
+       soldPrice: Number(stockOut.soldPrice),
       backOrder: backOrderPayload || {
         productName: stockOut.productName,
         quantity: Number(stockOut.quantity),
-        sellingPrice: stockOut.soldPrice / stockOut.quantity // Convert to unit price
+        sellingPrice: stockOut.soldPrice , // Convert to unit price,
+
+        soldPrice: stockOut.soldPrice // Convert to unit price
+
       }
     };
   } else {
     return {
       stockinId: resolvedStockInId,
       quantity: Number(stockOut.quantity),
+      soldPrice: Number(stockOut.soldPrice),
       isBackOrder: false,
       backOrder: null
     };

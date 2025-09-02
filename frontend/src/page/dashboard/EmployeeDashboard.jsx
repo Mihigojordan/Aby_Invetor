@@ -42,6 +42,9 @@ import stockOutService from "../../services/stockoutService";
 import stockinService from "../../services/stockinService";
 import categoryService from "../../services/categoryService";
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import { useNetworkStatusContext } from '../../context/useNetworkContext';
+import { db } from '../../db/database';
+
 
 const Dashboard = () => {
   const { user } = useEmployeeAuth();
@@ -49,7 +52,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  
+  const {isOnline}  = useNetworkStatusContext()
+    const [notification, setNotification] = useState(null);
+
   // Data states
   const [dashboardData, setDashboardData] = useState({
     products: [],
@@ -89,7 +94,8 @@ const Dashboard = () => {
     if (visibleStatsCount === 2) return 'grid-cols-1 md:grid-cols-2';
     if (visibleStatsCount === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
     if (visibleStatsCount === 4) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4';
-    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5';
+    if(visibleStatsCount === 5) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5';
+     return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ';
   };
 
   // Get available tabs based on permissions
@@ -99,6 +105,11 @@ const Dashboard = () => {
     if (canViewSales) tabs.push('sales');
     if (canViewSales || canViewReturns || canViewCategories) tabs.push('analytics');
     return tabs;
+  };
+
+    const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
   };
 
   // Fetch summary counts from your API
@@ -111,6 +122,419 @@ const Dashboard = () => {
       console.error('Error fetching summary counts:', error);
       return null;
     }
+  };
+
+  
+    const fetchStockOuts = async () => {
+    try {
+      if (isOnline) {
+        const response = await stockOutService.getAllStockOuts();
+        for (const so of response) {
+          // Save stockout
+          await db.stockouts_all.put({
+            id: so.id,
+            stockinId: so.stockinId,
+            quantity: so.quantity,
+            soldPrice: so.soldPrice,
+            backorderId: so.backorderId,
+            clientName: so.clientName,
+            clientEmail: so.clientEmail,
+            clientPhone: so.clientPhone,
+            paymentMethod: so.paymentMethod,
+            adminId: so.adminId,
+            employeeId: so.employeeId,
+            transactionId: so.transactionId,
+            lastModified: new Date(),
+            createdAt: so.createdAt || new Date(),
+            updatedAt: so.updatedAt || new Date()
+          });
+  
+          // Optional: make sure stockin exists in db
+          if (so.stockin && !(await db.stockins_all.get(so.stockin.id))) {
+            await db.stockins_all.put({
+              id: so.stockin.id,
+              productId: so.stockin.productId,
+              quantity: so.stockin.quantity,
+              price: so.stockin.price,
+              sellingPrice: so.stockin.sellingPrice,
+              supplier: so.stockin.supplier,
+              sku: so.stockin.sku,
+              barcodeUrl: so.stockin.barcodeUrl,
+              lastModified: new Date(),
+              updatedAt: new Date()
+            });
+          }
+        }
+      }
+  
+      // 3. Merge local + remote (offline support)
+      const [allStockout, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.stockouts_all.toArray(),
+        db.stockouts_offline_add.toArray(),
+        db.stockouts_offline_update.toArray(),
+        db.stockouts_offline_delete.toArray()
+      ]);
+  
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+  
+      const combinedStockout = allStockout
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+  
+      console.warn('📦 COMBINED STOCK OUT:', combinedStockout);
+  
+      return combinedStockout;
+    } catch (error) {
+      console.error('Error fetching stock-outs:', error);
+      if (!error.response) {
+        return await db.stockouts_all.toArray();
+      }
+    }
+  };
+  const fetchProducts = async () => {
+      try {
+        if (isOnline) {
+          // Assuming a productService.getAllProducts() exists, similar to categories
+          const response = await productService.getAllProducts(); // Adjust if needed
+          for (const p of response.products || response) {
+            await db.products_all.put({
+              id: p.id,
+              productName: p.productName,
+              categoryId: p.categoryId,
+              description: p.description,
+              brand: p.brand,
+              lastModified: p.createdAt || new Date(),
+              updatedAt: p.updatedAt || new Date()
+            });
+          }
+        }
+  
+        // 3. Merge all data (works offline too)
+        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.products_all.toArray(),
+          db.products_offline_add.toArray(),
+          db.products_offline_update.toArray(),
+          db.products_offline_delete.toArray()
+        ]);
+  
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+  
+        const combinedProducts = allProducts
+          .filter(c => !deleteIds.has(c.id))
+          .map(c => ({
+            ...c,
+            ...updateMap.get(c.id),
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+  
+        return combinedProducts;
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        if (!error?.response) {
+  
+          // 3. Merge all data (works offline too)
+          const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+            db.products_all.toArray(),
+            db.products_offline_add.toArray(),
+            db.products_offline_update.toArray(),
+            db.products_offline_delete.toArray()
+          ]);
+  
+          const deleteIds = new Set(offlineDeletes.map(d => d.id));
+          const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+  
+          const combinedProducts = allProducts
+            .filter(c => !deleteIds.has(c.id))
+            .map(c => ({
+              ...c,
+              ...updateMap.get(c.id),
+              synced: true
+            }))
+            .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+            .sort((a, b) => a.synced - b.synced);
+  
+          return combinedProducts;
+  
+        }
+  
+      }
+    }; 
+    const fetchStockIns = async () => {
+      setLoading(true);
+      try {
+        const productData = await fetchProducts();
+      
+  
+    
+  
+        const [allStockIns, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.stockins_all.toArray(),
+          db.stockins_offline_add.toArray(),
+          db.stockins_offline_update.toArray(),
+          db.stockins_offline_delete.toArray()
+        ]);
+  
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+  
+        const combinedStockIns = allStockIns
+          .filter(s => !deleteIds.has(s.id))
+          .map(s => ({
+            ...s,
+            ...updateMap.get(s.id),
+            synced: true,
+            product: productData.find(p => p.id === s.productId) || { productName: 'Unknown Product' }
+          }))
+          .concat(offlineAdds.map(a => ({
+            ...a,
+            synced: false,
+            product: productData.find(p => p.id === a.productId || p.localId === a.productId) || { productName: 'Unknown Product' }
+          }))).sort((a, b) => a.synced - b.synced);
+  
+        
+          return combinedStockIns;
+      } catch (error) {
+        console.error('Error loading stock-ins:', error);
+        showNotification('Failed to load stock-ins', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    const fetchBackorders = async () => {
+      try {
+        if (isOnline) {
+          // Assuming you have a backorderService similar to productService
+          const response = await backOrderService.getAllBackOrders();
+  
+          for (const b of response.backorders || response) {
+            await db.backorders_all.put({
+              id: b.id,
+              quantity: b.quantity,
+              soldPrice: b.soldPrice,
+              productName: b.productName,
+              adminId: b.adminId,
+              employeeId: b.employeeId,
+              lastModified: b.lastModified || new Date(),
+              createdAt: b.createdAt || new Date(),
+              updatedAt: b.updatedAt || new Date()
+            });
+          }
+          // 3. Merge all data (works offline too)
+  
+  
+        }
+  
+        const [allBackOrder, offlineAdds] = await Promise.all([
+          db.backorders_all.toArray(),
+          db.backorders_offline_add.toArray(),
+  
+        ]);
+  
+        const combinedBackOrder = allBackOrder
+  
+          .map(c => ({
+            ...c,
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+        console.warn('backend', combinedBackOrder);
+  
+        return combinedBackOrder;
+  
+      } catch (error) {
+        console.error('Error fetching backorders:', error);
+  
+        // Fallback: return local cache if API fails or offline
+        if (!error?.response) {
+  
+          const [allBackOrder, offlineAdds] = await Promise.all([
+            db.backorders_all.toArray(),
+            db.backorders_offline_add.toArray(),
+  
+          ]);
+  
+          const combinedBackOrder = allBackOrder
+  
+            .map(c => ({
+              ...c,
+              synced: true
+            }))
+            .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+            .sort((a, b) => a.synced - b.synced);
+          console.warn('backend', combinedBackOrder);
+  
+          return combinedBackOrder;
+  
+        }
+      }
+    };
+    const fetchCategories = async () => {
+      try {
+        if (isOnline) {
+          // 1. Fetch from API
+          const response = await categoryService.getAllCategories();
+          if (response && response.categories) {
+            for (const category of response.categories) {
+              await db.categories_all.put({
+                id: category.id,
+                name: category.name,
+                description: category.description,
+                lastModified: category.lastModified || new Date(),
+                updatedAt: category.updatedAt || new Date()
+              });
+            }
+          }
+  
+          // 2. Sync any offline adds/updates/deletes
+          // await triggerSync();
+        }
+  
+        // 3. Always read from IndexedDB (so offline works too)
+        const allCategories = await db.categories_all.toArray();
+  
+        console.log('log categories : +>', allCategories);
+  
+        // setCategories(allCategories);
+        return allCategories
+      } catch (error) {
+        if (!error.response) {
+          const allCategories = await db.categories_all.toArray();
+          return allCategories
+        }
+        console.error("Error fetching categories:", error);
+      }
+    };
+  
+  
+    const getSummaryFrontend = async () => {
+    try {
+      // 1. Fetch all required data from IndexedDB (using your fetchers)
+      const [categories, products, stockIns, stockOuts] = await Promise.all([
+        fetchCategories(),
+        fetchProducts(),
+        fetchStockIns(),
+        fetchStockOuts(),
+      ]);
+  
+      // 2. Totals
+      const totalCategories = categories.length;
+      const totalProducts = products.length;
+      const totalEmployees = 0; // You’ll need fetchEmployees() if you track employees in IndexedDB
+  
+      // 3. Most used category (by number of products)
+      const categoryCountMap = products.reduce((acc, p) => {
+        acc[p.categoryId] = (acc[p.categoryId] || 0) + 1;
+        return acc;
+      }, {});
+      const mostUsedCategoryId = Object.keys(categoryCountMap).sort(
+        (a, b) => categoryCountMap[b] - categoryCountMap[a]
+      )[0];
+      const mostUsedCategory = mostUsedCategoryId
+        ? {
+            name:
+              categories.find((c) => c.id === mostUsedCategoryId)?.name ||
+              "Unknown Category",
+            usageCount: categoryCountMap[mostUsedCategoryId],
+          }
+        : null;
+  
+      // 4. Total stockIn quantity
+      const totalStockIn = stockIns.reduce(
+        (sum, si) => sum + (si.quantity || 0),
+        0
+      );
+  
+      // 5. Total stockOut quantity
+      const totalStockOut = stockOuts.reduce(
+        (sum, so) => sum + (so.quantity || 0),
+        0
+      );
+  
+      // 6. Product with most stockIn quantity
+      const stockInByProduct = stockIns.reduce((acc, si) => {
+        acc[si.productId] = (acc[si.productId] || 0) + (si.quantity || 0);
+        return acc;
+      }, {});
+      const mostStockedInProductId = Object.keys(stockInByProduct).sort(
+        (a, b) => stockInByProduct[b] - stockInByProduct[a]
+      )[0];
+      const mostStockedInProduct = mostStockedInProductId
+        ? {
+            id: parseInt(mostStockedInProductId),
+            name:
+              products.find((p) => p.id === mostStockedInProductId)
+                ?.productName || "Unknown Product",
+          }
+        : null;
+  
+      // 7. Calculate stock levels (stockIn - stockOut)
+      const stockOutByStockIn = stockOuts.reduce((acc, so) => {
+        acc[so.stockinId] = (acc[so.stockinId] || 0) + (so.quantity || 0);
+        return acc;
+      }, {});
+  
+      const stockLevels = products.map((product) => {
+        // total stockIn for this product
+        const productStockIns = stockIns.filter(
+          (si) => si.productId === product.id
+        );
+        const totalIn = productStockIns.reduce(
+          (sum, si) => sum + (si.quantity || 0),
+          0
+        );
+  
+        // total stockOut linked to this product's stockIns
+        const totalOut = productStockIns.reduce((sum, si) => {
+          return sum + (stockOutByStockIn[si.id] || 0);
+        }, 0);
+  
+        return {
+          productId: product.id,
+          productName: product.productName,
+          stock: totalIn - totalOut,
+        };
+      });
+  
+      // 8. Low stock (lowest 5) and high stock (highest 5)
+      const sortedStock = [...stockLevels].sort((a, b) => a.stock - b.stock);
+      const lowStock = sortedStock.slice(0, 5);
+      const highStock = sortedStock.slice(-5).reverse();
+  
+      // ✅ Return same shape as backend
+      return {
+        totalCategories,
+        totalProducts,
+        totalEmployees,
+  
+        totalStockIn,
+        totalStockOut,
+        mostUsedCategory,
+        mostStockedInProduct,
+        lowStock,
+        highStock,
+      };
+    } catch (error) {
+      console.error("Error building summary frontend:", error);
+      return null;
+    }
+  };
+
+     const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'RWF'
+    }).format(price);
   };
 
   // Prepare chart data for stock in/out
@@ -188,7 +612,12 @@ const Dashboard = () => {
       }
 
       // Fetch summary first (if user has permissions)
-      const summary = await fetchSummaryCounts();
+    let summary ;
+      if(isOnline){
+        summary = await fetchSummaryCounts()
+      }else{
+        summary = await getSummaryFrontend()
+      }
 
       // Initialize data object
       const data = {
@@ -203,7 +632,10 @@ const Dashboard = () => {
       // Create promises array based on permissions
       const promises = [];
 
-      if (canViewProducts) {
+      if(isOnline){
+
+        
+        if (canViewProducts) {
         promises.push(productService.getAllProducts().then(result => data.products = result));
       }
       
@@ -224,10 +656,39 @@ const Dashboard = () => {
       }
 
       // Wait for all permitted data to load
+    }
+
+    else{
+
+       if (canViewProducts) {
+        promises.push(fetchProducts().then(result => data.products = result));
+      }
+      
+      if (canViewReceiving) {
+        promises.push(fetchStockIns().then(result => data.stockIns = result));
+      }
+      
+      if (canViewSales) {
+        promises.push(fetchStockOuts().then(result => data.stockOuts = result));
+        promises.push(fetchBackorders().then(result => data.backOrders = result));
+      }
+      
+      if (canViewCategories) {
+        promises.push(fetchCategories().then(result => data.categories = result));
+      }
+      
+      if (canViewReturns) {
+        promises.push(salesReturnService.getAllSalesReturns().then(result => data.salesReturns = result.data || result));
+      }
+
+
+      
+    }
       await Promise.all(promises);
 
       setDashboardData(data);
-
+      
+      
       // Calculate stats and prepare data based on available data
       if (summary) {
         calculateStats(summary, data);
@@ -263,6 +724,11 @@ const Dashboard = () => {
   const calculateStats = (summary, data) => {
     const newStats = [];
 
+    const backOrders = Array.isArray(data.backOrders) ? data.backOrders : [];
+      const totalBackOrders = backOrders.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+      const totalSoldPriceBackOrders = backOrders.reduce((sum, item) => sum + (Number(item.soldPrice) || 0), 0);
+
+
     if (canViewProducts) {
       newStats.push({
         title: 'Total Products',
@@ -271,7 +737,7 @@ const Dashboard = () => {
         change: `${summary.totalStockIn || 0} total stock in`,
         color: 'text-blue-600',
         bgColor: 'bg-blue-50',
-        trend: '+12%'
+      
       });
     }
 
@@ -283,7 +749,7 @@ const Dashboard = () => {
         change: `${summary.lowStock?.filter(item => item.stock <= 0).length || 0} out of stock`,
         color: 'text-amber-600',
         bgColor: 'bg-amber-50',
-        trend: '-8%'
+        
       });
     }
 
@@ -295,8 +761,18 @@ const Dashboard = () => {
         change: `${summary.totalSalesReturns || 0} returns`,
         color: 'text-green-600',
         bgColor: 'bg-green-50',
-        trend: '+23%'
+        
       });
+
+      newStats.push(     {
+      title: 'Non-Stock Sale',
+      value: totalBackOrders.toString() || '0',
+      icon: ShoppingCart , 
+      change:  `Sales : ${formatPrice(totalSoldPriceBackOrders?.toString())}  `,
+      color: 'text-red-600',
+      bgColor: 'bg-red-50'
+    })
+
     }
 
     if (canViewCategories) {
@@ -307,7 +783,7 @@ const Dashboard = () => {
         change: `Most used: ${summary.mostUsedCategory?.name || 'N/A'}`,
         color: 'text-indigo-600',
         bgColor: 'bg-indigo-50',
-        trend: '+3%'
+       
       });
     }
 
@@ -319,9 +795,11 @@ const Dashboard = () => {
         change: `Top: ${summary.mostStockedInProduct?.name || 'N/A'}`,
         color: 'text-emerald-600',
         bgColor: 'bg-emerald-50',
-        trend: '+15%'
+       
       });
     }
+
+
 
     setStats(newStats);
   };
@@ -424,7 +902,7 @@ const Dashboard = () => {
         status,
         statusColor,
         supplier: stockIn.supplier || 'N/A',
-        createdAt: stockIn.createdAt,
+        createdAt: stockIn.createdAt || stockIn.lastModified,
         profit: ((stockIn.sellingPrice || 0) - (stockIn.price || 0)) * (stockIn.quantity || 0)
       };
     });
@@ -448,7 +926,7 @@ const Dashboard = () => {
         quantity: stockOut.quantity || 0,
         unitPrice: stockOut.soldPrice || 0,
         revenue,
-        date: stockOut.createdAt,
+        date: stockOut.createdAt || stockOut.lastModified,
         status: 'Completed'
       };
     });
@@ -518,7 +996,7 @@ const Dashboard = () => {
           currentStock: stockIn.quantity || 0,
           reorderLevel: 10,
           supplier: stockIn.supplier || 'N/A',
-          lastRestocked: stockIn.createdAt
+          lastRestocked: stockIn.createdAt || stockIn.lastModified
         };
       })
       .sort((a, b) => a.currentStock - b.currentStock);
@@ -672,6 +1150,12 @@ const Dashboard = () => {
 
   return (
     <div className="max-h-[90vh] overflow-y-auto bg-gray-50">
+         {notification && (
+              <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'} animate-in slide-in-from-top-2 duration-300`}>
+                {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
+                {notification.message}
+              </div>
+            )}
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="p-4 sm:p-6">
@@ -724,7 +1208,7 @@ const Dashboard = () => {
       <main className="p-4 sm:p-6">
         {/* Stats Cards - Dynamic grid based on visible stats */}
         {stats.length > 0 && (
-          <div className={`grid ${getStatsGridCols()} gap-4 sm:gap-6 mb-6 sm:mb-8`}>
+          <div className={`grid   ${getStatsGridCols()} gap-4 sm:gap-6 mb-6 sm:mb-8`}>
             {stats.map((stat, index) => (
               <div key={index} className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200 hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
                 <div className="flex items-center justify-between">

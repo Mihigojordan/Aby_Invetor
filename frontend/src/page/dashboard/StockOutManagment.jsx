@@ -14,6 +14,7 @@ import { db } from '../../db/database';
 import productService from '../../services/productService';
 import backOrderService from '../../services/backOrderService';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
+import { stockOutSyncService } from '../../services/sync/stockOutSyncService';
 
 const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
@@ -39,8 +40,9 @@ const StockOutManagement = ({ role }) => {
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
-    console.warn('loading');
-
+  
+    
+    
     loadStockOuts();
     if (isOnline) handleManualSync()
     const params = new URLSearchParams(window.location.search);
@@ -354,12 +356,13 @@ const StockOutManagement = ({ role }) => {
       const userInfo = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
 
-      const salesArray = stockOutData.salesEntries || [{
-        stockinId: stockOutData.stockinId,
-        quantity: stockOutData.quantity,
-        isBackOrder: false,
-        backOrder: null
-      }];
+  const salesArray = stockOutData.salesEntries || [{
+  stockinId: stockOutData.stockinId,
+  quantity: stockOutData.quantity,
+  soldPrice: stockOutData.soldPrice, // Add this line
+  isBackOrder: false,
+  backOrder: null
+}];
 
       const clientInfo = {
         clientName: stockOutData.clientName,
@@ -377,15 +380,16 @@ const StockOutManagement = ({ role }) => {
 
         if (sale.isBackOrder) {
           // 🆕 Persist backorder separately
-          const backOrderRecord = {
-            quantity: sale.quantity,
-            soldPrice: sale.backOrder.sellingPrice * sale.quantity,
-            productName: sale.backOrder.productName,
-            ...userInfo,
-            lastModified: now,
-            createdAt: now,
-            updatedAt: now
-          };
+        const backOrderRecord = {
+  quantity: sale.quantity,
+  soldPrice: sale.soldPrice ,
+  sellingPrice: sale.soldPrice,
+  productName: sale.backOrder.productName,
+  ...userInfo,
+  lastModified: now,
+  createdAt: now,
+  updatedAt: now
+};
           backorderLocalId = await db.backorders_offline_add.add(backOrderRecord);
 
           newStockout = {
@@ -396,6 +400,7 @@ const StockOutManagement = ({ role }) => {
             clientEmail: clientInfo.clientEmail,
             clientPhone: clientInfo.clientPhone,
             paymentMethod: clientInfo.paymentMethod,
+            soldPrice: sale.soldPrice,
             ...userInfo,
             transactionId: localTransactionId,
             isBackOrder: true,
@@ -419,7 +424,7 @@ const StockOutManagement = ({ role }) => {
             throw new Error(`Not enough stock for ID: ${sale.stockinId}. Available: ${stockin.quantity}, Requested: ${sale.quantity}`);
           }
 
-          const soldPrice = stockin.sellingPrice * sale.quantity;
+       const soldPrice = sale.soldPrice || (stockin.sellingPrice * sale.quantity);
 
           newStockout = {
             stockinId: sale.stockinId,

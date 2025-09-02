@@ -549,8 +549,8 @@ const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, 
                     {item.stockin?.product?.productName || item?.backorder?.productName || `ITEM ${index + 1}`}
                   </div>
                   <div className="flex justify-between">
-                    <span>{item.quantity}x{formatCurrency(item.soldPrice / item.quantity)}</span>
-                    <span className="font-bold">{formatCurrency(item.soldPrice)}</span>
+                    <span>{item.quantity}x{formatCurrency( item.soldPrice )}</span>
+                    <span className="font-bold">{formatCurrency(item.soldPrice )}</span>
                   </div>
                 </div>
               ))}

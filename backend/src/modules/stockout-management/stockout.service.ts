@@ -134,7 +134,7 @@ async create(data: {
         }
 
         const soldPrice = backorderData.sellingPrice;
-        const totalPrice = soldPrice * quantity;
+       
 
         const backorder = await this.backOrderService.createBackOrder(backorderData);
 

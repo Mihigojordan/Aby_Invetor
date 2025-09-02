@@ -35,42 +35,42 @@ const ProductManagement = ({ role }) => {
     loadProducts();
     if (isOnline) handleManualSync();
   }, [isOnline]);
-    const fetchCategories = async () => {
-      try {
-        if (isOnline) {
-          // 1. Fetch from API
-          const response = await categoryService.getAllCategories();
-          if (response && response.categories) {
-            for (const category of response.categories) {
-              await db.categories_all.put({
-                id: category.id,
-                name: category.name,
-                description: category.description,
-                lastModified: category.lastModified || new Date(),
-                updatedAt: category.updatedAt || new Date()
-              });
-            }
+  const fetchCategories = async () => {
+    try {
+      if (isOnline) {
+        // 1. Fetch from API
+        const response = await categoryService.getAllCategories();
+        if (response && response.categories) {
+          for (const category of response.categories) {
+            await db.categories_all.put({
+              id: category.id,
+              name: category.name,
+              description: category.description,
+              lastModified: category.lastModified || new Date(),
+              updatedAt: category.updatedAt || new Date()
+            });
           }
-  
-          // 2. Sync any offline adds/updates/deletes
-          // await triggerSync();
         }
-  
-        // 3. Always read from IndexedDB (so offline works too)
-        const allCategories = await db.categories_all.toArray();
-  
-        console.log('log categories : +>', allCategories);
-  
-        // setCategories(allCategories);
-        return allCategories
-      } catch (error) {
-        if(!error.response){
-           const allCategories = await db.categories_all.toArray();
-          return allCategories
-        }
-        console.error("Error fetching categories:", error);
+
+        // 2. Sync any offline adds/updates/deletes
+        // await triggerSync();
       }
-    };
+
+      // 3. Always read from IndexedDB (so offline works too)
+      const allCategories = await db.categories_all.toArray();
+
+      console.log('log categories : +>', allCategories);
+
+      // setCategories(allCategories);
+      return allCategories
+    } catch (error) {
+      if (!error.response) {
+        const allCategories = await db.categories_all.toArray();
+        return allCategories
+      }
+      console.error("Error fetching categories:", error);
+    }
+  };
 
   useEffect(() => {
     if (syncError) {
@@ -107,7 +107,7 @@ const ProductManagement = ({ role }) => {
         db.products_offline_delete.toArray()
       ]);
 
-     const categories =  await fetchCategories()
+      const categories = await fetchCategories()
 
 
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
@@ -119,17 +119,17 @@ const ProductManagement = ({ role }) => {
           ...p,
           ...updateMap.get(p.id),
           synced: true,
-          category: categories.find(cat => cat.id == p.categoryId )
+          category: categories.find(cat => cat.id == p.categoryId)
         }))
         .concat(offlineAdds.map(a => ({
-           ...a,
-            synced: false,
-             category: categories.find(cat => cat.id == a.categoryId )
-           })
-          )) .sort((a, b) => a.synced - b.synced);
+          ...a,
+          synced: false,
+          category: categories.find(cat => cat.id == a.categoryId)
+        })
+        )).sort((a, b) => a.synced - b.synced);
 
-          console.warn('combined product:',combinedProducts);
-          
+      console.warn('combined product:', combinedProducts);
+
 
       const productsWithImages = await Promise.all(combinedProducts.map(async product => {
         const images = await db.product_images
@@ -250,6 +250,22 @@ const ProductManagement = ({ role }) => {
 
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
+
+      if (!isOnline && productData && productData.localId && !productData.synced) {
+
+        const localId = await db.products_offline_add.update(productData.localId, {
+          ...productData,
+          ...userData,
+          lastModified: now,
+          updatedAt: now
+        })
+
+        await loadProducts()
+        setIsEditModalOpen(false);
+        setSelectedProduct(null);
+        return
+      }
+
       const updatedData = {
         id: selectedProduct.id,
         productName: productData.productName,
@@ -260,6 +276,9 @@ const ProductManagement = ({ role }) => {
         lastModified: now,
         updatedAt: now
       };
+
+
+
 
       if (isOnline) {
         try {
@@ -515,11 +534,10 @@ const ProductManagement = ({ role }) => {
     <div className="md:hidden">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
         {currentItems.map((product, index) => (
-          <div 
-            key={product.localId || product.id} 
-            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${
-              product.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
-            }`}
+          <div
+            key={product.localId || product.id}
+            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${product.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
+              }`}
           >
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -549,7 +567,7 @@ const ProductManagement = ({ role }) => {
                           Pending sync
                         </span>
                       )}
-                    
+
                     </div>
                   </div>
                 </div>
@@ -579,7 +597,7 @@ const ProductManagement = ({ role }) => {
               </div>
 
               <div className="space-y-2 mb-4">
-                
+
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Package size={14} />
                   <span className="truncate">{product.category?.name || 'No category'}</span>
@@ -627,7 +645,7 @@ const ProductManagement = ({ role }) => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-             
+
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Images</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
@@ -670,13 +688,13 @@ const ProductManagement = ({ role }) => {
                             Pending sync
                           </span>
                         )}
-                       
+
                       </div>
                     </div>
                   </div>
                 </td>
 
-               
+
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
@@ -707,15 +725,15 @@ const ProductManagement = ({ role }) => {
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                   {
-                    isOnline &&  <button
-                      onClick={() => handleViewProduct(product)}
-                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                      title="View Details"
-                    >
-                      <Eye size={16} />
-                    </button>
-                   }
+                    {
+                      isOnline && <button
+                        onClick={() => handleViewProduct(product)}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <Eye size={16} />
+                      </button>
+                    }
                     <button
                       onClick={() => handleEditProduct(product)}
                       className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -745,10 +763,9 @@ const ProductManagement = ({ role }) => {
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500 text-white' : 
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' :
           notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
-        } animate-in slide-in-from-top-2 duration-300`}>
+          } animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>
@@ -761,9 +778,8 @@ const ProductManagement = ({ role }) => {
               <h1 className="text-3xl font-bold text-gray-900">Product Management</h1>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
                 {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
                 {isOnline ? 'Online' : 'Offline'}
               </div>
@@ -818,8 +834,8 @@ const ProductManagement = ({ role }) => {
           </div>
         ) : (
           <>
-           <CardView />
-           <TableView />
+            <CardView />
+            <TableView />
           </>
         )}
       </div>
