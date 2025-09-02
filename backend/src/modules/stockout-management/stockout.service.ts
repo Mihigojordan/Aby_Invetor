@@ -23,6 +23,7 @@ async create(data: {
   sales: {
     stockinId: string;
     quantity: number;
+    soldPrice?: number;
     isBackOrder: boolean;
     backOrder: any;
   }[];
@@ -46,7 +47,7 @@ async create(data: {
   // Use a database transaction to ensure atomicity
   return await this.prisma.$transaction(async (tx) => {
     for (const sale of sales) {
-      const { stockinId, quantity, isBackOrder, backOrder } = sale;
+      const { stockinId, quantity, soldPrice: overrideSoldPrice, isBackOrder, backOrder } = sale;
 
       const backorderData = {
         ...backOrder,
@@ -96,8 +97,7 @@ async create(data: {
 
         console.log('Stock updated successfully for stockin:', stockinId);
 
-        const soldPrice = stockin.sellingPrice * quantity;
-
+        const soldPrice = overrideSoldPrice ?? stockin.sellingPrice;
         const newStockout = await tx.stockOut.create({
           data: {
             stockinId,
@@ -120,15 +120,21 @@ async create(data: {
           throw new BadRequestException(`Back order quantity is required`);
         }
 
-        if (backorderData.sellingPrice === null || backorderData.sellingPrice === undefined) {
-          throw new BadRequestException(`Selling price not set for Back order`);
-        }
-
         if (backorderData.productName === null || backorderData.productName === undefined) {
           throw new BadRequestException(`Product name not set for Back order`);
         }
 
-        const soldPrice = backorderData.sellingPrice * quantity;
+        // Override sellingPrice if provided in sale
+        if (overrideSoldPrice !== undefined) {
+          backorderData.sellingPrice = overrideSoldPrice;
+        }
+
+        if (backorderData.sellingPrice === null || backorderData.sellingPrice === undefined) {
+          throw new BadRequestException(`Selling price not set for Back order`);
+        }
+
+        const soldPrice = backorderData.sellingPrice;
+        const totalPrice = soldPrice * quantity;
 
         const backorder = await this.backOrderService.createBackOrder(backorderData);
 
@@ -264,6 +270,7 @@ async create(data: {
     data: Partial<{
       quantity: number;
       soldPrice: number;
+      totalPrice: number;
       clientName: string;
       clientEmail: string;
       clientPhone: string;
@@ -275,12 +282,25 @@ async create(data: {
       const stockout = await this.prisma.stockOut.findUnique({ where: { id } });
       if (!stockout) throw new NotFoundException('StockOut not found');
 
+      // If quantity or soldPrice is updated, recalculate totalPrice
+      let calculatedTotalPrice: number | undefined;
+      const newQuantity = data.quantity ?? stockout.quantity;
+      const newSoldPrice = data.soldPrice ?? stockout.soldPrice;
+      if ((data.quantity !== undefined || data.soldPrice !== undefined) && newQuantity !== null && newSoldPrice !== null) {
+        calculatedTotalPrice = newSoldPrice * newQuantity;
+      }
+
+      const updateData = {
+        ...data,
+        totalPrice: calculatedTotalPrice ?? data.totalPrice, // Prioritize calculated if applicable
+      };
+
       const updatedStockout = await this.prisma.stockOut.update({
         where: { id },
-        data,
+        data: updateData,
       });
-      if(stockout.backorderId){
 
+      if(stockout.backorderId){
         const existingBackOrder = await this.prisma.backOrder.findUnique({where:{ id:stockout.backorderId }})
         if(!existingBackOrder){
           throw new NotFoundException('backorder was not found') 
@@ -288,12 +308,12 @@ async create(data: {
         await this.prisma.backOrder.update({
           where:{id:existingBackOrder.id},
           data:{
-            quantity: data.quantity || undefined
+            quantity: data.quantity ?? undefined,
+            soldPrice: data.soldPrice ?? undefined,
           }
         })
-
-
       }
+
       if (data.adminId) {
         const admin = await this.prisma.admin.findUnique({
           where: { id: data.adminId },
