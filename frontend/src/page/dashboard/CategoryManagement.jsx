@@ -365,12 +365,7 @@ const CategoryManagement = ({ role }) => {
                       >
                         <Edit3 size={16} />
                       </button>
-                      <button
-                        onClick={() => openDeleteModal(category)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                 
                     </div>
                   </div>
                   <div className="space-y-2 mb-4">
