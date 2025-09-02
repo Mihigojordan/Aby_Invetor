@@ -13,6 +13,7 @@ import { ActivityManagmentModule } from './modules/activity-managament/activity.
 import { SummaryModule } from './modules/Summary/summary.module';
 import { ReportModule } from './modules/report-management/report.module';
 import { BackOrderManagementModule } from './modules/backorder-management/backorder-management.module';
+import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.module';
 
 
 
@@ -31,6 +32,7 @@ import { BackOrderManagementModule } from './modules/backorder-management/backor
     ActivityManagmentModule,
     SummaryModule,
     BackOrderManagementModule,
+    SalesReturnModule
   ],
   controllers: [AppController],
   providers: [],

@@ -7,12 +7,11 @@ export class ReportService {
 
   async create(data: any) {
     try {
-      const { employeeId, productsSold, expenses, transactions, cashAtHand, moneyOnPhone } = data;
+      const { employeeId, expenses, transactions, cashAtHand, moneyOnPhone } = data;
 
       return await this.prisma.report.create({
         data: {
           employeeId,
-          productsSold,
           cashAtHand: cashAtHand || 0,
           moneyOnPhone: moneyOnPhone || 0,
           expenses: {
@@ -94,7 +93,6 @@ export class ReportService {
       return await this.prisma.report.update({
         where: { id },
         data: {
-          productsSold: data.productsSold,
           cashAtHand: data.cashAtHand,
           moneyOnPhone: data.moneyOnPhone,
         },

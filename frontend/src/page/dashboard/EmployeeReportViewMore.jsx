@@ -222,14 +222,6 @@ const EmployeeReportViewMore = () => {
                     <p className="text-lg font-semibold text-gray-900">{formatDate(report.createdAt)}</p>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-4">
-                  <Package className="h-10 w-10 text-green-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">Products Sold</p>
-                    <p className="text-lg font-semibold text-gray-900">{report?.productsSold?.length || 0}</p>
-                  </div>
-                </div>
               </div>
             </div>
 

@@ -5,12 +5,10 @@ import api from '../api/api'; // Adjust the import path as needed
  * Provides methods to interact with Report API endpoints using axios
  * Handles daily/shift reports with expenses and transactions
  */
-
 class ReportService {
   /**
    * Create a new report
    * @param {Object} reportData - Report data
-   * @param {Array} reportData.productsSold - Number of products sold (required)
    * @param {number} [reportData.cashAtHand] - Cash at hand amount (optional, defaults to 0)
    * @param {number} [reportData.moneyOnPhone] - Money on phone amount (optional, defaults to 0)
    * @param {Array} [reportData.expenses] - Array of expense objects (optional)
@@ -19,14 +17,8 @@ class ReportService {
    */
   async createReport(reportData) {
     try {
-      // Validate required fields
-      if (reportData.productsSold === undefined || reportData.productsSold === null) {
-        throw new Error('Products sold count is required');
-      }
-
       // Format the request data
       const requestData = {
-        productsSold: reportData.productsSold,
         cashAtHand: reportData.cashAtHand ? Number(reportData.cashAtHand) : 0,
         moneyOnPhone: reportData.moneyOnPhone ? Number(reportData.moneyOnPhone) : 0,
         expenses: reportData.expenses || [],
@@ -89,7 +81,6 @@ class ReportService {
    * Update a report
    * @param {string} id - Report ID
    * @param {Object} updateData - Data to update
-   * @param {Array} [updateData.productsSold] - Updated products sold count
    * @param {number} [updateData.cashAtHand] - Updated cash at hand amount
    * @param {number} [updateData.moneyOnPhone] - Updated money on phone amount
    * @returns {Promise<Object>} Updated report
@@ -109,9 +100,6 @@ class ReportService {
         ...updateData
       };
 
-      if (updateData.productsSold !== undefined) {
-        formattedUpdateData.productsSold = updateData.productsSold;
-      }
       if (updateData.cashAtHand !== undefined) {
         formattedUpdateData.cashAtHand = Number(updateData.cashAtHand);
       }
@@ -243,23 +231,15 @@ class ReportService {
    */
   validateReportData(reportData) {
     const errors = [];
-    
-    if (reportData.productsSold === undefined || reportData.productsSold === null) {
-      errors.push('Products sold count is required');
-    }
-    
-    if (reportData.productsSold !== undefined && (isNaN(Number(reportData.productsSold)) || Number(reportData.productsSold) < 0)) {
-      errors.push('Products sold must be a valid non-negative number');
-    }
-    
+
     if (reportData.cashAtHand !== undefined && (isNaN(Number(reportData.cashAtHand)) || Number(reportData.cashAtHand) < 0)) {
       errors.push('Cash at hand must be a valid non-negative number');
     }
-    
+
     if (reportData.moneyOnPhone !== undefined && (isNaN(Number(reportData.moneyOnPhone)) || Number(reportData.moneyOnPhone) < 0)) {
       errors.push('Money on phone must be a valid non-negative number');
     }
-    
+
     // Validate expenses if provided
     if (reportData.expenses) {
       try {
@@ -268,7 +248,7 @@ class ReportService {
         errors.push(error.message);
       }
     }
-    
+
     // Validate transactions if provided
     if (reportData.transactions) {
       try {
@@ -277,11 +257,11 @@ class ReportService {
         errors.push(error.message);
       }
     }
-    
+
     if (errors.length > 0) {
       throw new Error(errors.join(', '));
     }
-    
+
     return true;
   }
 
@@ -302,7 +282,7 @@ class ReportService {
    */
   calculateNetCashFlow(transactions) {
     if (!Array.isArray(transactions)) return 0;
-    
+
     return transactions.reduce((total, transaction) => {
       const amount = Number(transaction.amount) || 0;
       if (transaction.type === 'income') {
@@ -334,10 +314,9 @@ class ReportService {
     const totalExpenses = this.calculateTotalExpenses(report.expenses || []);
     const netCashFlow = this.calculateNetCashFlow(report.transactions || []);
     const totalMoney = this.calculateTotalMoney(report);
-    
+
     return {
       reportId: report.id,
-      productsSold: report.productsSold,
       totalExpenses,
       netCashFlow,
       totalMoney,

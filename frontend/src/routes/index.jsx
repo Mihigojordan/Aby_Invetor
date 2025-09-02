@@ -35,6 +35,7 @@ import ViewReportsPage from "../components/dashboard/report/ViewReportPage";
 import EmployeeReportManagement from "../page/dashboard/EmployeeReportManagement";
 import EmployeeReportViewMore from "../page/dashboard/EmployeeReportViewMore";
 import ViewEmployeePage from "../components/dashboard/employee/ViewEmployeeModal";
+import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -128,6 +129,15 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <StockOutManagment role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -269,6 +279,15 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <StockOutManagment role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 
