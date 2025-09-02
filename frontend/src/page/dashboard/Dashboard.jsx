@@ -15,7 +15,10 @@ import {
   Award,
   Star,
   AlertCircle,
-  BarChart2
+  BarChart2,
+  Clock,
+  PackageX,
+  ShoppingCart
 } from 'lucide-react';
 import {
   BarChart,
@@ -35,6 +38,7 @@ import stockOutService from "../../services/stockoutService";
 import stockinService from "../../services/stockinService";
 import categoryService from "../../services/categoryService";
 import { API_URL } from '../../api/api';
+import backOrderService from '../../services/backOrderService';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -100,6 +104,7 @@ const Dashboard = () => {
         stockOutService.getAllStockOuts(),
         categoryService.getAllCategories(),
         salesReturnService.getAllSalesReturns(),
+        backOrderService.getAllBackOrders()
       ]);
 
       // Process results and handle any failed requests
@@ -110,6 +115,7 @@ const Dashboard = () => {
         stockOutsResult,
         categoriesResult,
         salesReturnsResult,
+       backOrderResult,
       ] = results;
 
       const data = {
@@ -120,6 +126,8 @@ const Dashboard = () => {
         categories: categoriesResult.status === 'fulfilled' ? categoriesResult.value : [],
         salesReturns: salesReturnsResult.status === 'fulfilled' ? 
           (salesReturnsResult.value?.data || salesReturnsResult.value) : [],
+        backOrders: backOrderResult.status === 'fulfilled' ? 
+          (backOrderResult.value?.data || backOrderResult.value) : [],
         summary
       };
 
@@ -131,7 +139,7 @@ const Dashboard = () => {
       setDashboardData(data);
 
       if (summary) {
-        calculateStats(summary);
+        calculateStats(summary,data);
       } else {
         calculateStatsFromData(data);
       }
@@ -150,9 +158,11 @@ const Dashboard = () => {
     }
   };
 
-  const calculateStats = (summary) => {
+  const calculateStats = (summary,data) => {
     console.log('📊 Calculating stats from summary:', summary);
-    
+     const backOrders = Array.isArray(data.backOrders) ? data.backOrders : [];
+      const totalBackOrders = backOrders.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+
     const newStats = [
       {
         title: 'Total Products',
@@ -194,90 +204,103 @@ const Dashboard = () => {
         color: 'text-emerald-600',
         bgColor: 'bg-emerald-50'
       },
-      {
-        title: 'Total Stock In',
-        value: (summary.totalStockIn || 0).toString(),
-        icon: Box,
-        change: `Most stocked: ${summary.mostStockedInProduct?.name || 'N/A'}`,
-        color: 'text-cyan-600',
-        bgColor: 'bg-cyan-50'
-      },
+
+        {
+      title: 'Non-Stock Sale',
+      value: totalBackOrders.toString(),
+      icon: ShoppingCart , 
+      change: `${backOrders?.length} sales`,
+      color: 'text-red-600',
+      bgColor: 'bg-red-50'
+    }
+
     ];
     
     console.log('📊 Stats calculated:', newStats);
     setStats(newStats);
   };
 
-  const calculateStatsFromData = (data) => {
-    console.log('📊 Calculating stats from raw data...');
-    
-    // Ensure data is arrays
-    const employees = Array.isArray(data.employees) ? data.employees : [];
-    const products = Array.isArray(data.products) ? data.products : [];
-    const categories = Array.isArray(data.categories) ? data.categories : [];
-    const stockIns = Array.isArray(data.stockIns) ? data.stockIns : [];
-    const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
-    const salesReturns = Array.isArray(data.salesReturns) ? data.salesReturns : [];
+const calculateStatsFromData = (data) => {
+  console.log('📊 Calculating stats from raw data...');
+  
+  // Ensure data is arrays
+  const employees = Array.isArray(data.employees) ? data.employees : [];
+  const products = Array.isArray(data.products) ? data.products : [];
+  const categories = Array.isArray(data.categories) ? data.categories : [];
+  const stockIns = Array.isArray(data.stockIns) ? data.stockIns : [];
+  const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
+  const salesReturns = Array.isArray(data.salesReturns) ? data.salesReturns : [];
+ 
 
-    const totalProducts = products.length;
-    const totalEmployees = employees.length;
-    const totalCategories = categories.length;
-    const totalStockIn = stockIns.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-    const totalStockOut = stockOuts.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-    const totalSalesReturns = salesReturns.length;
+  const totalProducts = products.length;
+  const totalEmployees = employees.length;
+  const totalCategories = categories.length;
+  const totalStockIn = stockIns.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  const totalStockOut = stockOuts.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  const totalSalesReturns = salesReturns.length;
+ 
+  // Fix lowStock calculation - should be based on products with current stock
+  const lowStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 5);
+  const outOfStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 0);
 
-    // Fix lowStock calculation - should be based on products with current stock
-    const lowStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 5);
-    const outOfStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 0);
+  console.log('📊 Calculated values:', {
+    totalProducts,
+    totalEmployees,
+    totalCategories,
+    totalStockIn,
+    totalStockOut,
+    totalSalesReturns,
+    totalBackOrders,
+    lowStockCount: lowStock.length,
+    outOfStockCount: outOfStock.length
+  });
 
-    console.log('📊 Calculated values:', {
-      totalProducts,
-      totalEmployees,
-      totalCategories,
-      totalStockIn,
-      totalStockOut,
-      totalSalesReturns,
-      lowStockCount: lowStock.length,
-      outOfStockCount: outOfStock.length
-    });
+  const newStats = [
+    {
+      title: 'Total Products',
+      value: totalProducts.toString(),
+      icon: Package,
+      change: `${totalStockIn} total stock in`,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50'
+    },
+    {
+      title: 'Low Stock Items',
+      value: lowStock.length.toString(),
+      icon: AlertTriangle,
+      change: `${outOfStock.length} out of stock`,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50'
+    },
+    {
+      title: 'Total Stock Out',
+      value: totalStockOut.toString(),
+      icon: ArrowDownRight,
+      change: `${totalSalesReturns} sales returns`,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50'
+    },
+    {
+      title: 'Total Employees',
+      value: totalEmployees.toString(),
+      icon: UserCheck,
+      change: `${totalCategories} categories`,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50'
+    },
+    {
+      title: 'Back Orders',
+      value: totalBackOrders.toString(),
+      icon: Clock, // ⏰ or use another icon from lucide-react
+      change: `${totalBackOrders} pending`,
+      color: 'text-red-600',
+      bgColor: 'bg-red-50'
+    }
+  ];
 
-    const newStats = [
-      {
-        title: 'Total Products',
-        value: totalProducts.toString(),
-        icon: Package,
-        change: `${totalStockIn} total stock in`,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50'
-      },
-      {
-        title: 'Low Stock Items',
-        value: lowStock.length.toString(),
-        icon: AlertTriangle,
-        change: `${outOfStock.length} out of stock`,
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-50'
-      },
-      {
-        title: 'Total Stock Out',
-        value: totalStockOut.toString(),
-        icon: ArrowDownRight,
-        change: `${totalSalesReturns} sales returns`,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50'
-      },
-      {
-        title: 'Total Employees',
-        value: totalEmployees.toString(),
-        icon: UserCheck,
-        change: `${totalCategories} categories`,
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50'
-      }
-    ];
+  setStats(newStats);
+};
 
-    setStats(newStats);
-  };
 
   const prepareInventoryData = (data) => {
     console.log('📦 Preparing inventory data...');
@@ -574,7 +597,7 @@ const Dashboard = () => {
 
       <main className="p-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {stats.map((stat, index) => (
             <div key={index} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">

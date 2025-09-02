@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, ShoppingCart, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Package, TrendingUp, ChevronLeft, ChevronRight, Wifi, WifiOff } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, ShoppingCart, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Package, TrendingUp, ChevronLeft, ChevronRight, Wifi, WifiOff, Receipt } from 'lucide-react';
 import stockOutService from '../../services/stockoutService';
 import stockInService from '../../services/stockinService';
 import UpsertStockOutModal from '../../components/dashboard/stockout/UpsertStockOutModal';
@@ -39,7 +39,10 @@ const StockOutManagement = ({ role }) => {
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
+    console.warn('loading');
+
     loadStockOuts();
+    if (isOnline) handleManualSync()
     const params = new URLSearchParams(window.location.search);
     const trId = params.get("transactionId");
     if (trId?.trim()) {
@@ -71,7 +74,9 @@ const StockOutManagement = ({ role }) => {
     try {
       if (isOnline) await triggerSync();
 
-      const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData,backOrderData] = await Promise.all([
+
+
+      const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
         db.stockouts_all.toArray(),
         db.stockouts_offline_add.toArray(),
         db.stockouts_offline_update.toArray(),
@@ -85,9 +90,9 @@ const StockOutManagement = ({ role }) => {
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
 
       const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
-      const productMap = new Map(productsData.map(p => [p.id, p]));
+      const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
 
-      const stockinMap = new Map(stockinsData.map(s => [s.id, { ...s, product: productMap.get(s.productId) }]));
+      const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
 
       const combinedStockOuts = allStockOuts
         .filter(so => !deleteIds.has(so.id))
@@ -96,21 +101,21 @@ const StockOutManagement = ({ role }) => {
           ...updateMap.get(so.id),
           synced: true,
           stockin: stockinMap.get(so.stockinId),
-          backorder:backOrderMap.get(so.backorderId)
+          backorder: backOrderMap.get(so.backorderId)
         }))
         .concat(offlineAdds.map(a => ({
           ...a,
           synced: false,
-          backorder: backOrderMap.get(a.backorderLocalId)  ,
+          backorder: backOrderMap.get(a.backorderLocalId),
           stockin: stockinMap.get(a.stockinId)
         })))
-         .sort((a, b) => a.synced - b.synced)
+        .sort((a, b) => a.synced - b.synced)
         ;
-        
-        const convertedStockIns = Array.from(stockinMap.values())
-      
-        console.warn('STOCK INS',backOrderMap);
-        
+
+      const convertedStockIns = Array.from(stockinMap.values())
+
+      console.warn('STOCK INS', backOrderMap);
+
 
       setStockOuts(combinedStockOuts);
       setFilteredStockOuts(combinedStockOuts);
@@ -127,14 +132,14 @@ const StockOutManagement = ({ role }) => {
     }
   };
 
-  
+
 
   const fetchStockIns = async () => {
     try {
       if (isOnline) {
         const response = await stockInService.getAllStockIns();
         for (const si of response) {
-             await db.stockins_all.put({
+          await db.stockins_all.put({
             id: si.id,
             productId: si.productId,
             quantity: si.quantity,
@@ -159,85 +164,111 @@ const StockOutManagement = ({ role }) => {
           }
         }
       }
-      return await db.stockins_all.toArray();
+
+      // 3. Merge all data (works offline too)
+      const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.stockins_all.toArray(),
+        db.stockins_offline_add.toArray(),
+        db.stockins_offline_update.toArray(),
+        db.stockins_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedStockin = allStockin
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      console.warn('THIS THE COMBINED STOCK IN :', combinedStockin);
+
+
+      return combinedStockin;
+
     } catch (error) {
       console.error('Error fetching stock-ins:', error);
-      if(!error.response){
-          return await db.stockins_all.toArray();
+      if (!error.response) {
+        return await db.stockins_all.toArray();
       }
-      
+
     }
   };
 
   const fetchBackorders = async () => {
-  try {
-    if (isOnline) {
-      // Assuming you have a backorderService similar to productService
-      const response = await backOrderService.getAllBackOrders(); 
+    try {
+      if (isOnline) {
+        // Assuming you have a backorderService similar to productService
+        const response = await backOrderService.getAllBackOrders();
 
-      for (const b of response.backorders || response) {
-        await db.backorders_all.put({
-          id: b.id,
-          quantity: b.quantity,
-          soldPrice: b.soldPrice,
-          productName: b.productName,
-          adminId: b.adminId,
-          employeeId: b.employeeId,
-          lastModified: b.lastModified || new Date(),
-          createdAt: b.createdAt || new Date(),
-          updatedAt: b.updatedAt || new Date()
-        });
+        for (const b of response.backorders || response) {
+          await db.backorders_all.put({
+            id: b.id,
+            quantity: b.quantity,
+            soldPrice: b.soldPrice,
+            productName: b.productName,
+            adminId: b.adminId,
+            employeeId: b.employeeId,
+            lastModified: b.lastModified || new Date(),
+            createdAt: b.createdAt || new Date(),
+            updatedAt: b.updatedAt || new Date()
+          });
+        }
+        // 3. Merge all data (works offline too)
+
+
       }
-          // 3. Merge all data (works offline too)
-        
-     
-    }
-
-        const [allBackOrder, offlineAdds] = await Promise.all([
-            db.backorders_all.toArray(),
-            db.backorders_offline_add.toArray(),
-          
-          ]);
-       
-          const combinedBackOrder = allBackOrder
-      
-            .map(c => ({
-              ...c,
-              synced: true
-            }))
-            .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-             .sort((a, b) => a.synced - b.synced);
-      console.warn('backend',combinedBackOrder);
-      
-            return combinedBackOrder;
-  
-  } catch (error) {
-    console.error('Error fetching backorders:', error);
-
-    // Fallback: return local cache if API fails or offline
-    if (!error?.response) {
 
       const [allBackOrder, offlineAdds] = await Promise.all([
-            db.backorders_all.toArray(),
-            db.backorders_offline_add.toArray(),
-          
-          ]);
-       
-          const combinedBackOrder = allBackOrder
-      
-            .map(c => ({
-              ...c,
-              synced: true
-            }))
-            .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-             .sort((a, b) => a.synced - b.synced);
-      console.warn('backend',combinedBackOrder);
-      
-            return combinedBackOrder;
-      
+        db.backorders_all.toArray(),
+        db.backorders_offline_add.toArray(),
+
+      ]);
+
+      const combinedBackOrder = allBackOrder
+
+        .map(c => ({
+          ...c,
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+      console.warn('backend', combinedBackOrder);
+
+      return combinedBackOrder;
+
+    } catch (error) {
+      console.error('Error fetching backorders:', error);
+
+      // Fallback: return local cache if API fails or offline
+      if (!error?.response) {
+
+        const [allBackOrder, offlineAdds] = await Promise.all([
+          db.backorders_all.toArray(),
+          db.backorders_offline_add.toArray(),
+
+        ]);
+
+        const combinedBackOrder = allBackOrder
+
+          .map(c => ({
+            ...c,
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+        console.warn('backend', combinedBackOrder);
+
+        return combinedBackOrder;
+
+      }
     }
-  }
-};
+  };
 
 
   const fetchProducts = async () => {
@@ -257,13 +288,59 @@ const StockOutManagement = ({ role }) => {
           });
         }
       }
-      return await db.products_all.toArray();
+
+      // 3. Merge all data (works offline too)
+      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.products_all.toArray(),
+        db.products_offline_add.toArray(),
+        db.products_offline_update.toArray(),
+        db.products_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedProducts = allProducts
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
+
     } catch (error) {
       console.error('Error fetching products:', error);
-      if(!error?.response){
-        return await db.products_all.toArray();
+      if (!error?.response) {
+
+        // 3. Merge all data (works offline too)
+        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.products_all.toArray(),
+          db.products_offline_add.toArray(),
+          db.products_offline_update.toArray(),
+          db.products_offline_delete.toArray()
+        ]);
+
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+        const combinedProducts = allProducts
+          .filter(c => !deleteIds.has(c.id))
+          .map(c => ({
+            ...c,
+            ...updateMap.get(c.id),
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+
+        return combinedProducts;
+
       }
-    
+
     }
   };
 
@@ -271,168 +348,187 @@ const StockOutManagement = ({ role }) => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
   };
-const handleAddStockOut = async (stockOutData) => {
-  setIsLoading(true);
-  try {
-    const userInfo = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
-    const now = new Date();
+  const handleAddStockOut = async (stockOutData) => {
+    setIsLoading(true);
+    try {
+      const userInfo = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
+      const now = new Date();
 
-    const salesArray = stockOutData.salesEntries || [{
-      stockinId: stockOutData.stockinId,
-      quantity: stockOutData.quantity,
-      isBackOrder: false,
-      backOrder: null
-    }];
+      const salesArray = stockOutData.salesEntries || [{
+        stockinId: stockOutData.stockinId,
+        quantity: stockOutData.quantity,
+        isBackOrder: false,
+        backOrder: null
+      }];
 
-    const clientInfo = {
-      clientName: stockOutData.clientName,
-      clientEmail: stockOutData.clientEmail,
-      clientPhone: stockOutData.clientPhone,
-      paymentMethod: stockOutData.paymentMethod
-    };
+      const clientInfo = {
+        clientName: stockOutData.clientName,
+        clientEmail: stockOutData.clientEmail,
+        clientPhone: stockOutData.clientPhone,
+        paymentMethod: stockOutData.paymentMethod
+      };
 
-    let localTransactionId = `local-trans-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    let createdStockouts = [];
+      let localTransactionId = `local-trans-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      let createdStockouts = [];
 
-    for (const sale of salesArray) {
-      let newStockout;
-      let backorderLocalId = null;
+      for (const sale of salesArray) {
+        let newStockout;
+        let backorderLocalId = null;
 
-      if (sale.isBackOrder) {
-        // 🆕 Persist backorder separately
-        const backOrderRecord = {
-          quantity: sale.quantity,
-          soldPrice: sale.backOrder.sellingPrice * sale.quantity,
-          productName: sale.backOrder.productName,
-          ...userInfo,
-          lastModified: now,
-          createdAt: now,
-          updatedAt: now
-        };
-        backorderLocalId = await db.backorders_offline_add.add(backOrderRecord);
+        if (sale.isBackOrder) {
+          // 🆕 Persist backorder separately
+          const backOrderRecord = {
+            quantity: sale.quantity,
+            soldPrice: sale.backOrder.sellingPrice * sale.quantity,
+            productName: sale.backOrder.productName,
+            ...userInfo,
+            lastModified: now,
+            createdAt: now,
+            updatedAt: now
+          };
+          backorderLocalId = await db.backorders_offline_add.add(backOrderRecord);
 
-        newStockout = {
-          stockinId: null, // no stockin link for backorder
-          quantity: sale.quantity,
-          soldPrice: backOrderRecord.soldPrice,
-          clientName: clientInfo.clientName,
-          clientEmail: clientInfo.clientEmail,
-          clientPhone: clientInfo.clientPhone,
-          paymentMethod: clientInfo.paymentMethod,
-          ...userInfo,
-          transactionId: localTransactionId,
-          isBackOrder: true,
-          backorderLocalId, // 🔑 reference so sync can join them
-          lastModified: now,
-          createdAt: now,
-          updatedAt: now
-        };
+          newStockout = {
+            stockinId: null, // no stockin link for backorder
+            quantity: sale.quantity,
+            soldPrice: backOrderRecord.soldPrice,
+            clientName: clientInfo.clientName,
+            clientEmail: clientInfo.clientEmail,
+            clientPhone: clientInfo.clientPhone,
+            paymentMethod: clientInfo.paymentMethod,
+            ...userInfo,
+            transactionId: localTransactionId,
+            isBackOrder: true,
+            backorderLocalId, // 🔑 reference so sync can join them
+            lastModified: now,
+            createdAt: now,
+            updatedAt: now
+          };
 
-        const localId = await db.stockouts_offline_add.add(newStockout);
-        createdStockouts.push({ ...newStockout, localId, synced: false });
+          const localId = await db.stockouts_offline_add.add(newStockout);
+          createdStockouts.push({ ...newStockout, localId, synced: false });
 
-      } else {
-        // ✅ Regular stockout flow
-        const stockin = await db.stockins_all.get(sale.stockinId);
-        if (!stockin) throw new Error(`Stock-in not found for ID: ${sale.stockinId}`);
+        } else {
+          // ✅ Regular stockout flow
+          const stockins = await fetchStockIns();
 
-        if (stockin.quantity < sale.quantity) {
-          throw new Error(`Not enough stock for ID: ${sale.stockinId}. Available: ${stockin.quantity}, Requested: ${sale.quantity}`);
-        }
+          const stockin = stockins.find(s => s.id === sale.stockinId || s.localId === sale.stockinId)
+          if (!stockin) throw new Error(`Stock-in not found for ID: ${sale.stockinId}`);
 
-        const soldPrice = stockin.sellingPrice * sale.quantity;
-
-        newStockout = {
-          stockinId: sale.stockinId,
-          quantity: sale.quantity,
-          soldPrice,
-          clientName: clientInfo.clientName,
-          clientEmail: clientInfo.clientEmail,
-          clientPhone: clientInfo.clientPhone,
-          paymentMethod: clientInfo.paymentMethod,
-          ...userInfo,
-          transactionId: localTransactionId,
-          isBackOrder: false,
-          lastModified: now,
-          createdAt: now,
-          updatedAt: now
-        };
-
-        const localId = await db.stockouts_offline_add.add(newStockout);
-        createdStockouts.push({ ...newStockout, localId, synced: false });
-
-        // Update stockin quantities locally
-        const newQuantity = stockin.quantity - sale.quantity;
-        await db.stockins_all.update(sale.stockinId, { quantity: newQuantity });
-       
-      }
-    }
-
-    if (isOnline) {
-      try {
-        const response = await stockOutService.createMultipleStockOut(salesArray, clientInfo, userInfo);
-
-        response.data.forEach(async (serverSo, idx) => {
-          const local = createdStockouts[idx];
-          await db.synced_stockout_ids.add({
-            localId: local.localId,
-            serverId: serverSo.id,
-            syncedAt: now
-          });
-
-          await db.stockouts_all.put({
-            id: serverSo.id,
-            stockinId: serverSo.stockinId,
-            backorderId: serverSo.backorderId || null,
-            quantity: serverSo.quantity,
-            soldPrice: serverSo.soldPrice,
-            clientName: serverSo.clientName,
-            clientEmail: serverSo.clientEmail,
-            clientPhone: serverSo.clientPhone,
-            paymentMethod: serverSo.paymentMethod,
-            lastModified: serverSo.lastModified || now,
-            updatedAt: serverSo.updatedAt || now
-          });
-
-          await db.stockouts_offline_add.delete(local.localId);
-
-          // If server created a backorder, persist it in main table & remove offline stub
-          if (serverSo.backorderId && local.backorderLocalId) {
-            await db.backorders_all.put({
-              id: serverSo.backorderId,
-              quantity: serverSo.quantity,
-              soldPrice: serverSo.soldPrice,
-              productName: serverSo.productName,
-              ...userInfo,
-              lastModified: now,
-              createdAt: serverSo.createdAt || now,
-              updatedAt: serverSo.updatedAt || now
-            });
-            await db.backorders_offline_add.delete(local.backorderLocalId);
+          if (stockin.quantity < sale.quantity) {
+            throw new Error(`Not enough stock for ID: ${sale.stockinId}. Available: ${stockin.quantity}, Requested: ${sale.quantity}`);
           }
-        });
 
-        showNotification(`Stock out transaction created successfully with ${salesArray.length} entries!`);
-        updateSearchParam('transactionId', response.transactionId);
-        setTransactionId(response.transactionId);
+          const soldPrice = stockin.sellingPrice * sale.quantity;
+
+          newStockout = {
+            stockinId: sale.stockinId,
+            quantity: sale.quantity,
+            soldPrice,
+            clientName: clientInfo.clientName,
+            clientEmail: clientInfo.clientEmail,
+            clientPhone: clientInfo.clientPhone,
+            paymentMethod: clientInfo.paymentMethod,
+            ...userInfo,
+            transactionId: localTransactionId,
+            isBackOrder: false,
+            lastModified: now,
+            createdAt: now,
+            updatedAt: now
+          };
+
+          const localId = await db.stockouts_offline_add.add(newStockout);
+          createdStockouts.push({ ...newStockout, localId, synced: false });
+
+          // Update stockin quantities locally
+          const newQuantity = (stockin.offlineQuantity ?? stockin.quantity) - sale.quantity;
+
+          const existingStockin = await db.stockins_all.get(sale.stockinId);
+          if (existingStockin) {
+            await db.stockins_all.update(sale.stockinId, { quantity: newQuantity });
+          } else {
+            const offlineStockin = await db.stockins_offline_add.get(sale.stockinId);
+            if (offlineStockin) {
+              await db.stockins_offline_add.update(sale.stockinId, { offlineQuantity: newQuantity });
+            }
+          }
+
+
+        }
+      }
+
+      if (isOnline) {
+        try {
+          const response = await stockOutService.createMultipleStockOut(salesArray, clientInfo, userInfo);
+
+          await Promise.all(
+            response.data.map(async (serverSo, idx) => {
+              const local = createdStockouts[idx];
+
+              await db.synced_stockout_ids.add({
+                localId: local.localId,
+                serverId: serverSo.id,
+                syncedAt: now,
+              });
+
+              await db.stockouts_all.put({
+                id: serverSo.id,
+                stockinId: serverSo.stockinId,
+                backorderId: serverSo.backorderId || null,
+                quantity: serverSo.quantity,
+                soldPrice: serverSo.soldPrice,
+                clientName: serverSo.clientName,
+                transactionId: serverSo.transactionId,
+                clientEmail: serverSo.clientEmail,
+                clientPhone: serverSo.clientPhone,
+                paymentMethod: serverSo.paymentMethod,
+                lastModified: serverSo.lastModified || now,
+                updatedAt: serverSo.updatedAt || now,
+              });
+
+              await db.stockouts_offline_add.delete(local.localId);
+
+              if (serverSo.backorderId && local.backorderLocalId) {
+                await db.backorders_all.put({
+                  id: serverSo.backorderId,
+                  quantity: serverSo.quantity,
+                  soldPrice: serverSo.soldPrice,
+                  productName: serverSo.productName,
+                  ...userInfo,
+                  lastModified: now,
+                  createdAt: serverSo.createdAt || now,
+                  updatedAt: serverSo.updatedAt || now,
+                });
+                await db.backorders_offline_add.delete(local.backorderLocalId);
+              }
+            })
+          );
+
+
+          showNotification(`Stock out transaction created successfully with ${salesArray.length} entries!`);
+          updateSearchParam('transactionId', response.transactionId);
+          setTransactionId(response.transactionId);
+          setIsInvoiceNoteOpen(true);
+        } catch (error) {
+          console.warn('Error posting to server, keeping offline:', error);
+          showNotification('Stock out saved offline (will sync when online)', 'warning');
+        }
+      } else {
+          updateSearchParam('transactionId',localTransactionId);
+        setTransactionId(localTransactionId);
         setIsInvoiceNoteOpen(true);
-      } catch (error) {
-        console.warn('Error posting to server, keeping offline:', error);
         showNotification('Stock out saved offline (will sync when online)', 'warning');
       }
-    } else {
-      showNotification('Stock out saved offline (will sync when online)', 'warning');
-    }
 
-    await loadStockOuts();
-    setIsAddModalOpen(false);
-  } catch (error) {
-    console.error('Error adding stock out:', error);
-    showNotification(`Failed to add stock out: ${error.message}`, 'error');
-  } finally {
-    setIsLoading(false);
-  }
-};
+      await loadStockOuts();
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Error adding stock out:', error);
+      showNotification(`Failed to add stock out: ${error.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleUpdateStockOut = async (stockOutData) => {
     setIsLoading(true);
@@ -452,7 +548,7 @@ const handleAddStockOut = async (stockOutData) => {
         updatedAt: now
       };
 
-     
+
 
 
       if (isOnline) {
@@ -485,19 +581,23 @@ const handleAddStockOut = async (stockOutData) => {
         await db.stockouts_offline_update.put(updatedData);
         showNotification('Stock out updated offline (will sync when online)', 'warning');
       }
-      if (selectedStockOut.stockinId){
+      if (selectedStockOut.stockinId) {
+
+
+
         const stockin = await db.stockins_all.get(selectedStockOut.stockinId);
 
-        
-        const oldQuantity = selectedStockOut.quantity;
-        const quantityDelta = stockOutData.quantity - oldQuantity;
-        const newStockQuantity = stockin.quantity - quantityDelta;
-        
-        // Update local stock-in regardless
-        await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newStockQuantity });
+        if (stockin) {
+          // Update local stock-in regardless
+          const oldQuantity = selectedStockOut.quantity;
+          const quantityDelta = stockOutData.quantity - oldQuantity;
+          const newStockQuantity = stockin.quantity - quantityDelta;
+          await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newStockQuantity });
+        }
+
       }
-      
-        
+
+
       await loadStockOuts();
       setIsEditModalOpen(false);
       setSelectedStockOut(null);
@@ -516,11 +616,23 @@ const handleAddStockOut = async (stockOutData) => {
       const now = new Date();
 
       if (selectedStockOut.stockinId) {
-        const stockin = await db.stockins_all.get(selectedStockOut.stockinId);
-        const newQuantity = stockin.quantity + selectedStockOut.quantity;
-        await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newQuantity });
-       
+        const existingStockin = await db.stockins_all.get(selectedStockOut.stockinId);
+        if (existingStockin) {
+          const newQuantity = existingStockin.quantity + selectedStockOut.quantity;
+          await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newQuantity });
+        } else {
+          const offlineStockin = await db.stockins_offline_add.get(selectedStockOut.stockinId);
+          if (offlineStockin) {
+            const newQuantity = offlineStockin.quantity + selectedStockOut.quantity;
+            await db.stockins_offline_add.update(selectedStockOut.stockinId, { offlineQuantity: newQuantity });
+          }
+        }
+
+
       }
+
+
+
 
       if (isOnline && selectedStockOut.id) {
         await stockOutService.deleteStockOut(selectedStockOut.id, userData);
@@ -577,6 +689,12 @@ const handleAddStockOut = async (stockOutData) => {
     window.history.pushState({}, "", newUrl);
   }
 
+
+  const handleShowInvoiceComponent = (transactionId)=>{
+      updateSearchParam('transactionId', transactionId);
+          setTransactionId(transactionId);
+          setIsInvoiceNoteOpen(true);
+  }
   const handleCloseInvoiceModal = () => {
     setIsInvoiceNoteOpen(false);
     setTransactionId(null);
@@ -659,7 +777,7 @@ const handleAddStockOut = async (stockOutData) => {
         <p className="text-sm text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredStockOuts.length)} of {filteredStockOuts.length} entries
         </p>
-     
+
       </div>
 
       {totalPages > 1 && (
@@ -711,11 +829,10 @@ const handleAddStockOut = async (stockOutData) => {
     <div className="md:hidden">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
         {currentItems.map((stockOut) => (
-          <div 
-            key={stockOut.localId || stockOut.id} 
-            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${
-              stockOut.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
-            }`}
+          <div
+            key={stockOut.localId || stockOut.id}
+            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${stockOut.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
+              }`}
           >
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -747,20 +864,18 @@ const handleAddStockOut = async (stockOutData) => {
                   >
                     <Eye size={16} />
                   </button>
-                  <button
-                    onClick={() => openEditModal(stockOut)}
-                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                    title="Edit stock out"
-                  >
-                    <Edit3 size={16} />
-                  </button>
-                  {/* <button
-                    onClick={() => openDeleteModal(stockOut)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete stock out"
-                  >
-                    <Trash2 size={16} />
-                  </button> */}
+                  {
+                    stockOut.synced && (
+                      <button
+                        onClick={() => openEditModal(stockOut)}
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="Edit stock out"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                    )
+                  }
+
                 </div>
               </div>
 
@@ -904,7 +1019,7 @@ const handleAddStockOut = async (stockOutData) => {
                   <div className="flex items-center gap-1">
                     <Calendar size={14} className="text-gray-400" />
                     <span className="text-sm text-gray-600">
-                      {formatDate(stockOut.createdAt || stockOut.lastModified )}
+                      {formatDate(stockOut.createdAt || stockOut.lastModified)}
                     </span>
                   </div>
                 </td>
@@ -917,20 +1032,29 @@ const handleAddStockOut = async (stockOutData) => {
                     >
                       <Eye size={16} />
                     </button>
-                    <button
-                      onClick={() => openEditModal(stockOut)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                    <button
-                      onClick={() => openDeleteModal(stockOut)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {
+                      stockOut.synced && (
+                        <button
+                          onClick={() => openEditModal(stockOut)}
+                          className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                      )}
+                      {
+                        stockOut.transactionId &&
+                        <button
+                        onClick={() => handleShowInvoiceComponent(stockOut.transactionId)}
+                          className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Receipt size={16} />
+                        </button>
+
+                      }
+                     
+
                   </div>
                 </td>
               </tr>
@@ -946,10 +1070,9 @@ const handleAddStockOut = async (stockOutData) => {
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500 text-white' : 
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' :
           notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
-        } animate-in slide-in-from-top-2 duration-300`}>
+          } animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>
@@ -966,9 +1089,8 @@ const handleAddStockOut = async (stockOutData) => {
               <h1 className="text-3xl font-bold text-gray-900">Stock Out Management</h1>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
                 {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
                 {isOnline ? 'Online' : 'Offline'}
               </div>

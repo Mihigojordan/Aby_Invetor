@@ -11,7 +11,7 @@ class StockInSyncService {
     this.syncLock = null;
   }
 
-async syncStockIns() {
+async syncStockIns(skipLocalFetch) {
   // 🔒 Prevent concurrent syncs with a promise-based lock
   if (this.syncLock) {
     console.log('Sync already in progress, waiting for completion...');
@@ -39,7 +39,7 @@ async syncStockIns() {
     console.log('✅ Product sync completed:', productResults);
 
     // 🎯 STEP 2: Wait a bit to ensure all product IDs are updated
-    if (productResults.processed > 0) {
+    if (productResults?.processed > 0) {
       console.log('⏰ Waiting for product ID updates to propagate...');
       await new Promise(resolve => setTimeout(resolve, 2000)); // 1 second delay
     }
@@ -54,16 +54,17 @@ async syncStockIns() {
 
     // Only fetch if we made changes or it's been a while
     const shouldFetchFresh =
-      results.addProducts.processed > 0 ||
+      results?.addProducts?.processed > 0 ||
       results.adds.processed > 0 ||
       results.updates.processed > 0 ||
       results.deletes.processed > 0 ||
       !this.lastSyncTime ||
       (Date.now() - this.lastSyncTime) > 120000; // 2 minutes
+ 
 
-    if (shouldFetchFresh) {
+      console.warn(' REFRESHING   ');
       await this.fetchAndUpdateLocal();
-    }
+   
 
     this.lastSyncTime = Date.now();
     console.log('✅ StockIn sync completed successfully', results);
@@ -202,7 +203,7 @@ async syncStockIns() {
       }
 
       // 💾 Update local database atomically with resolved product ID
-      await db.transaction('rw', db.stockins_all, db.stockins_offline_add, db.synced_stockin_ids, async () => {
+      await db.transaction('rw', db.stockins_all, db.stockins_offline_add, db.synced_stockin_ids ,db.stockouts_offline_add,db.stockouts_offline_update, async () => {
         const existingStockIn = await db.stockins_all.get(serverStockInId);
 
         const stockInRecord = {
@@ -232,6 +233,45 @@ async syncStockIns() {
           serverId: serverStockInId,
           syncedAt: new Date()
         });
+
+        const relatedStockOuts = await db.stockouts_offline_add
+            .where('stockinId')
+            .equals(stockIn.localId)
+            .toArray();
+
+          if (relatedStockOuts.length > 0) {
+
+
+            for (const stockout of relatedStockOuts) {
+              await db.stockouts_offline_add.update(stockout.localId, {
+                stockinId: serverStockInId
+              });
+              console.log(`✅ Updated stockout ${stockout.localId} product ID: ${stockIn.localId} → ${serverStockInId}`);
+            }
+          }
+
+
+
+
+
+
+          const relatedStockOutUpdates = await db.stockouts_offline_update
+            .where('stockinId')
+            .equals(stockIn.localId)
+            .toArray();
+
+          if (relatedStockOutUpdates.length > 0) {
+
+
+            for (const stockout of relatedStockOutUpdates) {
+              await db.stockouts_offline_update.update(stockout.id, {
+                stockinId: serverStockInId
+              });
+              console.log(`✅ Updated stockout update ${stockout.id} StockIn ID: ${stockIn.localId} → ${serverStockInId}`);
+            }
+
+
+          }
 
         // Remove from offline queue
         await db.stockins_offline_add.delete(stockIn.localId);

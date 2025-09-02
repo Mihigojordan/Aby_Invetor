@@ -368,7 +368,12 @@ const CardView = () => (
                 )}
                 {stockOut.backorderId && (
                   <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
-                    {stockOut.backorderId && 'backordered'}
+                    {stockOut.backorderId && 'Non-Stock Sale'}
+                  </div>
+                )}
+                {stockOut.stockinId && (
+                  <div className="text-xs text-green-800 font-mono bg-green-100 px-2 py-1 rounded inline-block">
+                    {stockOut.stockinId && 'Stock In Sale'}
                   </div>
                 )}
               </div>
@@ -506,7 +511,16 @@ const CardView = () => (
                       <div className="flex gap-2 items-center">
                         {stockOut.backorderId && (
                   <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
-                    {stockOut.backorderId && 'backordered'}
+                    {stockOut.backorderId && 'Non-Stock Sale'}
+                  </div>
+
+                  
+                  
+                )}
+
+                 {stockOut.stockinId && (
+                  <div className="text-xs text-green-800 font-mono bg-green-100 px-2 py-1 rounded inline-block">
+                    {stockOut.stockinId && 'Stock In Sale'}
                   </div>
                 )}
                     {stockOut.transactionId && (
@@ -595,7 +609,7 @@ const CardView = () => (
   if (loading) {
     return (
       <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className=" mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Sales Report</h1>
             <p className="text-gray-600">Loading sales analytics...</p>
@@ -623,7 +637,7 @@ const CardView = () => (
   if (error) {
     return (
       <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className=" mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Sales Report</h1>
             <p className="text-gray-600">Analytics and insights for your sales performance</p>

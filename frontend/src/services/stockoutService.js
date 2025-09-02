@@ -84,6 +84,9 @@ class StockOutService {
         throw new Error('At least one sale is required');
       }
 
+    console.warn('SALES :',salesArray);
+    
+
       // Validate each sale item
       for (const sale of salesArray) {
         if (sale.isBackOrder) {

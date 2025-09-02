@@ -10,7 +10,7 @@ import { API_URL } from '../../api/api';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
 import stockOutService from '../../services/stockoutService';
-import  stockInService from '../../services/stockinService'
+import stockInService from '../../services/stockinService'
 import { db } from '../../db/database';
 import { useStockInOfflineSync } from '../../hooks/useStockInOfflineSync';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
@@ -68,7 +68,7 @@ class BarcodeService {
   // Generate HTML for multiple barcodes
   generateMultipleBarcodeHTML(stockItems) {
     const barcodeHTMLs = stockItems.map(item => this.generateBarcodeHTML(item));
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -156,17 +156,17 @@ class BarcodeService {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       const printHTML = this.generateMultipleBarcodeHTML(stockItems);
-      
+
       // Create a new window for printing
       const printWindow = window.open('', '_blank', 'width=800,height=600');
-      
+
       if (!printWindow) {
         throw new Error('Popup blocked. Please allow popups for barcode printing.');
       }
 
       printWindow.document.write(printHTML);
       printWindow.document.close();
-      
+
       return true;
     } catch (error) {
       console.error('Error printing barcodes:', error);
@@ -184,7 +184,7 @@ class BarcodeService {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       const printHTML = this.generateMultipleBarcodeHTML(stockItems);
-      
+
       // Create invisible iframe
       const iframe = document.createElement('iframe');
       iframe.style.position = 'absolute';
@@ -192,9 +192,9 @@ class BarcodeService {
       iframe.style.left = '-1000px';
       iframe.style.width = '0';
       iframe.style.height = '0';
-      
+
       document.body.appendChild(iframe);
-      
+
       const doc = iframe.contentWindow.document;
       doc.open();
       doc.write(printHTML);
@@ -286,13 +286,13 @@ const StockInManagement = ({ role }) => {
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
   const { triggerSync, syncError } = useStockInOfflineSync();
-  
+
 
   const [itemsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
 
   const [recentlyAddedItems, setRecentlyAddedItems] = useState([]);
-      
+
 
   useEffect(() => {
     console.log('Starting loadData');
@@ -300,8 +300,8 @@ const StockInManagement = ({ role }) => {
     if (isOnline) handleManualSync()
   }, [isOnline]);
 
-  
-    const fetchProducts = async () => {
+
+  const fetchProducts = async () => {
     try {
       if (isOnline) {
         // Assuming a productService.getAllProducts() exists, similar to categories
@@ -319,81 +319,104 @@ const StockInManagement = ({ role }) => {
         }
       }
 
-        // 3. Merge all data (works offline too)
-    const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-      db.products_all.toArray(),
-      db.products_offline_add.toArray(),
-      db.products_offline_update.toArray(),
-      db.products_offline_delete.toArray()
-    ]);
+      // 3. Merge all data (works offline too)
+      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.products_all.toArray(),
+        db.products_offline_add.toArray(),
+        db.products_offline_update.toArray(),
+        db.products_offline_delete.toArray()
+      ]);
 
-    const deleteIds = new Set(offlineDeletes.map(d => d.id));
-    const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
 
-    const combinedProducts = allProducts
-      .filter(c => !deleteIds.has(c.id))
-      .map(c => ({
-        ...c,
-        ...updateMap.get(c.id),
-        synced: true
-      }))
-      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-       .sort((a, b) => a.synced - b.synced);
+      const combinedProducts = allProducts
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
 
       return combinedProducts;
     } catch (error) {
       console.error('Error fetching products:', error);
-      if(!error?.response){
-        return await db.products_all.toArray();
-      }
-      
-    }
-  };
+      if (!error?.response) {
 
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const productData = await fetchProducts();
-        setProducts(productData);
-
-        if (isOnline) await triggerSync();
-
-        const [allStockIns, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-          db.stockins_all.toArray(),
-          db.stockins_offline_add.toArray(),
-          db.stockins_offline_update.toArray(),
-          db.stockins_offline_delete.toArray()
+        // 3. Merge all data (works offline too)
+        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.products_all.toArray(),
+          db.products_offline_add.toArray(),
+          db.products_offline_update.toArray(),
+          db.products_offline_delete.toArray()
         ]);
 
         const deleteIds = new Set(offlineDeletes.map(d => d.id));
         const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
 
-        const combinedStockIns = allStockIns
-          .filter(s => !deleteIds.has(s.id))
-          .map(s => ({
-            ...s,
-            ...updateMap.get(s.id),
-            synced: true,
-            product: productData.find(p => p.id === s.productId) || { productName: 'Unknown Product' }
+        const combinedProducts = allProducts
+          .filter(c => !deleteIds.has(c.id))
+          .map(c => ({
+            ...c,
+            ...updateMap.get(c.id),
+            synced: true
           }))
-          .concat(offlineAdds.map(a => ({
-            ...a,
-            synced: false,
-            product: productData.find(p => p.id === a.productId ||  p.localId === a.productId) || { productName: 'Unknown Product' }
-          }))) .sort((a, b) => a.synced - b.synced);
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
 
-        setStockIns(combinedStockIns);
-        setFilteredStockIns(combinedStockIns);
-        if (!isOnline && combinedStockIns.length === 0) {
-          showNotification('No offline data available', 'error');
-        }
-      } catch (error) {
-        console.error('Error loading stock-ins:', error);
-        showNotification('Failed to load stock-ins', 'error');
-      } finally {
-        setIsLoading(false);
+        return combinedProducts;
+
       }
-    };
+
+    }
+  };
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const productData = await fetchProducts();
+      setProducts(productData);
+
+      if (isOnline) await triggerSync();
+
+      const [allStockIns, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.stockins_all.toArray(),
+        db.stockins_offline_add.toArray(),
+        db.stockins_offline_update.toArray(),
+        db.stockins_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedStockIns = allStockIns
+        .filter(s => !deleteIds.has(s.id))
+        .map(s => ({
+          ...s,
+          ...updateMap.get(s.id),
+          synced: true,
+          product: productData.find(p => p.id === s.productId) || { productName: 'Unknown Product' }
+        }))
+        .concat(offlineAdds.map(a => ({
+          ...a,
+          synced: false,
+          product: productData.find(p => p.id === a.productId || p.localId === a.productId) || { productName: 'Unknown Product' }
+        }))).sort((a, b) => a.synced - b.synced);
+
+      setStockIns(combinedStockIns);
+      setFilteredStockIns(combinedStockIns);
+      if (!isOnline && combinedStockIns.length === 0) {
+        showNotification('No offline data available', 'error');
+      }
+    } catch (error) {
+      console.error('Error loading stock-ins:', error);
+      showNotification('Failed to load stock-ins', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (syncError) {
@@ -435,6 +458,7 @@ const StockInManagement = ({ role }) => {
         const purchases = stockInData.purchases.map(purchase => ({
           ...purchase,
           ...userData,
+
           lastModified: now,
           createdAt: now,
           updatedAt: now
@@ -442,7 +466,7 @@ const StockInManagement = ({ role }) => {
 
         const localIds = [];
         for (const purchase of purchases) {
-          const localId = await db.stockins_offline_add.add(purchase);
+          const localId = await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity, });
           localIds.push(localId);
         }
 
@@ -492,7 +516,7 @@ const StockInManagement = ({ role }) => {
           throw new Error('Missing required fields');
         }
 
-        const localId = await db.stockins_offline_add.add(newStockIn);
+        const localId = await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity });
         const savedStockIn = { ...newStockIn, localId, synced: false };
 
         if (isOnline) {
@@ -830,7 +854,7 @@ const StockInManagement = ({ role }) => {
                   </div>
                 </div>
                 <div className="flex gap-1">
-                 
+
                   <button
                     onClick={() => handlePrint(stockIn)}
                     className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -845,13 +869,7 @@ const StockInManagement = ({ role }) => {
                   >
                     <Edit3 size={16} />
                   </button>
-                  <button
-                    onClick={() => openDeleteModal(stockIn)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                
                 </div>
               </div>
               <div className="space-y-2 mb-4">
@@ -946,17 +964,29 @@ const StockInManagement = ({ role }) => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Hash size={14} className="text-gray-400" />
-                    <span className="font-medium text-gray-900">{stockIn.quantity || 0}</span>
+                    <span className="font-medium text-gray-900">
+                      {!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity ?? 0) : (stockIn.quantity ?? 0)}
+                    </span>
+
                   </div>
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-medium text-gray-900">{formatPrice(stockIn.price || 0)}</span>
+
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="font-semibold text-primary-600">
+                    {formatPrice(
+                      stockIn.price *
+                      (!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity) : stockIn.quantity)
+                    )}
+                  </span>
+
                 </td>
 
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="font-semibold text-primary-600">{formatPrice((stockIn.price * stockIn.quantity) || 0)}</span>
-                </td>
+
+
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-semibold text-primary-600">{formatPrice(stockIn.sellingPrice || 0)}</span>
@@ -998,13 +1028,7 @@ const StockInManagement = ({ role }) => {
                     >
                       <Edit3 size={16} />
                     </button>
-                    <button
-                      onClick={() => openDeleteModal(stockIn)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                
                   </div>
                 </td>
               </tr>
