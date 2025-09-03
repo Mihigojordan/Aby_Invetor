@@ -10,6 +10,7 @@ import { stockOutSyncService } from '../services/sync/stockOutSyncService'
 import { useNetworkStatusContext } from '../context/useNetworkContext'
 import { db } from '../db/database'
 import backOrderService from '../services/backOrderService'
+import { salesReturnSyncService } from '../services/sync/salesReturnSyncService'
 
 
 const DashboardLayout = ({role}) => {
@@ -33,6 +34,7 @@ useEffect(() => {
         productSyncService.syncProducts(),
         stockInSyncService.syncStockIns(),
         stockOutSyncService.syncStockOuts(),
+        salesReturnSyncService.syncSalesReturns(),
       ])
       console.log("✅ Sync complete")
     } catch (err) {
@@ -53,7 +55,8 @@ useEffect(() => {
         productSyncService.fetchAndUpdateLocal(),
         stockInSyncService.fetchAndUpdateLocal(),
         stockOutSyncService.fetchAndUpdateLocal(),
-        stockOutServiceBackorders()
+        stockOutServiceBackorders(),
+        salesReturnSyncService.fetchAndUpdateLocal(),
       ])
       console.log("✅ Fetched server data")
     } catch (err) {
