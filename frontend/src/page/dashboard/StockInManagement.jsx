@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff, Trash2Icon } from 'lucide-react';
 
 import productService from '../../services/productService';
 import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockInModel';
@@ -1047,7 +1047,14 @@ const StockInManagement = ({ role }) => {
                     >
                       <Edit3 size={16} />
                     </button>
-                
+                    {/* <button
+                      onClick={() => openDeleteModal(stockIn)}
+                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Trash2Icon size={16} />
+                    </button>
+                 */}
                   </div>
                 </td>
               </tr>
