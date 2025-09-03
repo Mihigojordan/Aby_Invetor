@@ -268,7 +268,6 @@ const EmployeeReportManagement = () => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products Sold</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash at Hand</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Money</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
@@ -302,16 +301,6 @@ const EmployeeReportManagement = () => {
                       </div>
                     </div>
                   </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Package size={14} className="text-gray-400" />
-                      <span className="text-sm font-semibold text-gray-900">
-                        {report.productsSold?.length || 0}
-                      </span>
-                    </div>
-                  </td>
-
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <DollarSign size={14} className="text-green-500" />

@@ -5,6 +5,8 @@ import salesReturnService from '../../../services/salesReturnService';
 import CompanyLogo from '../../../assets/images/applogo_rm_bg.png'
 // import signature from '../../../assets/images/signature.webp'
 import stockOutService from '../../../services/stockoutService';
+import { useNetworkStatusContext } from '../../../context/useNetworkContext';
+import { db } from '../../../db/database';
 
 const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
   const [creditNoteData, setCreditNoteData] = useState(null);
@@ -14,7 +16,22 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
     pdf: false
   });
 
+  const {isOnline} = useNetworkStatusContext()
+
   useEffect(() => {
+  
+
+    if (isOpen && salesReturnId) {
+      if(isOnline){
+
+        getCreditNoteData();
+      }else{
+loadSalesReturns()
+      }
+    }
+  }, [salesReturnId, isOpen]);
+
+
     const getCreditNoteData = async () => {
       try {
         setLoading(true);
@@ -22,21 +39,216 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
         setCreditNoteData(response.data);
       } catch (error) {
         console.log(error.message);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error Loading Credit Note',
-          text: 'Failed to load credit note data. Please try again.',
-          confirmButtonColor: '#3b82f6'
-        });
+      await  loadSalesReturns()
+        
       } finally {
         setLoading(false);
       }
     };
 
-    if (isOpen && salesReturnId) {
-      getCreditNoteData();
-    }
-  }, [salesReturnId, isOpen]);
+     const loadSalesReturns = async () => {
+        setLoading(true);
+        try {
+       
+    
+          // Load all offline data
+          const [
+            allSalesReturns,
+            offlineAdds,
+            offlineUpdates,
+            offlineDeletes,
+            allReturnItems,
+            offlineItemAdds,
+            stockOutsData
+          ] = await Promise.all([
+            db.sales_returns_all.toArray(),
+            db.sales_returns_offline_add.toArray(),
+            db.sales_returns_offline_update.toArray(),
+            db.sales_returns_offline_delete.toArray(),
+            db.sales_return_items_all.toArray(),
+            db.sales_return_items_offline_add.toArray(),
+            fetchStockOuts()
+          ]);
+    
+          // Create maps for efficient lookups
+          const deleteIds = new Set(offlineDeletes.map(d => d.id));
+          const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+          const stockOutMap = new Map(stockOutsData.map(s => [s.id || s.localId, s]));
+    
+          // Combine all return items
+          const combinedReturnItems = allReturnItems
+            .concat(offlineItemAdds.map(a => ({ ...a, synced: false })))
+            .reduce((acc, item) => {
+              const key = item.salesReturnId || item.salesReturnLocalId;
+              if (!acc[key]) acc[key] = [];
+              acc[key].push({
+                ...item,
+                stockout: stockOutMap.get(item.stockoutId)
+              });
+              return acc;
+            }, {});
+    
+          // Process synced sales returns
+          const syncedReturns = allSalesReturns
+            .filter(sr => !deleteIds.has(sr.id))
+            .map(sr => ({
+              ...sr,
+              ...updateMap.get(sr.id),
+              synced: true,
+              items: combinedReturnItems[sr.id] || []
+            }));
+    
+          // Process offline sales returns
+          const offlineReturns = offlineAdds.map(sr => ({
+            ...sr,
+            synced: false,
+            items: combinedReturnItems[sr.localId] || []
+          }));
+    
+          const combinedSalesReturns = [...syncedReturns, ...offlineReturns]
+            .sort((a, b) => new Date(b.createdAt || b.lastModified) - new Date(a.createdAt || a.lastModified))
+            .find(s=> s.id== salesReturnId || s.localId == salesReturnId);
+    
+    console.warn(combinedSalesReturns);
+    
+    
+       setCreditNoteData(combinedSalesReturns)
+    
+        
+        } catch (error) {
+          console.error('Error loading sales returns:', error);
+         Swal.fire({
+          icon: 'error',
+          title: 'Error Loading Credit Note',
+          text: 'Failed to load credit note data. Please try again.',
+          confirmButtonColor: '#3b82f6'
+        });
+        } finally {
+          setLoading(false);
+        }
+      };
+    
+      const fetchStockOuts = async () => {
+       try {
+           
+            
+            const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
+              db.stockouts_all.toArray(),
+              db.stockouts_offline_add.toArray(),
+              db.stockouts_offline_update.toArray(),
+              db.stockouts_offline_delete.toArray(),
+              fetchStockIns(),
+              fetchProducts(),
+              fetchBackorders()
+            ]);
+      
+            const deleteIds = new Set(offlineDeletes.map(d => d.id));
+            const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      
+            const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
+            const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
+            const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
+      
+            const combinedStockOuts = allStockOuts
+              .filter(so => !deleteIds.has(so.id))
+              .map(so => ({
+                ...so,
+                ...updateMap.get(so.id),
+                synced: true,
+                stockin: stockinMap.get(so.stockinId),
+                backorder: backOrderMap.get(so.backorderId)
+              }))
+              .concat(offlineAdds.map(a => ({
+                ...a,
+                synced: false,
+                backorder: backOrderMap.get(a.backorderLocalId),
+                stockin: stockinMap.get(a.stockinId)
+              })));
+      
+            // Filter by transaction ID
+      return  combinedStockOuts
+            
+           
+      
+          } catch (error) {
+            console.error('Error loading offline transaction details:', error);
+            setError('Failed to load transaction details');
+          } 
+        };
+      
+        const fetchStockIns = async () => {
+          try {
+            const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+              db.stockins_all.toArray(),
+              db.stockins_offline_add.toArray(),
+              db.stockins_offline_update.toArray(),
+              db.stockins_offline_delete.toArray()
+            ]);
+      
+            const deleteIds = new Set(offlineDeletes.map(d => d.id));
+            const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      
+            return allStockin
+              .filter(c => !deleteIds.has(c.id))
+              .map(c => ({
+                ...c,
+                ...updateMap.get(c.id),
+                synced: true
+              }))
+              .concat(offlineAdds.map(a => ({ ...a, synced: false })));
+      
+          } catch (error) {
+            console.error('Error fetching stock-ins:', error);
+            return await db.stockins_all.toArray();
+          }
+        };
+      
+        const fetchBackorders = async () => {
+          try {
+            const [allBackOrder, offlineAdds] = await Promise.all([
+              db.backorders_all.toArray(),
+              db.backorders_offline_add.toArray(),
+            ]);
+      
+            return allBackOrder
+              .map(c => ({
+                ...c,
+                synced: true
+              }))
+              .concat(offlineAdds.map(a => ({ ...a, synced: false })));
+      
+          } catch (error) {
+            console.error('Error fetching backorders:', error);
+            return [];
+          }
+        };
+      
+        const fetchProducts = async () => {
+          try {
+            const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+              db.products_all.toArray(),
+              db.products_offline_add.toArray(),
+              db.products_offline_update.toArray(),
+              db.products_offline_delete.toArray()
+            ]);
+      
+            const deleteIds = new Set(offlineDeletes.map(d => d.id));
+            const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      
+            return allProducts
+              .filter(c => !deleteIds.has(c.id))
+              .map(c => ({
+                ...c,
+                ...updateMap.get(c.id),
+                synced: true
+              }))
+              .concat(offlineAdds.map(a => ({ ...a, synced: false })));
+      
+          } catch (error) {
+            console.error('Error fetching products:', error);
+            return [];
+          }
+        };
 
   // Get user info (same as invoice)
   const getUserInfo = () => {
@@ -381,11 +593,11 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
               </thead>
               <tbody>
                 {creditNoteData.items.map((item) => (
-                  <tr key={item.id} className="border-b border-gray-200">
+                  <tr key={item.id || item.localId} className="border-b border-gray-200">
                     <td className="py-3 px-4 text-gray-700">
                       <div>
-                        <p className="font-medium">{item.stockout.stockin.product.productName}</p>
-                        <p className="text-xs text-gray-500">Brand: {item.stockout.stockin.product.brand}</p>
+                        <p className="font-medium">{item?.stockout?.stockin?.product?.productName || item?.stockout?.backorder?.productName}</p>
+                      
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center text-gray-700">{item.quantity}</td>
@@ -434,7 +646,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
               <div className='flex items-end flex-col'>
                 {/* <img src={signature} className='object-contain h-32' alt="" />/ */}
                 <p className="font-semibold text-gray-800">{userInfo.name}</p>
-                <p className="text-sm text-gray-600">Authorized Signature</p>
+                {/* <p className="text-sm text-gray-600">Authorized Signature</p> */}
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  TrendingUp,
+  TrendingDown,
   DollarSign,
   Package,
   AlertTriangle,
@@ -26,7 +26,7 @@ import backOrderService from '../../../services/backOrderService';
 import productService from '../../../services/productService';
 
 const StockOutAnalyticsPage = () => {
-  
+
   const [stockOutData, setStockOutData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,17 +39,17 @@ const StockOutAnalyticsPage = () => {
     totalProfit: 0,
     averageProfit: 0
   });
-  const {isOnline}  =  useNetworkStatusContext()
+  const { isOnline } = useNetworkStatusContext()
 
 
 
   useEffect(() => {
-    if(isOnline){
+    if (isOnline) {
 
       fetchStockOutData();
     }
-    else{
-loadStockOuts()
+    else {
+      loadStockOuts()
     }
   }, []);
 
@@ -62,20 +62,20 @@ loadStockOuts()
       setError(null);
     } catch (err) {
       console.error('Error fetching stock-out data:', err);
- loadStockOuts()
+      loadStockOuts()
     } finally {
       setLoading(false);
     }
   };
 
-    const showNotification = (message, type = 'success') => {
+  const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
   };
   const loadStockOuts = async () => {
     setLoading(true);
     try {
-      
+
 
 
 
@@ -122,7 +122,7 @@ loadStockOuts()
 
       analyzeStockOutData(combinedStockOuts);
       setStockOutData(combinedStockOuts);
-     
+
 
       if (!isOnline && combinedStockOuts.length === 0) {
         showNotification('No offline data available', 'warning');
@@ -137,7 +137,7 @@ loadStockOuts()
 
   const fetchStockIns = async () => {
     try {
-     
+
       // 3. Merge all data (works offline too)
       const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.stockins_all.toArray(),
@@ -175,7 +175,7 @@ loadStockOuts()
 
   const fetchBackorders = async () => {
     try {
-     
+
 
       const [allBackOrder, offlineAdds] = await Promise.all([
         db.backorders_all.toArray(),
@@ -225,7 +225,7 @@ loadStockOuts()
 
   const fetchProducts = async () => {
     try {
-    
+
 
       // 3. Merge all data (works offline too)
       const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
@@ -357,18 +357,18 @@ loadStockOuts()
 
     // Calculate averages and finalize data
     Object.values(productAnalytics).forEach(product => {
-      product.averageSellingPrice = product.totalQuantitySold > 0 
-        ? product.totalRevenue / product.totalQuantitySold 
+      product.averageSellingPrice = product.totalQuantitySold > 0
+        ? product.totalRevenue / product.totalQuantitySold
         : 0;
       product.clientCount = product.clients.size;
-      product.profitMargin = product.totalRevenue > 0 
-        ? (product.totalProfit / product.totalRevenue) * 100 
+      product.profitMargin = product.totalRevenue > 0
+        ? (product.totalProfit / product.totalRevenue) * 100
         : 0;
     });
 
     // Find highest and lowest performing products by total quantity sold
     const productArray = Object.values(productAnalytics);
-    
+
     if (productArray.length > 0) {
       // Sort by total quantity sold
       const sortedByQuantity = [...productArray].sort((a, b) => b.totalQuantitySold - a.totalQuantitySold);
@@ -507,12 +507,12 @@ loadStockOuts()
   );
 
   const refresh = () => {
-    if(isOnline){
+    if (isOnline) {
 
       fetchStockOutData();
     }
-    else{
-loadStockOuts()
+    else {
+      loadStockOuts()
     }
   };
 
@@ -524,7 +524,7 @@ loadStockOuts()
             <h1 className="text-3xl font-bold text-gray-900 mb-2">StockOut Analytics</h1>
             <p className="text-gray-600">Loading performance analytics...</p>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {[1, 2].map((index) => (
               <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
@@ -562,14 +562,14 @@ loadStockOuts()
             <h1 className="text-3xl font-bold text-gray-900 mb-2">StockOut Analytics</h1>
             <p className="text-gray-600">Performance insights for your products</p>
           </div>
-          
+
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
             <div className="flex items-center">
               <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
               <div>
                 <h3 className="text-lg font-semibold text-red-800">Error Loading Analytics</h3>
                 <p className="text-red-700 mt-1">{error}</p>
-                <button 
+                <button
                   onClick={refresh}
                   className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
                 >
@@ -586,7 +586,7 @@ loadStockOuts()
 
   return (
     <div className="h-[90vh] overflow-y-auto  bg-gray-50 p-6">
-          {notification && (
+      {notification && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'} animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
@@ -594,17 +594,17 @@ loadStockOuts()
       )}
       <div className=" mx-auto">
         {/* Header */}
-         <button className="flex items-center text-gray-600 hover:text-gray-900 mb-4" onClick={() => window.history.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Stock Outs
-          </button>
+        <button className="flex items-center text-gray-600 hover:text-gray-900 mb-4" onClick={() => window.history.back()}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Stock Outs
+        </button>
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">StockOut Analytics</h1>
               <p className="text-gray-600">Performance insights for your highest and lowest selling products</p>
             </div>
-            <button 
+            <button
               onClick={refresh}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
             >
@@ -676,7 +676,7 @@ loadStockOuts()
         {/* Performance Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Highest Performer */}
-          <ProductCard 
+          <ProductCard
             product={highestStockOut}
             type="Highest"
             icon={TrendingUp}
@@ -686,7 +686,7 @@ loadStockOuts()
           />
 
           {/* Lowest Performer */}
-          <ProductCard 
+          <ProductCard
             product={lowestStockOut}
             type="Lowest"
             icon={TrendingDown}
@@ -704,7 +704,7 @@ loadStockOuts()
               Based on {stockOutData.length} total transactions
             </span>
           </div>
-          
+
           {stockOutData.length === 0 ? (
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />

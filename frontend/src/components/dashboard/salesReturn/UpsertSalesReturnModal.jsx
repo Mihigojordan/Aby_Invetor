@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Search, Package, DollarSign, Hash, User, Mail, Phone, Calendar, RotateCcw, AlertTriangle, Check, X, Info } from 'lucide-react';
 import stockOutService from "../../../services/stockoutService";
+import { useNetworkStatusContext } from "../../../context/useNetworkContext";
+import { db } from "../../../db/database";
 
 // Modal Component for Sales Return
 const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, currentUser, userRole }) => {
@@ -12,6 +14,9 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
   const [searchError, setSearchError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [notification, setNotification] = useState(null);
+    const { isOnline } = useNetworkStatusContext();
+  
 
   // Predefined return reasons
   const commonReasons = [
@@ -33,6 +38,164 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
       resetForm();
     }
   }, [isOpen]);
+
+  const fetchTransactionData  =async (transactionId) =>{
+     if (transactionId) {
+        if (isOnline) {
+        return  await fetchTransactionDetails(transactionId);
+        } else {
+    return    await  loadOfflineTransactionDetails(transactionId);
+        }
+      }
+  }
+  
+    const fetchTransactionDetails = async (transactionId) => {
+      try {
+        setIsSearching(true);
+        const stockOutData = await stockOutService.getStockOutByTransactionId(transactionId);
+        
+        if (stockOutData && stockOutData.length > 0) {
+      return stockOutData
+        } else {
+          setSearchError('Transaction not found');
+        }
+      } catch (err) {
+        console.error('Error fetching transaction details:', err);
+      //   setSearchError(err.message || 'Failed to fetch transaction details');
+      //   // Fallback to offline data
+        loadOfflineTransactionDetails();
+      } finally {
+        setIsSearching(false);
+      }
+    };
+  
+    const loadOfflineTransactionDetails = async (transactionId) => {
+      try {
+        setIsSearching(true);
+        
+        const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
+          db.stockouts_all.toArray(),
+          db.stockouts_offline_add.toArray(),
+          db.stockouts_offline_update.toArray(),
+          db.stockouts_offline_delete.toArray(),
+          fetchStockIns(),
+          fetchProducts(),
+          fetchBackorders()
+        ]);
+  
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+  
+        const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
+        const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
+        const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
+  
+        const combinedStockOuts = allStockOuts
+          .filter(so => !deleteIds.has(so.id))
+          .map(so => ({
+            ...so,
+            ...updateMap.get(so.id),
+            synced: true,
+            stockin: stockinMap.get(so.stockinId),
+            backorder: backOrderMap.get(so.backorderId)
+          }))
+          .concat(offlineAdds.map(a => ({
+            ...a,
+            synced: false,
+            backorder: backOrderMap.get(a.backorderLocalId),
+            stockin: stockinMap.get(a.stockinId)
+          })));
+  
+        // Filter by transaction ID
+        const transactionStockOuts = combinedStockOuts.filter(so => so.transactionId === transactionId);
+        
+        if (transactionStockOuts.length > 0) {
+         return transactionStockOuts;
+        } else {
+          setSearchError('Transaction not found');
+        }
+  
+      } catch (error) {
+        console.error('Error loading offline transaction details:', error);
+        setSearchError('Failed to load transaction details');
+      } finally {
+        setIsSearching(false);
+      }
+    };
+  
+    const fetchStockIns = async () => {
+      try {
+        const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.stockins_all.toArray(),
+          db.stockins_offline_add.toArray(),
+          db.stockins_offline_update.toArray(),
+          db.stockins_offline_delete.toArray()
+        ]);
+  
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+  
+        return allStockin
+          .filter(c => !deleteIds.has(c.id))
+          .map(c => ({
+            ...c,
+            ...updateMap.get(c.id),
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })));
+  
+      } catch (error) {
+        console.error('Error fetching stock-ins:', error);
+        return await db.stockins_all.toArray();
+      }
+    };
+  
+    const fetchBackorders = async () => {
+      try {
+        const [allBackOrder, offlineAdds] = await Promise.all([
+          db.backorders_all.toArray(),
+          db.backorders_offline_add.toArray(),
+        ]);
+  
+        return allBackOrder
+          .map(c => ({
+            ...c,
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })));
+  
+      } catch (error) {
+        console.error('Error fetching backorders:', error);
+        return [];
+      }
+    };
+  
+    const fetchProducts = async () => {
+      try {
+        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.products_all.toArray(),
+          db.products_offline_add.toArray(),
+          db.products_offline_update.toArray(),
+          db.products_offline_delete.toArray()
+        ]);
+  
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+  
+        return allProducts
+          .filter(c => !deleteIds.has(c.id))
+          .map(c => ({
+            ...c,
+            ...updateMap.get(c.id),
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })));
+  
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        return [];
+      }
+    };
 
   const resetForm = () => {
     setTransactionId('');
@@ -56,9 +219,12 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
     setHasSearched(false);
 
     try {
-      const response = await stockOutService.getStockOutByTransactionId(transactionId.trim());
+      const response = await fetchTransactionData(transactionId.trim());
       
       if (response && response.length > 0) {
+
+        console.warn('Product was sold :',response);
+        
         // Filter out items that have already been fully returned
         const availableProducts = response.filter(product => {
           // Check if product has remaining quantity available for return
@@ -91,14 +257,14 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
 
   const handleItemSelect = (stockoutId, isSelected) => {
     if (isSelected) {
-      const product = soldProducts.find(p => p.id === stockoutId);
+      const product = soldProducts.find(p => p.id === stockoutId || p.localId === stockoutId);
       if (product) {
         const newItem = {
           stockoutId: stockoutId,
           quantity: 1, // Default to 1 instead of full quantity
           maxQuantity: product.quantity,
-          productName: product.stockin?.product?.productName || 'Unknown Product',
-          sku: product.stockin?.product?.sku || 'N/A',
+          productName: product.stockin?.product?.productName || product?.backorder?.productName || 'Unknown Product',
+          sku: product.stockin?.sku || 'N/A',
           unitPrice: product.soldPrice ? (product.soldPrice / product.quantity) : 0,
           soldPrice: product.soldPrice || 0,
           soldQuantity: product.quantity
@@ -395,16 +561,17 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Or Enter Custom Reason
                       </label>
-                      <input
+                      <textarea
                         type="text"
                         value={reason}
                         onChange={(e) => {
                           setReason(e.target.value);
                           setSearchError('');
                         }}
+                        rows={2}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         placeholder="Enter custom reason"
-                      />
+                      ></textarea>
                     </div>
                   </div>
                 </div>
@@ -417,14 +584,14 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
                   </h3>
                   <div className="space-y-3">
                     {soldProducts.map((product) => {
-                      const isSelected = isItemSelected(product.id);
-                      const selectedItem = getSelectedItem(product.id);
-                      const hasError = validationErrors[product.id];
+                      const isSelected = isItemSelected(product?.id || product?.localId );
+                      const selectedItem = getSelectedItem(product?.id || product?.localId);
+                      const hasError = validationErrors[product?.id || product?.localId];
                       const unitPrice = product.soldPrice ? (product.soldPrice / product.quantity) : 0;
 
                       return (
                         <div
-                          key={product.id}
+                          key={product?.id || product?.localId}
                           className={`border rounded-lg p-4 transition-all duration-200 ${
                             isSelected 
                               ? 'border-primary-300 bg-primary-50 shadow-sm' 
@@ -437,7 +604,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
                               <input
                                 type="checkbox"
                                 checked={isSelected}
-                                onChange={(e) => handleItemSelect(product.id, e.target.checked)}
+                                onChange={(e) => handleItemSelect(product?.id ?? product?.localId, e.target.checked)}
                                 className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                               />
                             </div>
@@ -451,10 +618,22 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
                                   </div>
                                   <div>
                                     <h4 className="font-medium text-gray-900 text-lg">
-                                      {product.stockin?.product?.productName || 'Unknown Product'}
+                                      {product?.stockin?.product?.productName || product?.backorder?.productName || 'Unknown Product'}
+                                      {!product.synced && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                            Pending sync
+                          </span>
+                        )}
                                     </h4>
                                     <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
-                                      <span>SKU: {product.stockin?.product?.sku || 'N/A'}</span>
+                                      {
+                                        product?.stockin?.sku &&
+                                        <span>SKU: {product.stockin?.sku  || 'N/A'}</span>
+                                      }
+                                      {
+                                        product?.backorder?.id &&
+                                        <span>Non-Stock Sales</span>
+                                      }
                                       <span>•</span>
                                       <span>Available: {product.quantity} units</span>
                                     </div>
@@ -484,7 +663,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
                                         min="1"
                                         max={selectedItem.maxQuantity}
                                         value={selectedItem.quantity}
-                                        onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                                        onChange={(e) => handleQuantityChange(product?.id || product?.localId, e.target.value)}
                                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 text-center font-medium ${
                                           hasError
                                             ? 'border-red-300 focus:ring-red-500 focus:border-red-500'

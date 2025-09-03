@@ -77,7 +77,7 @@ const navigate = useNavigate();
     } catch (err) {
         console.log(err);
         
-    loadStockOuts()
+   await loadStockOuts()
     } finally {
       setLoading(false);
     }

@@ -18,7 +18,8 @@ import {
   BarChart2,
   Clock,
   PackageX,
-  ShoppingCart
+  ShoppingCart,
+  RotateCcw
 } from 'lucide-react';
 import {
   BarChart,
@@ -141,11 +142,12 @@ const Dashboard = () => {
     }
 
     // 3. Merge local + remote (offline support)
-    const [allStockout, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+    const [allStockout, offlineAdds, offlineUpdates, offlineDeletes,stockIns] = await Promise.all([
       db.stockouts_all.toArray(),
       db.stockouts_offline_add.toArray(),
       db.stockouts_offline_update.toArray(),
-      db.stockouts_offline_delete.toArray()
+      db.stockouts_offline_delete.toArray(),
+      fetchStockIns()
     ]);
 
     const deleteIds = new Set(offlineDeletes.map(d => d.id));
@@ -156,9 +158,14 @@ const Dashboard = () => {
       .map(c => ({
         ...c,
         ...updateMap.get(c.id),
-        synced: true
+        synced: true,
+        stockin: stockIns.find(s => s.id == c.stockinId )
       }))
-      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+      .concat(offlineAdds.map(a => ({
+         ...a, 
+         synced: false,
+          stockin: stockIns.find(s => s.id == a.stockinId )
+         })))
       .sort((a, b) => a.synced - b.synced);
 
     console.warn('📦 COMBINED STOCK OUT:', combinedStockout);
@@ -220,7 +227,8 @@ const fetchProducts = async () => {
           db.products_all.toArray(),
           db.products_offline_add.toArray(),
           db.products_offline_update.toArray(),
-          db.products_offline_delete.toArray()
+          db.products_offline_delete.toArray(),
+          
         ]);
 
         const deleteIds = new Set(offlineDeletes.map(d => d.id));
@@ -231,9 +239,14 @@ const fetchProducts = async () => {
           .map(c => ({
             ...c,
             ...updateMap.get(c.id),
-            synced: true
+            synced: true,
+            
           }))
-          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .concat(offlineAdds.map(a => ({ 
+            ...a, 
+            synced: false,
+            
+          })))
           .sort((a, b) => a.synced - b.synced);
 
         return combinedProducts;
@@ -389,6 +402,77 @@ const fetchProducts = async () => {
     }
   };
 
+   const fetchSalesReturnData = async () => {
+     setLoading(true);
+     try {
+      
+ 
+       // Load all offline data
+       const [
+         allSalesReturns,
+         offlineAdds,
+         offlineUpdates,
+         offlineDeletes,
+         allReturnItems,
+         offlineItemAdds,
+         stockOutsData
+       ] = await Promise.all([
+         db.sales_returns_all.toArray(),
+         db.sales_returns_offline_add.toArray(),
+         db.sales_returns_offline_update.toArray(),
+         db.sales_returns_offline_delete.toArray(),
+         db.sales_return_items_all.toArray(),
+         db.sales_return_items_offline_add.toArray(),
+         fetchStockOuts()
+       ]);
+ 
+       // Create maps for efficient lookups
+       const deleteIds = new Set(offlineDeletes.map(d => d.id));
+       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+       const stockOutMap = new Map(stockOutsData.map(s => [s.id || s.localId, s]));
+ 
+       // Combine all return items
+       const combinedReturnItems = allReturnItems
+         .concat(offlineItemAdds.map(a => ({ ...a, synced: false })))
+         .reduce((acc, item) => {
+           const key = item.salesReturnId || item.salesReturnLocalId;
+           if (!acc[key]) acc[key] = [];
+           acc[key].push({
+             ...item,
+             stockout: stockOutMap.get(item.stockoutId)
+           });
+           return acc;
+         }, {});
+ 
+       // Process synced sales returns
+       const syncedReturns = allSalesReturns
+         .filter(sr => !deleteIds.has(sr.id))
+         .map(sr => ({
+           ...sr,
+           ...updateMap.get(sr.id),
+           synced: true,
+           items: combinedReturnItems[sr.id] || []
+         }));
+ 
+       // Process offline sales returns
+       const offlineReturns = offlineAdds.map(sr => ({
+         ...sr,
+         synced: false,
+         items: combinedReturnItems[sr.localId] || []
+       }));
+ 
+       const combinedSalesReturns = [...syncedReturns, ...offlineReturns]
+         .sort((a, b) => new Date(b.createdAt || b.lastModified) - new Date(a.createdAt || a.lastModified));
+ 
+    return combinedSalesReturns
+     } catch (error) {
+       console.error('Error loading sales returns:', error);
+       showNotification('Failed to load sales returns', 'error');
+     } finally {
+       setLoading(false);
+     }
+   }; 
+
 
   const getSummaryFrontend = async () => {
   try {
@@ -539,7 +623,7 @@ else{
  fetchStockIns(),
  fetchStockOuts(),
  fetchCategories(),
-salesReturnService.getAllSalesReturns(),
+fetchSalesReturnData(),
  fetchBackorders(),
 ])
 }
@@ -601,15 +685,25 @@ salesReturnService.getAllSalesReturns(),
     }).format(price);
   };
 
-  const calculateStats = (summary,data) => {
-    console.log('📊 Calculating stats from summary:', summary);
-     const backOrders = Array.isArray(data.backOrders) ? data.backOrders : [];
-     const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
-      const totalBackOrders = stockOuts.filter(b=> b.backorderId!= null ).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-      const totalSoldPriceBackOrders = stockOuts.reduce((sum, item) => sum + (Number(item.soldPrice) || 0), 0);
+const calculateStats = (summary, data) => {
+  console.log('📊 Calculating stats from summary:', summary);
 
-    const newStats = [
-      {
+  const backOrders = Array.isArray(data.backOrders) ? data.backOrders : [];
+  const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
+
+  const totalBackOrders = stockOuts
+    .filter((b) => b.backorderId != null)
+    .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+
+  const totalSoldPriceBackOrders = stockOuts
+    .filter((b) => b.backorderId != null)
+    .reduce((sum, item) => sum + (Number(item.soldPrice) || 0), 0);
+
+  // ✅ Sales Return Stats
+  const salesReturnStats = calculateSalesReturnStats(data.salesReturns);
+
+  const newStats = [
+    {
         title: 'Total Products',
         value: (summary.totalProducts || 0).toString(),
         icon: Package,
@@ -658,12 +752,93 @@ salesReturnService.getAllSalesReturns(),
       color: 'text-red-600',
       bgColor: 'bg-red-50'
     }
+,
+    {
+      title: "Sales Returns",
+      value: (salesReturnStats.totalReturns || 0).toString(),
+      icon: RotateCcw, // e.g. from lucide-react
+      change: `${salesReturnStats.totalReturnedItems} items returned`,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
+    {
+      title: "Refunded Amount",
+      value: formatPrice(salesReturnStats.totalRefundAmount || 0),
+      icon: DollarSign,
+      change: `Top returned: ${
+        salesReturnStats.mostReturnedProduct?.name || "N/A"
+      } (${salesReturnStats.mostReturnedProduct?.returnedQty || 0})`,
+      color: "text-teal-600",
+      bgColor: "bg-teal-50",
+    },
+  ];
 
-    ];
-    
-    console.log('📊 Stats calculated:', newStats);
-    setStats(newStats);
+  console.log("📊 Stats calculated:", newStats);
+  setStats(newStats);
+};
+const calculateSalesReturnStats = (salesReturns = []) => {
+  let totalReturns = salesReturns.length;
+  let totalReturnedItems = 0;
+  let totalRefundAmount = 0;
+
+  // count by product
+  const productReturnCount = {};
+
+  salesReturns.forEach((sr) => {
+    sr.items.forEach((item) => {
+      console.warn('item :',item);
+      
+      const qty = item.quantity || 0;
+      const stockout = item.stockout;
+
+      totalReturnedItems += qty;
+
+      if (stockout?.soldPrice) {
+        totalRefundAmount += qty * stockout.soldPrice;
+      }
+
+      const product = stockout?.stockin?.product;
+      console.warn(product);
+      
+      if (product) {
+        productReturnCount[product.id] =
+          (productReturnCount[product.id] || 0) + qty;
+      }
+    });
+  });
+
+  // most returned product
+  const mostReturnedProductId = Object.keys(productReturnCount).sort(
+    (a, b) => productReturnCount[b] - productReturnCount[a]
+  )[0];
+
+  console.warn('product id :',mostReturnedProductId);
+  
+
+  const mostReturnedProduct = mostReturnedProductId
+    ? {
+        id: mostReturnedProductId,
+        name:
+          salesReturns
+            .flatMap((sr) =>{
+console.warn('sale:',sr);
+
+             return sr.items.map((it) => it.stockout?.stockin?.product)
+            }
+            )
+            .find((p) => p?.id === mostReturnedProductId)?.productName ||
+          "Unknown Product",
+        returnedQty: productReturnCount[mostReturnedProductId],
+      }
+    : null;
+
+  return {
+    totalReturns,
+    totalReturnedItems,
+    totalRefundAmount,
+    mostReturnedProduct,
   };
+};
 
 const calculateStatsFromData = (data) => {
   console.log('📊 Calculating stats from raw data...');

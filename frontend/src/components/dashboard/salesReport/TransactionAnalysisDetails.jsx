@@ -63,7 +63,7 @@ const TransactionAnalysisDetails = () => {
       console.error('Error fetching transaction details:', err);
     //   setError(err.message || 'Failed to fetch transaction details');
     //   // Fallback to offline data
-      loadOfflineTransactionDetails();
+     await loadOfflineTransactionDetails();
     } finally {
       setLoading(false);
     }

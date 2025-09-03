@@ -5,7 +5,7 @@ import { isOnline } from '../../utils/networkUtils';
 import { stockInSyncService } from './stockInSyncService';
 
 class StockOutSyncService {
- constructor() {
+  constructor() {
     this.isSyncing = false;
     this.processingLocalIds = new Set();
     this.processingTransactionIds = new Set(); // Track transactions being processed
@@ -68,16 +68,16 @@ class StockOutSyncService {
 
       try {
         console.log(`📦 Processing transaction ${transactionId} with ${stockouts.length} stockouts`);
-        
+
         // Mark transaction as processing FIRST
         this.processingTransactionIds.add(transactionId);
-        
+
         // CHECK IF ENTIRE TRANSACTION ALREADY EXISTS ON SERVER
         const existingTransaction = await db.stockouts_all
           .where('transactionId')
           .equals(transactionId)
           .first();
-          
+
         if (existingTransaction) {
           console.log(`🔍 Transaction ${transactionId} already exists on server, removing from offline queue`);
           for (const stockOut of stockouts) {
@@ -97,7 +97,7 @@ class StockOutSyncService {
           skipped += stockouts.length;
           continue;
         }
-        
+
         // Mark all stockouts in this transaction as processing
         stockouts.forEach(so => this.processingLocalIds.add(so.localId));
 
@@ -153,8 +153,8 @@ class StockOutSyncService {
         let response;
         try {
           response = await stockOutService.createMultipleStockOut(
-            salesArray, 
-            clientInfo, 
+            salesArray,
+            clientInfo,
             userInfo,
             { idempotencyKey } // Pass idempotency key if your API supports it
           );
@@ -183,7 +183,7 @@ class StockOutSyncService {
 
       } catch (error) {
         console.error(`❌ Error syncing transaction ${transactionId}:`, error);
-        
+
         // Handle retry logic for each stockout in the failed transaction
         for (const stockOut of stockouts) {
           const retryCount = (stockOut.syncRetryCount || 0) + 1;
@@ -252,8 +252,8 @@ class StockOutSyncService {
         let response;
         try {
           response = await stockOutService.createMultipleStockOut(
-            [preparedSale], 
-            clientInfo, 
+            [preparedSale],
+            clientInfo,
             userInfo,
             { idempotencyKey }
           );
@@ -296,7 +296,7 @@ class StockOutSyncService {
         .where('transactionId').equals(transactionId)
         .and(item => new Date(item.updatedAt || item.lastModified) > cutoffTime)
         .first();
-      
+
       if (existingByTransactionId) {
         return true;
       }
@@ -305,9 +305,9 @@ class StockOutSyncService {
     // Check if any stockout in this transaction already exists with recent timestamp
     for (const stockOut of stockouts) {
       // Skip if stockinId is invalid for Dexie queries
-      if (!stockOut.stockinId || 
-          typeof stockOut.stockinId !== 'string' && 
-          typeof stockOut.stockinId !== 'number') {
+      if (!stockOut.stockinId ||
+        typeof stockOut.stockinId !== 'string' &&
+        typeof stockOut.stockinId !== 'number') {
         console.warn(`Skipping duplicate check for stockout ${stockOut.localId} - invalid stockinId:`, stockOut.stockinId);
         continue;
       }
@@ -335,9 +335,9 @@ class StockOutSyncService {
     const cutoffTime = new Date(Date.now() - timeWindow);
 
     // Skip if stockinId is invalid for Dexie queries
-    if (!stockOut.stockinId || 
-        typeof stockOut.stockinId !== 'string' && 
-        typeof stockOut.stockinId !== 'number') {
+    if (!stockOut.stockinId ||
+      typeof stockOut.stockinId !== 'string' &&
+      typeof stockOut.stockinId !== 'number') {
       console.warn(`Skipping content duplicate check for stockout ${stockOut.localId} - invalid stockinId:`, stockOut.stockinId);
       return false;
     }
@@ -371,71 +371,148 @@ class StockOutSyncService {
   }
 
   // Helper method to save transaction results
-  async saveTransactionResults(serverStockOuts, preparedSalesData, transactionId) {
-    await db.transaction(
-      'rw',
-      db.stockouts_all,
-      db.stockouts_offline_add,
-      db.backorders_all,
-      db.backorders_offline_add,
-      db.synced_stockout_ids,
-      async () => {
-        for (let i = 0; i < serverStockOuts.length; i++) {
-          const serverStockOut = serverStockOuts[i];
-          const localStockOut = preparedSalesData[i].originalStockOut;
+// Helper method to save transaction results and update related offline sales returns
+async saveTransactionResults(serverStockOuts, preparedSalesData, transactionId) {
+  await db.transaction(
+    'rw',
+    db.stockouts_all,
+    db.stockouts_offline_add,
+    db.backorders_all,
+    db.backorders_offline_add,
+    db.synced_stockout_ids,
+    db.sales_return_items_offline_add,
+    db.sales_return_items_offline_update,
+    db.sales_returns_offline_add,
+    db.sales_returns_offline_update,
+    db.sales_returns_all,
+    db.synced_sales_return_ids,
+    async () => {
+      for (let i = 0; i < serverStockOuts.length; i++) {
+        const serverStockOut = serverStockOuts[i];
+        const localStockOut = preparedSalesData[i].originalStockOut;
+        const serverStockOutId = serverStockOut.id;
 
-          // Check if this server stockout already exists locally
-          const existingRecord = await db.stockouts_all.get(serverStockOut.id);
-          if (existingRecord) {
-            console.log(`⚠️ Server stockout ${serverStockOut.id} already exists locally, skipping`);
-            continue;
-          }
-
-          // Save stockout to main table
-          const stockOutRecord = {
-            id: serverStockOut.id,
-            stockinId: serverStockOut.stockinId || localStockOut.stockinId,
-            quantity: serverStockOut.quantity || localStockOut.quantity,
-            soldPrice: serverStockOut.soldPrice || localStockOut.soldPrice,
-            clientName: serverStockOut.clientName || localStockOut.clientName,
-            clientEmail: serverStockOut.clientEmail || localStockOut.clientEmail,
-            clientPhone: serverStockOut.clientPhone || localStockOut.clientPhone,
-            paymentMethod: serverStockOut.paymentMethod || localStockOut.paymentMethod,
-            adminId: serverStockOut.adminId || localStockOut.adminId,
-            employeeId: serverStockOut.employeeId || localStockOut.employeeId,
-            transactionId: serverStockOut.transactionId || transactionId,
-            backorderId: serverStockOut.backorderId || null,
-            lastModified: new Date(),
-            createdAt: serverStockOut.createdAt || localStockOut.createdAt || new Date(),
-            updatedAt: serverStockOut.updatedAt || new Date()
-          };
-
-          await db.stockouts_all.put(stockOutRecord);
-
-          // Handle backorder if present
-          if (serverStockOut.backorderId && localStockOut.backorderLocalId) {
-            await this.handleBackorderSync(serverStockOut, localStockOut);
-          }
-
-          // Record sync mapping
-          await db.synced_stockout_ids.put({
-            localId: localStockOut.localId,
-            serverId: serverStockOut.id,
-            syncedAt: new Date()
-          });
-
-          // Remove offline stockout
-          await db.stockouts_offline_add.delete(localStockOut.localId);
+        // Skip if already exists
+        const existingRecord = await db.stockouts_all.get(serverStockOutId);
+        if (existingRecord) {
+          console.log(`⚠️ Server stockout ${serverStockOutId} already exists locally, skipping`);
+          continue;
         }
-      }
-    );
+
+        // Save stockout
+        const stockOutRecord = {
+          id: serverStockOutId,
+          stockinId: serverStockOut.stockinId || localStockOut.stockinId,
+          quantity: serverStockOut.quantity || localStockOut.quantity,
+          soldPrice: serverStockOut.soldPrice || localStockOut.soldPrice,
+          clientName: serverStockOut.clientName || localStockOut.clientName,
+          clientEmail: serverStockOut.clientEmail || localStockOut.clientEmail,
+          clientPhone: serverStockOut.clientPhone || localStockOut.clientPhone,
+          paymentMethod: serverStockOut.paymentMethod || localStockOut.paymentMethod,
+          adminId: serverStockOut.adminId || localStockOut.adminId,
+          employeeId: serverStockOut.employeeId || localStockOut.employeeId,
+          transactionId: serverStockOut.transactionId || transactionId,
+          backorderId: serverStockOut.backorderId || null,
+          lastModified: new Date(),
+          createdAt: serverStockOut.createdAt || localStockOut.createdAt || new Date(),
+          updatedAt: serverStockOut.updatedAt || new Date()
+        };
+        await db.stockouts_all.put(stockOutRecord);
+
+        // Handle backorder
+        if (serverStockOut.backorderId && localStockOut.backorderLocalId) {
+          await this.handleBackorderSync(serverStockOut, localStockOut);
+        }
+
+        // Record sync mapping
+        await db.synced_stockout_ids.put({
+          localId: localStockOut.localId,
+          serverId: serverStockOutId,
+          syncedAt: new Date()
+        });
+
+        // Update related offline sales return items (ADD)
+      // Update related offline sales return items (ADD)
+const relatedAddItems = await db.sales_return_items_offline_add
+  .where('stockoutId')
+  .equals(localStockOut.localId)
+  .toArray();
+
+for (const item of relatedAddItems) {
+  await db.sales_return_items_offline_add.update(item.localId, { stockoutId: serverStockOutId });
+
+  // Update parent sales return transactionId
+  const offlineParent = await db.sales_returns_offline_add
+    .where('localId')
+    .equals(item.salesReturnId)
+    .first();
+
+  if (offlineParent) {
+    await db.sales_returns_offline_add.update(offlineParent.localId, {
+      transactionId: serverStockOut.transactionId
+    });
+  } else {
+    const syncedParent = await db.synced_sales_return_ids
+      .where('localId')
+      .equals(item.salesReturnId)
+      .first();
+    if (syncedParent) {
+      await db.sales_returns_all.update(syncedParent.serverId, {
+        transactionId: serverStockOut.transactionId
+      });
+    }
   }
+
+  console.log(`✅ Updated sales_return_items_offline_add ${item.localId}: stockout ${localStockOut.localId} → ${serverStockOutId}`);
+}
+
+// Update related offline sales return items (UPDATE)
+const relatedUpdateItems = await db.sales_return_items_offline_update
+  .where('stockoutId')
+  .equals(localStockOut.localId)
+  .toArray();
+
+for (const item of relatedUpdateItems) {
+  await db.sales_return_items_offline_update.update(item.id, { stockoutId: serverStockOutId });
+
+  // Update parent sales return transactionId
+  const offlineParent = await db.sales_returns_offline_update
+    .where('id')
+    .equals(item.salesReturnId)
+    .first();
+
+  if (offlineParent) {
+    await db.sales_returns_offline_update.update(offlineParent.id, {
+      transactionId: serverStockOut.transactionId
+    });
+  } else {
+    const syncedParent = await db.synced_sales_return_ids
+      .where('localId')
+      .equals(item.salesReturnId)
+      .first();
+    if (syncedParent) {
+      await db.sales_returns_all.update(syncedParent.serverId, {
+        transactionId: serverStockOut.transactionId
+      });
+    }
+  }
+
+  console.log(`🔄 Updated sales_return_items_offline_update ${item.id}: stockout ${localStockOut.localId} → ${serverStockOutId}`);
+}
+
+        // Remove offline stockout
+        await db.stockouts_offline_add.delete(localStockOut.localId);
+      }
+    }
+  );
+}
+
 
   // Helper method to save individual stockout results
   async saveIndividualStockoutResult(response, stockOut) {
     const serverStockOuts = response.data || [];
     const serverStockOut = serverStockOuts[0];
-    
+
     if (!serverStockOut?.id) {
       throw new Error('Server did not return a valid stockout ID');
     }
@@ -489,11 +566,102 @@ class StockOutSyncService {
           syncedAt: new Date()
         });
 
+        const serverStockOutId = serverStockOut.id
+        const relatedSalesReturnItem = await db.sales_return_items_offline_add
+          .where('stockoutId')
+          .equals(stockOut.localId)
+          .toArray();
+
+        if (relatedSalesReturnItem.length > 0) {
+
+
+          for (const salesReturnItem of relatedSalesReturnItem) {
+            await db.sales_return_items_offline_add.update(salesReturnItem.localId, {
+              stockoutId: serverStockOutId
+            });
+
+            const offlineParent = await db.sales_returns_offline_add
+              .where('localId')
+              .equals(salesReturnItem.salesReturnId)
+              .first();
+
+            if (offlineParent) {
+              await db.sales_returns_offline_add.update(offlineParent.localId, {
+                transactionId: serverStockOut.transactionId
+              })
+            }
+            else {
+              // if already synced, update in sales_returns_all
+              const syncedParent = await db.synced_sales_return_ids
+                .where('localId')
+                .equals(salesReturnItem.salesReturnId)
+                .first();
+
+              if (syncedParent) {
+                await db.sales_returns_all.update(syncedParent.serverId, {
+                  transactionId: serverStockOut.transactionId,
+                });
+              }
+            }
+
+            console.log(`✅ Updated stockout ${salesReturnItem.localId} product ID: ${stockOut.localId} → ${serverStockOutId}`);
+          }
+        }
+
+
+
+
+        // find offline sales return items pointing to this local stockout
+        const relatedSalesReturnItems = await db.sales_return_items_offline_update
+          .where('stockoutId')
+          .equals(stockOut.localId)
+          .toArray();
+
+        if (relatedSalesReturnItems.length > 0) {
+          for (const salesReturnItem of relatedSalesReturnItems) {
+            // update the item to point to the server stockout ID
+            await db.sales_return_items_offline_update.update(salesReturnItem.id, {
+              stockoutId: serverStockOutId,
+            });
+
+            // check if parent sales return is still offline
+            const offlineParent = await db.sales_returns_offline_update
+              .where('id') // <-- your offline primary key
+              .equals(salesReturnItem.salesReturnId)
+              .first();
+
+            if (offlineParent) {
+              await db.sales_returns_offline_update.update(offlineParent.id, {
+                transactionId: serverStockOut.transactionId,
+              });
+            } else {
+              // if already synced, update in main sales_returns_all
+              const syncedParent = await db.synced_sales_return_ids
+                .where('localId')
+                .equals(salesReturnItem.salesReturnId)
+                .first();
+
+              if (syncedParent) {
+                await db.sales_returns_all.update(syncedParent.serverId, {
+                  transactionId: serverStockOut.transactionId,
+                });
+              }
+            }
+
+            console.log(
+              `🔄 Updated SalesReturnItem ${salesReturnItem.localId}: stockout ${stockOut.localId} → ${serverStockOutId}`
+            );
+          }
+        }
+
         // Remove offline stockout
         await db.stockouts_offline_add.delete(stockOut.localId);
       }
     );
   }
+
+
+  
 
   // Helper method for backorder synchronization
   async handleBackorderSync(serverStockOut, localStockOut) {
@@ -598,88 +766,88 @@ class StockOutSyncService {
   // Helper methods for cleaner code
   shouldWaitForStockinUpdates(stockinResults) {
     return stockinResults.results?.addProducts?.processed > 0 ||
-           stockinResults.results?.adds?.processed > 0 ||
-           stockinResults.results?.updates?.processed > 0 ||
-           stockinResults.results?.deletes?.processed > 0;
+      stockinResults.results?.adds?.processed > 0 ||
+      stockinResults.results?.updates?.processed > 0 ||
+      stockinResults.results?.deletes?.processed > 0;
   }
 
   shouldFetchFreshData(results) {
     return results.adds.processed > 0 ||
-           results.updates.processed > 0 ||
-           results.deletes.processed > 0 ||
-           !this.lastSyncTime;
+      results.updates.processed > 0 ||
+      results.deletes.processed > 0 ||
+      !this.lastSyncTime;
   }
-// Helper function to prepare individual sales for sync
-async prepareSaleForSync(stockOut) {
-  // Resolve stockin ID mapping
-  let resolvedStockInId = stockOut.stockinId;
-  
-  if (stockOut.stockinId) {
-    // Check if this is a local stockin ID that has been synced
-    const syncedStockIn = await db.synced_stockin_ids
-      .where('localId')
-      .equals(stockOut.stockinId)
-      .first();
-    
-    if (syncedStockIn) {
-      resolvedStockInId = syncedStockIn.serverId;
-      console.log(`🔄 Mapped local stockin ID ${stockOut.stockinId} to server ID ${resolvedStockInId}`);
-      
-      // Update the stockout record with the correct stockin ID
-      await db.stockouts_offline_add.update(stockOut.localId, {
-        stockinId: resolvedStockInId
-      });
-    } else {
-      // Check if it's already a server ID in stockins_all
-      const serverStockIn = await db.stockins_all.get(stockOut.stockinId);
-      if (!serverStockIn) {
-        console.warn(`⚠️ Product ID ${stockOut.stockinId} not found in local database. Skipping stockout ${stockOut.localId}`);
-        return null;
+  // Helper function to prepare individual sales for sync
+  async prepareSaleForSync(stockOut) {
+    // Resolve stockin ID mapping
+    let resolvedStockInId = stockOut.stockinId;
+
+    if (stockOut.stockinId) {
+      // Check if this is a local stockin ID that has been synced
+      const syncedStockIn = await db.synced_stockin_ids
+        .where('localId')
+        .equals(stockOut.stockinId)
+        .first();
+
+      if (syncedStockIn) {
+        resolvedStockInId = syncedStockIn.serverId;
+        console.log(`🔄 Mapped local stockin ID ${stockOut.stockinId} to server ID ${resolvedStockInId}`);
+
+        // Update the stockout record with the correct stockin ID
+        await db.stockouts_offline_add.update(stockOut.localId, {
+          stockinId: resolvedStockInId
+        });
+      } else {
+        // Check if it's already a server ID in stockins_all
+        const serverStockIn = await db.stockins_all.get(stockOut.stockinId);
+        if (!serverStockIn) {
+          console.warn(`⚠️ Product ID ${stockOut.stockinId} not found in local database. Skipping stockout ${stockOut.localId}`);
+          return null;
+        }
       }
     }
-  }
 
-  // Handle backorder data if present
-  let backOrderPayload = null;
-  if (stockOut.backorderLocalId) {
-    const localBackOrder = await db.backorders_offline_add.get(stockOut.backorderLocalId);
-    if (localBackOrder) {
-      backOrderPayload = {
-        quantity: localBackOrder.quantity,
-        sellingPrice: localBackOrder.soldPrice , // Convert back to unit price
-        soldPrice: localBackOrder.soldPrice , // Convert back to unit price
-        productName: localBackOrder.productName,
+    // Handle backorder data if present
+    let backOrderPayload = null;
+    if (stockOut.backorderLocalId) {
+      const localBackOrder = await db.backorders_offline_add.get(stockOut.backorderLocalId);
+      if (localBackOrder) {
+        backOrderPayload = {
+          quantity: localBackOrder.quantity,
+          sellingPrice: localBackOrder.soldPrice, // Convert back to unit price
+          soldPrice: localBackOrder.soldPrice, // Convert back to unit price
+          productName: localBackOrder.productName,
 
+        };
+      }
+    }
+
+    // Format sale data to match createMultipleStockOut expectations
+    if (stockOut.isBackOrder || backOrderPayload) {
+      return {
+        stockinId: null,
+        quantity: Number(stockOut.quantity),
+        isBackOrder: true,
+        soldPrice: Number(stockOut.soldPrice),
+        backOrder: backOrderPayload || {
+          productName: stockOut.productName,
+          quantity: Number(stockOut.quantity),
+          sellingPrice: stockOut.soldPrice, // Convert to unit price,
+
+          soldPrice: stockOut.soldPrice // Convert to unit price
+
+        }
+      };
+    } else {
+      return {
+        stockinId: resolvedStockInId,
+        quantity: Number(stockOut.quantity),
+        soldPrice: Number(stockOut.soldPrice),
+        isBackOrder: false,
+        backOrder: null
       };
     }
   }
-
-  // Format sale data to match createMultipleStockOut expectations
-  if (stockOut.isBackOrder || backOrderPayload) {
-    return {
-      stockinId: null,
-      quantity: Number(stockOut.quantity),
-      isBackOrder: true,
-       soldPrice: Number(stockOut.soldPrice),
-      backOrder: backOrderPayload || {
-        productName: stockOut.productName,
-        quantity: Number(stockOut.quantity),
-        sellingPrice: stockOut.soldPrice , // Convert to unit price,
-
-        soldPrice: stockOut.soldPrice // Convert to unit price
-
-      }
-    };
-  } else {
-    return {
-      stockinId: resolvedStockInId,
-      quantity: Number(stockOut.quantity),
-      soldPrice: Number(stockOut.soldPrice),
-      isBackOrder: false,
-      backOrder: null
-    };
-  }
-}
   async syncUnsyncedUpdates() {
     const unsyncedUpdates = await db.stockouts_offline_update.toArray();
     console.log('******** => + UPDATING UNSYNCED STOCK-OUTS ', unsyncedUpdates.length);
@@ -819,7 +987,7 @@ async prepareSaleForSync(stockOut) {
 
       await db.transaction('rw', db.stockouts_all, db.synced_stockout_ids, async () => {
         console.warn(',,,...loading the data');
-        
+
         await db.stockouts_all.clear();
         console.warn('✨ Cleared local stockouts, replacing with server data', serverStockOuts);
 
