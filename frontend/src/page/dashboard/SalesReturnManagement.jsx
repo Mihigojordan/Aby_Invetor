@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Eye, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, ChevronLeft, ChevronRight, RotateCcw, FileText, Filter, Download, RefreshCw, TrendingUp, Wifi, WifiOff } from 'lucide-react';
+import { Search, Plus, Edit3, Eye, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, ChevronLeft, ChevronRight, RotateCcw, FileText, Filter, Download, RefreshCw, TrendingUp, Wifi, WifiOff, Receipt } from 'lucide-react';
 import salesReturnService from '../../services/salesReturnService';
 import UpsertSalesReturnModal from '../../components/dashboard/salesReturn/UpsertSalesReturnModal';
 import ViewSalesReturnModal from '../../components/dashboard/salesReturn/ViewSalesReturnModal';
@@ -499,13 +499,19 @@ const SalesReturnManagement = ({ role }) => {
       // Find the original stockout to get the stockin reference
       const stockout = await db.stockouts_all.get(stockoutId) ||
                      await db.stockouts_offline_add.where('localId').equals(stockoutId).first();
-      
+
+                     
+                     await db.stockouts_all.update(stockoutId,{
+                       quantity: stockout.quantity - returnQuantity
+                     })
+      alert(JSON.stringify(stockout))
       if (stockout && stockout.stockinId) {
         // Restore stock quantity
         const stockin = await db.stockins_all.get(stockout.stockinId) 
         if (stockin) {
-          const newQuantity = stockin.quantity + returnQuantity;
+          const newQuantity = (stockin.offlineQuantity ??  stockin.quantity) + returnQuantity;
           await db.stockins_all.update(stockout.stockinId, { quantity: newQuantity });
+
         } else {
           // Check offline stockins
           const offlineStockin = await db.stockins_offline_add.get(stockout.stockinId);
@@ -640,6 +646,13 @@ const SalesReturnManagement = ({ role }) => {
     }
     return pages;
   };
+
+  const handleOpenCreditNote = (Id)=>{
+    if(!Id) return showNotification('Didnt choose the transaction')
+      updateSearchParam('salesReturnId', Id);
+        setSalesReturnId(Id);
+        setIsCreditNoteOpen(true);
+  }
 
   // Statistics Cards Component
   const StatisticsCards = () => (
@@ -846,6 +859,12 @@ const SalesReturnManagement = ({ role }) => {
                 >
                   <Eye size={16} />
                 </button>
+                <button
+                  onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId )}
+                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                >
+                  <Receipt size={16} />
+                </button>
               </div>
 
               <div className="space-y-2 mb-4">
@@ -977,7 +996,14 @@ const SalesReturnManagement = ({ role }) => {
                   >
                     <Eye size={16} />
                   </button>
+                  <button
+                  onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId )}
+                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                >
+                  <Receipt size={16} />
+                </button>
                 </td>
+                
               </tr>
             ))}
           </tbody>
