@@ -352,10 +352,7 @@ const SalesReturnManagement = ({ role }) => {
         throw new Error('User authentication required');
       }
 
-      // alert(JSON.stringify(returnData))
-
-
-      // return
+    
 
       const userInfo = role === 'admin' && adminData?.id
         ? { adminId: adminData.id }
@@ -504,7 +501,7 @@ const SalesReturnManagement = ({ role }) => {
                      await db.stockouts_all.update(stockoutId,{
                        quantity: stockout.quantity - returnQuantity
                      })
-      alert(JSON.stringify(stockout))
+   
       if (stockout && stockout.stockinId) {
         // Restore stock quantity
         const stockin = await db.stockins_all.get(stockout.stockinId) 
