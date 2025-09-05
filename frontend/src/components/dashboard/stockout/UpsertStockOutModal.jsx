@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import stockInService from "../../../services/stockinService";
 
 import { ChevronDownIcon, SearchIcon, XIcon, Package, ShoppingCart } from 'lucide-react';
+import { useNetworkStatusContext } from "../../../context/useNetworkContext";
 
 // Searchable Stock-In Dropdown Component
 const SearchableStockInDropdown = ({
@@ -17,7 +18,8 @@ const SearchableStockInDropdown = ({
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
-
+  
+  const {isOnline} = useNetworkStatusContext()
   // Filter stock items based on search term
   const filteredStockIns = stockIns?.filter(stockIn => {
     const searchLower = searchTerm.toLowerCase();
@@ -71,6 +73,7 @@ const SearchableStockInDropdown = ({
       setSearchTerm('');
     }
   };
+
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -184,7 +187,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     // Multiple entries fields (for create mode)
     salesEntries: [{ stockinId: '', quantity: '', sku: '', soldPrice: '', isBackOrder: false, backOrder: null }]
   });
-
+  const {isOnline} = useNetworkStatusContext()
   const [validationErrors, setValidationErrors] = useState({
     stockinId: '',
     quantity: '',
@@ -323,7 +326,19 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
     try {
       // Use the stockInService to fetch by SKU
-      const response = await stockInService.getStockInBySku(sku.trim());
+      let response; 
+
+      if(isOnline){
+        try {
+          
+          response =  await stockInService.getStockInBySku(sku.trim());
+        } catch (error) {
+            response = stockIns?.find(s=> s?.sku && s?.sku === sku.trim() )
+        }
+      }
+else{
+  response = stockIns?.find(s=> s?.sku && s?.sku === sku.trim() )
+}
 
       if (response) {
         const stockInData = response;
@@ -347,16 +362,17 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
           // Calculate suggested quantity (half of available stock)
           const suggestedQuantity = calculateSuggestedQuantity(stockInData.quantity);
 
-          // Update the sales entry with the found stock and suggested quantity
-          const updatedEntries = [...formData.salesEntries];
-          updatedEntries[index] = {
-            ...updatedEntries[index],
-            stockinId: stockInData.id,
-            sku: sku.trim(),
-            quantity: suggestedQuantity.toString(),
-            isBackOrder: false,
-            backOrder: null
-          };
+// Update the sales entry with the found stock and auto-filled values
+const updatedEntries = [...formData.salesEntries];
+updatedEntries[index] = {
+  ...updatedEntries[index],
+  stockinId: stockInData.id,
+  sku: sku.trim(),
+  quantity: suggestedQuantity.toString(),
+  soldPrice: stockInData.sellingPrice.toString(),
+  isBackOrder: false,
+  backOrder: null
+};
           setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
 
           // Clear SKU error since we found valid stock
@@ -446,17 +462,31 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
 
   // Single entry handlers (for update mode)
   const handleStockInChange = (e) => {
+
+
     const value = e.target.value;
-    setFormData({ ...formData, stockinId: value });
-
-    const stockinError = validateStockInId(value);
-    const quantityError = formData.quantity ? validateQuantity(formData.quantity, value) : '';
-
-    setValidationErrors(prev => ({
-      ...prev,
-      stockinId: stockinError,
-      quantity: quantityError
+// Auto-fill quantity and soldPrice when stock is selected
+if (value && stockIns) {
+  const selectedStock = stockIns.find(stock => stock.id === value || stock.localId === value);
+  if (selectedStock) {
+    const suggestedQuantity = calculateSuggestedQuantity(selectedStock.offlineQuantity ?? selectedStock.quantity);
+    setFormData(prev => ({ 
+      ...prev, 
+      quantity: suggestedQuantity.toString(),
+      soldPrice: selectedStock.sellingPrice.toString()
     }));
+  }
+} else if (!value) {
+  // Clear quantity and soldPrice when stock selection is cleared
+  setFormData(prev => ({ 
+    ...prev, 
+    quantity: '',
+    soldPrice: ''
+  }));
+
+}
+   
+    
   };
 
   const handleQuantityChange = (e) => {
@@ -591,33 +621,29 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       };
       setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
 
-      // FIXED: When manually selecting from dropdown, clear SKU error and update SKU field
-      // In the handleSalesEntryChange function, when stockinId changes:
-      if (value && stockIns) {
-        const selectedStock = stockIns.find(stock => stock.id === value || stock.localId === value);
-        if (selectedStock) {
-          // Update SKU if available
-          if (selectedStock.sku) {
-            updatedEntries[index].sku = selectedStock.sku;
-          }
+    // FIXED: When manually selecting from dropdown, clear SKU error and update SKU field
+// In the handleSalesEntryChange function, when stockinId changes:
+if (value && stockIns) {
+  const selectedStock = stockIns.find(stock => stock.id === value || stock.localId === value);
+  if (selectedStock) {
+    // Update SKU if available
+    if (selectedStock.sku) {
+      updatedEntries[index].sku = selectedStock.sku;
+    }
 
-          // Auto-fill sold price with selling price
-          if (!updatedEntries[index].soldPrice) {
-            updatedEntries[index].soldPrice = selectedStock.sellingPrice.toString();
-          }
+    // Auto-fill sold price with selling price (always update)
+    updatedEntries[index].soldPrice = selectedStock.sellingPrice.toString();
 
-          // Clear SKU error since we have a valid selection
-          setSkuErrors(prev => ({ ...prev, [index]: '' }));
+    // Clear SKU error since we have a valid selection
+    setSkuErrors(prev => ({ ...prev, [index]: '' }));
 
-          // Auto-fill quantity if not already set
-          if (!updatedEntries[index].quantity) {
-            const suggestedQuantity = calculateSuggestedQuantity(selectedStock.offlineQuantity ?? selectedStock.quantity);
-            updatedEntries[index].quantity = suggestedQuantity.toString();
-          }
+    // Auto-fill quantity (always update with suggested quantity)
+    const suggestedQuantity = calculateSuggestedQuantity(selectedStock.offlineQuantity ?? selectedStock.quantity);
+    updatedEntries[index].quantity = suggestedQuantity.toString();
 
-          setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
-        }
-      } else if (!value) {
+    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+  }
+} else if (!value) {
         // If clearing selection, also clear SKU error
         setSkuErrors(prev => ({ ...prev, [index]: '' }));
       }
@@ -1243,7 +1269,10 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
                               >
                                 $
                               </button>
+                              
                             )}
+
+
                           </div>
                         </div>
 

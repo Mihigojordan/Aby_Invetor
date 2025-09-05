@@ -39,6 +39,9 @@ import BackOrderDashboard from "../components/dashboard/salesReport/BackOrderOve
 import TransactionAnalysis from "../components/dashboard/salesReport/TransactionAnalysis";
 import TransactionAnalysisDetails from "../components/dashboard/salesReport/TransactionAnalysisDetails";
 import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
+import AboutPage from "../page/landing/AboutUs";
+import FeaturesPage from "../page/landing/Feature";
+import ContactPage from "../page/landing/ContactUs";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -53,6 +56,18 @@ const routes = createBrowserRouter([
             {
                 index: true,
                 element: <LandingPage />
+            },
+            {
+                path:'about',
+                element:<AboutPage />
+            },
+            {
+                path:'features',
+                element:<FeaturesPage />
+            },
+            {
+                path:'contact-us',
+                element:<ContactPage />
             },
             {
                 path: "admin",

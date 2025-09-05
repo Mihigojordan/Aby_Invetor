@@ -40,9 +40,9 @@ const StockOutManagement = ({ role }) => {
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
-  
-    
-    
+
+
+
     loadStockOuts();
     if (isOnline) handleManualSync()
     const params = new URLSearchParams(window.location.search);
@@ -356,13 +356,13 @@ const StockOutManagement = ({ role }) => {
       const userInfo = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
 
-  const salesArray = stockOutData.salesEntries || [{
-  stockinId: stockOutData.stockinId,
-  quantity: stockOutData.quantity,
-  soldPrice: stockOutData.soldPrice, // Add this line
-  isBackOrder: false,
-  backOrder: null
-}];
+      const salesArray = stockOutData.salesEntries || [{
+        stockinId: stockOutData.stockinId,
+        quantity: stockOutData.quantity,
+        soldPrice: stockOutData.soldPrice, // Add this line
+        isBackOrder: false,
+        backOrder: null
+      }];
 
       const clientInfo = {
         clientName: stockOutData.clientName,
@@ -380,22 +380,22 @@ const StockOutManagement = ({ role }) => {
 
         if (sale.isBackOrder) {
           // 🆕 Persist backorder separately
-        const backOrderRecord = {
-  quantity: sale.quantity,
-  soldPrice: sale.soldPrice ,
-  sellingPrice: sale.soldPrice,
-  productName: sale.backOrder.productName,
-  ...userInfo,
-  lastModified: now,
-  createdAt: now,
-  updatedAt: now
-};
+          const backOrderRecord = {
+            quantity: sale.quantity,
+            soldPrice: sale.soldPrice,
+            sellingPrice: sale.soldPrice,
+            productName: sale.backOrder.productName,
+            ...userInfo,
+            lastModified: now,
+            createdAt: now,
+            updatedAt: now
+          };
           backorderLocalId = await db.backorders_offline_add.add(backOrderRecord);
 
           newStockout = {
             stockinId: null, // no stockin link for backorder
             quantity: sale.quantity,
-            soldPrice: backOrderRecord.soldPrice,
+            // soldPrice: backOrderRecord.soldPrice,
             clientName: clientInfo.clientName,
             clientEmail: clientInfo.clientEmail,
             clientPhone: clientInfo.clientPhone,
@@ -424,7 +424,7 @@ const StockOutManagement = ({ role }) => {
             throw new Error(`Not enough stock for ID: ${sale.stockinId}. Available: ${stockin.quantity}, Requested: ${sale.quantity}`);
           }
 
-       const soldPrice = sale.soldPrice || (stockin.sellingPrice * sale.quantity);
+          const soldPrice = sale.soldPrice || (stockin.sellingPrice * sale.quantity);
 
           newStockout = {
             stockinId: sale.stockinId,
@@ -519,7 +519,7 @@ const StockOutManagement = ({ role }) => {
           showNotification('Stock out saved offline (will sync when online)', 'warning');
         }
       } else {
-          updateSearchParam('transactionId',localTransactionId);
+        updateSearchParam('transactionId', localTransactionId);
         setTransactionId(localTransactionId);
         setIsInvoiceNoteOpen(true);
         showNotification('Stock out saved offline (will sync when online)', 'warning');
@@ -695,10 +695,10 @@ const StockOutManagement = ({ role }) => {
   }
 
 
-  const handleShowInvoiceComponent = (transactionId)=>{
-      updateSearchParam('transactionId', transactionId);
-          setTransactionId(transactionId);
-          setIsInvoiceNoteOpen(true);
+  const handleShowInvoiceComponent = (transactionId) => {
+    updateSearchParam('transactionId', transactionId);
+    setTransactionId(transactionId);
+    setIsInvoiceNoteOpen(true);
   }
   const handleCloseInvoiceModal = () => {
     setIsInvoiceNoteOpen(false);
@@ -1047,18 +1047,18 @@ const StockOutManagement = ({ role }) => {
                           <Edit3 size={16} />
                         </button>
                       )}
-                      {
-                        stockOut.transactionId &&
-                        <button
+                    {
+                      stockOut.transactionId &&
+                      <button
                         onClick={() => handleShowInvoiceComponent(stockOut.transactionId)}
-                          className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Receipt size={16} />
-                        </button>
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Receipt size={16} />
+                      </button>
 
-                      }
-                     
+                    }
+
 
                   </div>
                 </td>
