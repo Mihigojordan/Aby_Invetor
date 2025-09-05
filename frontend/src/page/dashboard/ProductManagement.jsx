@@ -11,7 +11,6 @@ import { db } from '../../db/database';
 import { useProductOfflineSync } from '../../hooks/useProductOfflineSync';
 import categoryService from '../../services/categoryService';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
-
 const ProductManagement = ({ role }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -177,7 +176,6 @@ const ProductManagement = ({ role }) => {
       };
 
       const localId = await db.products_offline_add.add(newProduct);
-      const savedProduct = { ...newProduct, localId, synced: false };
 
       if (productData.images?.length > 0) {
         for (const file of productData.images) {
@@ -223,6 +221,7 @@ const ProductManagement = ({ role }) => {
           }
           await db.products_offline_add.delete(localId);
           showNotification('Product added successfully!');
+        // eslint-disable-next-line no-unused-vars
         } catch (error) {
           showNotification('Product saved offline (will sync when online)', 'warning');
         }
@@ -252,13 +251,6 @@ const ProductManagement = ({ role }) => {
       const now = new Date();
 
       if (!isOnline && productData && productData.localId && !productData.synced) {
-
-        const localId = await db.products_offline_add.update(productData.localId, {
-          ...productData,
-          ...userData,
-          lastModified: now,
-          updatedAt: now
-        })
 
         await loadProducts()
         setIsEditModalOpen(false);
@@ -309,6 +301,7 @@ const ProductManagement = ({ role }) => {
             }
           }
           showNotification('Product updated successfully!');
+        // eslint-disable-next-line no-unused-vars
         } catch (error) {
           await db.products_offline_update.put(updatedData);
           if (productData.newImages?.length > 0) {
@@ -357,7 +350,7 @@ const ProductManagement = ({ role }) => {
     }
   };
 
-  const handleConfirmDelete = async (productData) => {
+  const handleConfirmDelete = async () => {
     setIsLoading(true);
     try {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
@@ -400,6 +393,7 @@ const ProductManagement = ({ role }) => {
       await triggerSync();
       await loadProducts();
       showNotification('Sync completed successfully!');
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       showNotification('Sync failed due to network error—will retry automatically.', 'error');
     } finally {
@@ -476,7 +470,6 @@ const ProductManagement = ({ role }) => {
       setCurrentPage(currentPage + 1);
     }
   };
-
   const PaginationComponent = () => (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
@@ -533,7 +526,7 @@ const ProductManagement = ({ role }) => {
   const CardView = () => (
     <div className="md:hidden">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-        {currentItems.map((product, index) => (
+        {currentItems.map((product) => (
           <div
             key={product.localId || product.id}
             className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${product.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
@@ -861,6 +854,7 @@ const ProductManagement = ({ role }) => {
         product={selectedProduct}
         isLoading={isLoading}
       />
+      {/* <button onClick={handleMultipleProduct}>submit changes</button> */}
     </div>
   );
 };

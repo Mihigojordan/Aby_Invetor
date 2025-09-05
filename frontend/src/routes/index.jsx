@@ -42,6 +42,7 @@ import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
 import AboutPage from "../page/landing/AboutUs";
 import FeaturesPage from "../page/landing/Feature";
 import ContactPage from "../page/landing/ContactUs";
+import LandingLayout from "../layout/LandingLayout";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -54,10 +55,14 @@ const routes = createBrowserRouter([
         element: <MainLayout />,
         children: [
             {
-                index: true,
-                element: <LandingPage />
-            },
-            {
+                path:"/",
+                element: <LandingLayout />,
+                children:[
+                    {
+                       path:"/",
+                       element:<LandingPage />
+                    },
+                      {
                 path:'about',
                 element:<AboutPage />
             },
@@ -66,9 +71,12 @@ const routes = createBrowserRouter([
                 element:<FeaturesPage />
             },
             {
-                path:'contact-us',
+                path:'contact',
                 element:<ContactPage />
             },
+                ]
+            },
+          
             {
                 path: "admin",
                 element: <ProtectPrivateAdmin> <MainLayout /> </ProtectPrivateAdmin>,

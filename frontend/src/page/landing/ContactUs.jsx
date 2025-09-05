@@ -152,7 +152,7 @@ export default function ContactPage() {
             icon: <Phone className="w-8 h-8" />,
             title: "Inventory Support Helpline",
             description: "Speak directly with our inventory specialists",
-            info: ["+250 788 123 456", "+250 788 654 321"],
+            info: ["+250 791 813 289",],
             action: "Call Support",
             availability: "24/7 Support"
         },
@@ -160,7 +160,7 @@ export default function ContactPage() {
             icon: <Mail className="w-8 h-8" />,
             title: "Email Support",
             description: "Send us your inventory queries anytime",
-            info: ["support@abyinventory.rw", "help@abyinventory.rw"],
+            info: ["abytechhubllc@gmail.com",],
             action: "Send Email",
             availability: "Response within 4 hours"
         },
@@ -168,7 +168,7 @@ export default function ContactPage() {
             icon: <MessageCircle className="w-8 h-8" />,
             title: "Live Chat",
             description: "Get instant help with inventory issues",
-            info: ["Available on portal", "WhatsApp: +250 788 123 456"],
+            info: [ "WhatsApp: +250 791 813 289"],
             action: "Start Chat",
             availability: "8 AM - 6 PM"
         }
@@ -179,7 +179,7 @@ export default function ContactPage() {
             name: "Main Support Office",
             address: "KG 15 Ave, Kimihurura",
             city: "Kigali, Rwanda",
-            phone: "+250 788 123 456",
+            phone: "+250 791 813 289",
             hours: "Mon - Fri: 8:00 AM - 6:00 PM",
             services: ["Inventory Support", "Financial Integration", "Reporting Assistance"]
         },
@@ -187,7 +187,7 @@ export default function ContactPage() {
             name: "Technical Support Center",
             address: "KN 3 Rd, Nyarutarama",
             city: "Kigali, Rwanda",
-            phone: "+250 788 654 321",
+            phone: "+250 791 813 289",
             hours: "Mon - Fri: 9:00 AM - 5:00 PM",
             services: ["System Troubleshooting", "Data Integration", "Workflow Setup"]
         }
@@ -280,8 +280,8 @@ export default function ContactPage() {
                         className="flex flex-wrap justify-center gap-4"
                     >
                         {[
-                            { icon: <Phone size={16} />, text: "+250 788 123 456" },
-                            { icon: <Mail size={16} />, text: "support@abyinventory.rw" },
+                            { icon: <Phone size={16} />, text: "+250 791 813 289" },
+                            { icon: <Mail size={16} />, text: "abytechhubllc@gmail.com" },
                             { icon: <Clock size={16} />, text: "Mon-Fri 8AM-6PM" }
                         ].map((badge, index) => (
                             <motion.div
@@ -443,7 +443,7 @@ export default function ContactPage() {
                                             value={formData.phone}
                                             onChange={handleInputChange}
                                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                                            placeholder="+250 788 123 456"
+                                            placeholder="+250 791 813 289"
                                             aria-label="Phone Number"
                                         />
                                     </div>
