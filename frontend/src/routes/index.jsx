@@ -23,7 +23,7 @@ import AuthSelectionPage from "../page/auth/AuthSelectionPage";
 import ProtectPrivateEmployee from "../components/protectors/employee/ProtectPrivateAdmin";
 import EmployeeProfile from "../page/dashboard/EmployeeProfileManagement";
 import StockOutManagment from "../page/dashboard/StockOutManagment";
-import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
+
 import AdminProfile from "../page/dashboard/AdminProfile";
 import EmployeeDashboard from "../page/dashboard/EmployeeDashboard";
 import ProductViewPage from "../components/dashboard/product/ViewMorePage";
@@ -31,8 +31,15 @@ import SalesReportPage from "../page/dashboard/SalesReportPage";
 import ViewStockoutReport from "../components/dashboard/salesReport/ViewStockoutReport";
 import StockOutAnalysisPage from "../components/dashboard/salesReport/StockOutAnalysisPage";
 import ReportManagement from "../page/dashboard/ReportManagment";
+import ViewReportsPage from "../components/dashboard/report/ViewReportPage";
 import EmployeeReportManagement from "../page/dashboard/EmployeeReportManagement";
 import EmployeeReportViewMore from "../page/dashboard/EmployeeReportViewMore";
+import ViewEmployeePage from "../components/dashboard/employee/ViewEmployeeModal";
+import BackOrderDashboard from "../components/dashboard/salesReport/BackOrderOverview";
+import TransactionAnalysis from "../components/dashboard/salesReport/TransactionAnalysis";
+import TransactionAnalysisDetails from "../components/dashboard/salesReport/TransactionAnalysisDetails";
+import SalesReturnManagement from "../page/dashboard/SalesReturnManagement";
+import LandingLayout from "../layout/LandingLayout";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -45,8 +52,14 @@ const routes = createBrowserRouter([
         element: <MainLayout />,
         children: [
             {
-                index: true,
-                element: <LandingPage />
+                path:"/",
+                element: <LandingLayout />,
+                children:[
+                    {
+                       path:"/",
+                       element:<LandingPage />
+                    }
+                ]
             },
             {
                 path: "admin",
@@ -131,6 +144,15 @@ const routes = createBrowserRouter([
 
                             },
                             {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
                                 path:"profile",
                                  element: (
                                     <SuspenseWrapper>
@@ -163,10 +185,42 @@ const routes = createBrowserRouter([
                                 )
                             },
                             {
+                                path:"sales-report/non-stock-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <BackOrderDashboard role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/transaction-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <TransactionAnalysis role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/transaction-analysis/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <TransactionAnalysisDetails role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
                                 path:"employee-report",
                                  element: (
                                     <SuspenseWrapper>
                                         <EmployeeReportManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"employee/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <ViewEmployeePage role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
@@ -246,10 +300,28 @@ const routes = createBrowserRouter([
 
                             },
                             {
+                                path: "report/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ViewReportsPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
                                 path: "stockout",
                                 element: (
                                     <SuspenseWrapper>
                                         <StockOutManagment role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 

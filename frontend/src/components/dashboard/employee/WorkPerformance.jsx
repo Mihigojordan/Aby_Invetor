@@ -179,7 +179,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                                 key={page}
                                 onClick={() => handlePageChange(page)}
                                 className={`px-3 py-2 text-sm rounded-md transition-colors ${currentPage === page
-                                        ? 'bg-blue-600 text-white'
+                                        ? 'bg-primary-600 text-white'
                                         : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
                                     }`}
                             >
@@ -214,7 +214,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                             {/* Activity Header */}
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white">
                                         <Activity size={24} />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -289,7 +289,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
 
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white">
                                             <Activity size={16} />
                                         </div>
                                         <div>
@@ -353,7 +353,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                 {/* Header Section */}
                 <div className="mb-4">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-blue-600 rounded-lg">
+                        <div className="p-2 bg-primary-600 rounded-lg">
                             <Activity className="w-6 h-6 text-white" />
                         </div>
                         <h1 className="text-3xl font-bold text-gray-900">Work Performance</h1>
@@ -373,7 +373,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                                     placeholder="Search activities by name or description..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                                 />
                             </div>
                         </div>
@@ -385,7 +385,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                                     type="date"
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
-                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
                                     placeholder="Start date"
                                 />
                             </div>
@@ -394,7 +394,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                                     type="date"
                                     value={endDate}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
                                     placeholder="End date"
                                 />
                             </div>
@@ -413,7 +413,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                             <button
                                 onClick={() => fetchActivities(true)}
                                 disabled={isRefreshing}
-                                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2.5 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 text-sm"
+                                className="flex-1 flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2.5 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 text-sm"
                             >
                                 <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
                                 Refresh
@@ -426,8 +426,8 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                 <div className="flex flex-wrap items-center justify-center  gap-6 mb-6">
                     <div className="bg-white rounded-xl flex-auto shadow-sm border border-gray-200 p-6">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                                <Activity className="w-5 h-5 text-blue-600" />
+                            <div className="p-2 bg-primary-100 rounded-lg">
+                                <Activity className="w-5 h-5 text-primary-600" />
                             </div>
                             <div>
                                 <p className="text-sm text-gray-600">Total Activities</p>
@@ -472,7 +472,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
                 {isLoading && !isRefreshing ? (
                     <div className="text-center py-12">
                         <div className="inline-flex items-center gap-3">
-                            <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+                            <RefreshCw className="w-5 h-5 animate-spin text-primary-600" />
                             <p className="text-gray-600">Loading activities...</p>
                         </div>
                     </div>

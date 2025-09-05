@@ -70,9 +70,9 @@ const GeneralInformation = ({ employee, formatDate, getStatusBadge }) => {
       {/* Profile Card */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {/* Profile Header */}
-        <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-8 py-12 text-white relative">
-          <div className="flex items-center space-x-6">
-            <div className="relative">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-700 p-3  md:px-8 py-4 md:py-12 text-white relative">
+          <div className="flex   flex-wrap items-center space-x-6">
+            <div className="relative ">
               {employee.profileImg ? (
                 <img
                   src={`${API_URL}${employee.profileImg}`}
@@ -93,7 +93,7 @@ const GeneralInformation = ({ employee, formatDate, getStatusBadge }) => {
               </button>
             </div>
             <div>
-              <h2 className="text-3xl font-bold mb-2">
+              <h2 className=" text-2xl md:text-3xl font-bold mb-2">
                 {employee.firstname} {employee.lastname}
               </h2>
               <p className="text-primary-100 text-lg mb-3">{employee.email}</p>

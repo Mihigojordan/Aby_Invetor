@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ShoppingCart, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  ShoppingCart,
+  TrendingUp,
+  TrendingDown,
   DollarSign,
   Package,
   AlertTriangle,
@@ -14,18 +14,26 @@ import {
   Edit3,
   Star,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 import stockOutService from '../../services/stockoutService'; // Adjust path as needed
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
+import { db } from '../../db/database';
+import { useNetworkStatusContext } from '../../context/useNetworkContext';
+import stockInService from '../../services/stockinService';
+import backOrderService from '../../services/backOrderService';
+import productService from '../../services/productService';
 
 const SalesReportPage = () => {
   const [salesData, setSalesData] = useState([]);
   const [filteredSalesData, setFilteredSalesData] = useState([]);
+  const { isOnline } = useNetworkStatusContext()
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPeriod, setCurrentPeriod] = useState('today');
+  const [notification, setNotification] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
   const [periodStats, setPeriodStats] = useState({
@@ -43,7 +51,7 @@ const SalesReportPage = () => {
       icon: DollarSign,
       bgColor: 'bg-green-50',
       color: 'text-green-600',
-      path:null,
+      path: null,
     },
     {
       title: 'Total Quantity Sold',
@@ -51,7 +59,7 @@ const SalesReportPage = () => {
       change: 'Loading...',
       icon: ShoppingCart,
       bgColor: 'bg-blue-50',
-      path:null,
+      path: null,
       color: 'text-blue-600'
     },
     {
@@ -60,7 +68,7 @@ const SalesReportPage = () => {
       change: 'Product with minimum sales',
       icon: TrendingDown,
       bgColor: 'bg-red-50',
-      path:null,
+      path: null,
       color: 'text-red-600'
     },
     {
@@ -69,18 +77,19 @@ const SalesReportPage = () => {
       change: 'Product with maximum sales',
       icon: TrendingUp,
       bgColor: 'bg-green-50',
-      path:null,
+      path: null,
+      color: 'text-green-600'
+    },
+    {
+      title: 'Non-Stock sales',
+      value: 'Loading...',
+      change: 'Product with maximum sales',
+      icon: TrendingUp,
+      bgColor: 'bg-red-50',
+      path: null,
       color: 'text-green-600'
     }
   ]);
-
-  useEffect(() => {
-    fetchSalesData();
-  }, []);
-
-  useEffect(() => {
-    filterDataByPeriod();
-  }, [salesData, currentPeriod]);
 
   const fetchSalesData = async () => {
     try {
@@ -91,11 +100,242 @@ const SalesReportPage = () => {
       setError(null);
     } catch (err) {
       console.error('Error fetching sales data:', err);
-      setError(err.message);
+      loadStockOuts()
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOnline) {
+      fetchSalesData()
+    }
+    else {
+      loadStockOuts();
+
+    }
+  }, []);
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  useEffect(() => {
+    filterDataByPeriod();
+  }, [salesData, currentPeriod]);
+
+
+  const loadStockOuts = async () => {
+    setLoading(true);
+    try {
+
+      const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
+        db.stockouts_all.toArray(),
+        db.stockouts_offline_add.toArray(),
+        db.stockouts_offline_update.toArray(),
+        db.stockouts_offline_delete.toArray(),
+        fetchStockIns(),
+        fetchProducts(),
+        fetchBackorders()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
+      const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
+
+      const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
+
+      const combinedStockOuts = allStockOuts
+        .filter(so => !deleteIds.has(so.id))
+        .map(so => ({
+          ...so,
+          ...updateMap.get(so.id),
+          synced: true,
+          stockin: stockinMap.get(so.stockinId),
+          backorder: backOrderMap.get(so.backorderId)
+        }))
+        .concat(offlineAdds.map(a => ({
+          ...a,
+          synced: false,
+          backorder: backOrderMap.get(a.backorderLocalId),
+          stockin: stockinMap.get(a.stockinId)
+        })))
+        .sort((a, b) => a.synced - b.synced)
+        ;
+
+      const convertedStockIns = Array.from(stockinMap.values())
+
+      console.warn('STOCK OUTs', combinedStockOuts);
+
+
+      setSalesData(combinedStockOuts);
+      calculateStats(combinedStockOuts);
+      setError(null);
+
+
+      if (!isOnline && combinedStockOuts.length === 0) {
+        showNotification('No offline data available', 'warning');
+      }
+    } catch (error) {
+      console.error('Error loading stock-outs:', error);
+      showNotification('Failed to load stock-outs', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  const fetchStockIns = async () => {
+    try {
+
+      // 3. Merge all data (works offline too)
+      const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.stockins_all.toArray(),
+        db.stockins_offline_add.toArray(),
+        db.stockins_offline_update.toArray(),
+        db.stockins_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedStockin = allStockin
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      console.warn('THIS THE COMBINED STOCK IN :', combinedStockin);
+
+
+      return combinedStockin;
+
+    } catch (error) {
+      console.error('Error fetching stock-ins:', error);
+      if (!error.response) {
+        return await db.stockins_all.toArray();
+      }
+
+    }
+  };
+
+  const fetchBackorders = async () => {
+    try {
+
+      const [allBackOrder, offlineAdds] = await Promise.all([
+        db.backorders_all.toArray(),
+        db.backorders_offline_add.toArray(),
+
+      ]);
+
+      const combinedBackOrder = allBackOrder
+
+        .map(c => ({
+          ...c,
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+      console.warn('backend', combinedBackOrder);
+
+      return combinedBackOrder;
+
+    } catch (error) {
+      console.error('Error fetching backorders:', error);
+
+      // Fallback: return local cache if API fails or offline
+      if (!error?.response) {
+
+        const [allBackOrder, offlineAdds] = await Promise.all([
+          db.backorders_all.toArray(),
+          db.backorders_offline_add.toArray(),
+
+        ]);
+
+        const combinedBackOrder = allBackOrder
+
+          .map(c => ({
+            ...c,
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+        console.warn('backend', combinedBackOrder);
+
+        return combinedBackOrder;
+
+      }
+    }
+  };
+
+
+  const fetchProducts = async () => {
+    try {
+
+      // 3. Merge all data (works offline too)
+      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.products_all.toArray(),
+        db.products_offline_add.toArray(),
+        db.products_offline_update.toArray(),
+        db.products_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedProducts = allProducts
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
+
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      if (!error?.response) {
+
+        // 3. Merge all data (works offline too)
+        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+          db.products_all.toArray(),
+          db.products_offline_add.toArray(),
+          db.products_offline_update.toArray(),
+          db.products_offline_delete.toArray()
+        ]);
+
+        const deleteIds = new Set(offlineDeletes.map(d => d.id));
+        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+        const combinedProducts = allProducts
+          .filter(c => !deleteIds.has(c.id))
+          .map(c => ({
+            ...c,
+            ...updateMap.get(c.id),
+            synced: true
+          }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+
+        return combinedProducts;
+
+      }
+
+    }
+  };
+
+
 
   const filterDataByPeriod = () => {
     const now = new Date();
@@ -149,6 +389,18 @@ const SalesReportPage = () => {
     return (soldPrice - costPrice) * quantity;
   };
 
+  // Responsive helper function to determine grid columns based on visible stats
+  const getStatsGridCols = () => {
+    const visibleStatsCount = stats.length;
+    if (visibleStatsCount === 1) return 'grid-cols-1';
+    if (visibleStatsCount === 2) return 'grid-cols-1 md:grid-cols-2';
+    if (visibleStatsCount === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    if (visibleStatsCount === 4) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4';
+    if (visibleStatsCount === 5) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5';
+    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ';
+  };
+
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -175,76 +427,120 @@ const SalesReportPage = () => {
     }
   };
 
-     const handleViewMoreDetails = (ID)=>{
-      if(!ID) return Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No stock-out ID provided'
-      });
-      navigate(`/admin/dashboard/sales-report/stockout/${ID}`);
-    }
+  const handleViewMoreDetails = (ID) => {
+    if (!ID) return Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'No stock-out ID provided'
+    });
+    navigate(`/admin/dashboard/sales-report/stockout/${ID}`);
+  }
 
 
   const calculateStats = (data) => {
     if (!Array.isArray(data) || data.length === 0) {
       setStats(prevStats => prevStats.map(stat => ({
         ...stat,
-        value: stat.title.includes('Total') ? (stat.title.includes('Sales') ? '$0' : '0') : 'No data',
+        value: stat.title.includes('Total') ? (stat.title.includes('Sales') ? 'RWF 0' : '0') : 'No data',
         change: stat.title.includes('Total') ? 'No sales recorded' : 'No products sold'
       })));
       return;
     }
 
-    // Calculate total sales amount and quantity
+    // Calculate total sales + quantities
     const totalSalesAmount = data.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
     const totalQuantitySold = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
-    // Group by product to find highest and lowest selling products
+    // Backorder sales (filter only stock-outs that are linked to a backorder)
+    const backorderSales = data.filter(item => item.backorderId);
+    const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
+    const totalBackorderQuantity = backorderSales.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+    // Group by product (normal stockouts)
     const productStats = {};
-    
     data.forEach(item => {
       if (item.stockin && item.stockin.product) {
-        const productName = item.stockin.product.productName || 'Unknown Product';
         const productId = item.stockin.product.id;
-        
+        const productName = item.stockin.product.productName || 'Unknown Product';
+
         if (!productStats[productId]) {
           productStats[productId] = {
             name: productName,
             totalQuantity: 0,
             totalValue: 0,
-            salesCount: 0
           };
         }
-        
+
         productStats[productId].totalQuantity += item.quantity || 0;
         productStats[productId].totalValue += item.soldPrice || 0;
-        productStats[productId].salesCount += 1;
       }
     });
 
-    // Find highest and lowest selling products
+    // Group by backorder productName
+    const backorderStats = {};
+    backorderSales.forEach(item => {
+      const productName = item.backorder?.productName || 'Unknown Backorder';
+
+      if (!backorderStats[productName]) {
+        backorderStats[productName] = {
+          name: productName,
+          totalQuantity: 0,
+          totalValue: 0,
+        };
+      }
+
+      backorderStats[productName].totalQuantity += item.quantity || 0;
+      backorderStats[productName].totalValue += item.soldPrice || 0;
+    });
+
+    // Group by transactionId
+    const transactionStats = {};
+    data.forEach(item => {
+      const transactionId = item.transactionId || 'Unknown Transaction';
+
+      if (!transactionStats[transactionId]) {
+        transactionStats[transactionId] = {
+          id: transactionId,
+          totalQuantity: 0,
+          totalValue: 0,
+        };
+      }
+
+      transactionStats[transactionId].totalQuantity += item.quantity || 0;
+      transactionStats[transactionId].totalValue += item.soldPrice || 0;
+    });
+
+    // Highest / lowest stockout product
     const productArray = Object.values(productStats);
-    
-    let highestProduct = null;
-    let lowestProduct = null;
-    
+    let highestProduct = null, lowestProduct = null;
     if (productArray.length > 0) {
-      // Sort by total quantity sold
       productArray.sort((a, b) => b.totalQuantity - a.totalQuantity);
       highestProduct = productArray[0];
       lowestProduct = productArray[productArray.length - 1];
     }
 
- 
-    // Format currency
-    const formatCurrency = (amount) => {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'RWF'
-      }).format(amount);
-    };
+    // Most frequent backorder
+    const backorderArray = Object.values(backorderStats);
+    let highestBackorder = null;
+    if (backorderArray.length > 0) {
+      backorderArray.sort((a, b) => b.totalQuantity - a.totalQuantity);
+      highestBackorder = backorderArray[0];
+    }
 
-    // Update stats
+    // Highest transaction (by value)
+    const transactionArray = Object.values(transactionStats);
+    let highestTransaction = null;
+    if (transactionArray.length > 0) {
+      transactionArray.sort((a, b) => b.totalValue - a.totalValue);
+      highestTransaction = transactionArray[0];
+    }
+
+    const formatCurrency = (amount) => new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'RWF'
+    }).format(amount);
+
+    // Update stats including backorder + transactions
     setStats([
       {
         title: 'Total Sales',
@@ -253,7 +549,7 @@ const SalesReportPage = () => {
         icon: DollarSign,
         bgColor: 'bg-green-50',
         color: 'text-green-600',
-         path:'/admin/dashboard/stockout'
+        path: '/admin/dashboard/stockout',
       },
       {
         title: 'Total Quantity Sold',
@@ -262,7 +558,7 @@ const SalesReportPage = () => {
         icon: ShoppingCart,
         bgColor: 'bg-blue-50',
         color: 'text-blue-600',
-        path:'/admin/dashboard/stockout'
+        path: '/admin/dashboard/stockout',
       },
       {
         title: 'Lowest Stock Out',
@@ -271,7 +567,7 @@ const SalesReportPage = () => {
         icon: TrendingDown,
         bgColor: 'bg-red-50',
         color: 'text-red-600',
-         path:'/admin/dashboard/sales-report/stockout-analysis'
+        path: '/admin/dashboard/sales-report/stockout-analysis',
       },
       {
         title: 'Highest Stock Out',
@@ -280,14 +576,43 @@ const SalesReportPage = () => {
         icon: TrendingUp,
         bgColor: 'bg-green-50',
         color: 'text-green-600',
-        path:'/admin/dashboard/sales-report/stockout-analysis',
-      }
+        path: '/admin/dashboard/sales-report/stockout-analysis',
+      },
+      {
+        title: 'Non-Stock Sales',
+        value: formatCurrency(totalBackorderSalesAmount),
+        change: highestBackorder
+          ? `${highestBackorder.name} (${highestBackorder.totalQuantity} units)`
+          : 'No Non-stock sales',
+        icon: ShoppingCart,
+        bgColor: 'bg-red-50',
+        color: 'text-red-600',
+        path: '/admin/dashboard/sales-report/non-stock-analysis',
+      },
+      {
+        title: 'Highest Transaction',
+        value: highestTransaction ? formatCurrency(highestTransaction.totalValue) : 'No data',
+        change: highestTransaction ? `Transaction ID: ${highestTransaction.id}` : 'No transactions',
+        icon: CreditCard, // you can use lucide-react "CreditCard"
+        bgColor: 'bg-purple-50',
+        color: 'text-purple-600',
+        path: '/admin/dashboard/sales-report/transaction-analysis',
+      },
     ]);
   };
 
+
   const refresh = () => {
-    fetchSalesData();
+    if (isOnline) {
+      fetchSalesData()
+    } else {
+
+      loadStockOuts();
+    }
   };
+
+
+
 
   // Pagination logic
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -325,139 +650,149 @@ const SalesReportPage = () => {
   );
 
   // Card View Component
-const CardView = () => (
-  <div className="space-y-6 md:hidden">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {currentItems.map((stockOut, index) => {
-        const profit = calculateProfit(stockOut);
-        const isProfit = profit > 0;
-        
-        return (
-          <div key={stockOut.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-gray-300">
-            {/* Card Header */}
-            <div className="p-6 pb-4">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
-                    <ShoppingCart size={20} />
+  const CardView = () => (
+    <div className="space-y-6 md:hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {currentItems.map((stockOut, index) => {
+          const profit = calculateProfit(stockOut);
+          const isProfit = profit > 0;
+
+          return (
+            <div key={stockOut.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-gray-300">
+              {/* Card Header */}
+              <div className="p-6 pb-4">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
+                      <ShoppingCart size={20} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        #{startIndex + index + 1}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      #{startIndex + index + 1}
+                  <button
+                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    title="View Details"
+                    onClick={() => handleViewMoreDetails(stockOut.id)}
+                  >
+                    <Eye size={18} />
+                  </button>
+                </div>
+
+                {/* Product Info */}
+                <div className="mb-4">
+                  <h3 className="font-semibold text-gray-900 text-lg mb-1 leading-tight">
+                    {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
+                  </h3>
+                  {stockOut.transactionId && (
+                    <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">
+                      {stockOut.transactionId}
+                    </div>
+                  )}
+                  {stockOut.backorderId && (
+                    <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
+                      {stockOut.backorderId && 'Non-Stock Sale'}
+                    </div>
+                  )}
+                  {stockOut.stockinId && (
+                    <div className="text-xs text-green-800 font-mono bg-green-100 px-2 py-1 rounded inline-block">
+                      {stockOut.stockinId && 'Stock In Sale'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Client Info */}
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <User size={16} className="text-gray-400" />
+                    <span className="text-gray-600">
+                      {stockOut.clientName || 'Walk-in customer'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Body - Stats */}
+              <div className="px-6 pb-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Quantity */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Hash size={14} className="text-gray-400" />
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</span>
+                    </div>
+                    <div className="text-lg font-semibold text-gray-900">
+                      {stockOut.quantity || 'N/A'}
+                    </div>
+                  </div>
+
+                  {/* Unit Price */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unit Price</span>
+                    </div>
+                    <div className="text-lg font-semibold text-gray-900">
+                      {stockOut.soldPrice ? formatPrice(stockOut.soldPrice) : 'N/A'}
                     </div>
                   </div>
                 </div>
-                <button
-                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                  title="View Details"
-                  onClick={() => handleViewMoreDetails(stockOut.id)}
-                >
-                  <Eye size={18} />
-                </button>
               </div>
 
-              {/* Product Info */}
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-900 text-lg mb-1 leading-tight">
-                  {stockOut.stockin?.product?.productName || 'Sale Transaction'}
-                </h3>
-                {stockOut.transactionId && (
-                  <div className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded inline-block">
-                    {stockOut.transactionId}
-                  </div>
-                )}
-              </div>
-
-              {/* Client Info */}
-              <div className="mb-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <User size={16} className="text-gray-400" />
-                  <span className="text-gray-600">
-                    {stockOut.clientName || 'Walk-in customer'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card Body - Stats */}
-            <div className="px-6 pb-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Quantity */}
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Hash size={14} className="text-gray-400" />
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</span>
-                  </div>
-                  <div className="text-lg font-semibold text-gray-900">
-                    {stockOut.quantity || 'N/A'}
-                  </div>
-                </div>
-
-                {/* Unit Price */}
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unit Price</span>
-                  </div>
-                  <div className="text-lg font-semibold text-gray-900">
-                    {stockOut.soldPrice ? formatPrice(stockOut.soldPrice) : 'N/A'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card Footer */}
-            <div className="px-6 py-4 bg-gray-50 rounded-b-xl">
-              <div className="flex items-center justify-between">
-                {/* Profit/Loss */}
-                <div className="flex flex-col">
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                    Profit/Loss
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-bold text-lg ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                      {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
+              {/* Card Footer */}
+              <div className="px-6 py-4 bg-gray-50 rounded-b-xl">
+                <div className="flex items-center justify-between">
+                  {/* Profit/Loss */}
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                      Profit/Loss
                     </span>
-                    {profit !== 0 && (
-                      <span className={`text-sm ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
-                        {isProfit ? '↗' : '↘'}
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold text-lg ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
                       </span>
-                    )}
+                      {profit !== 0 && (
+                        <span className={`text-sm ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+                          {isProfit ? '↗' : '↘'}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Date */}
-                <div className="flex flex-col items-end">
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                    Date Sold
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Calendar size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-600 font-medium">
-                      {formatDate(stockOut.createdAt)}
+                  {/* Date */}
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                      Date Sold
                     </span>
+                    <div className="flex items-center gap-1">
+                      <Calendar size={14} className="text-gray-400" />
+                      <span className="text-sm text-gray-600 font-medium">
+                        {formatDate(stockOut.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
-
-    {/* No Data State */}
-    {currentItems.length === 0 && (
-      <div className="text-center py-12">
-        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <ShoppingCart size={32} className="text-gray-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No stock out records</h3>
-        <p className="text-gray-500">Stock out transactions will appear here once you make some sales.</p>
+          );
+        })}
       </div>
-    )}
 
-    <PaginationComponent />
-  </div>
-);
+      {/* No Data State */}
+      {currentItems.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShoppingCart size={32} className="text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No stock out records</h3>
+          <p className="text-gray-500">Stock out transactions will appear here once you make some sales.</p>
+        </div>
+      )}
+
+      <PaginationComponent />
+    </div>
+  );
 
   // Table View Component
   const TableView = () => (
@@ -480,7 +815,7 @@ const CardView = () => (
             {currentItems.map((stockOut, index) => {
               const profit = calculateProfit(stockOut);
               const isProfit = profit > 0;
-              
+
               return (
                 <tr key={stockOut.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -495,12 +830,30 @@ const CardView = () => (
                       </div>
                       <div>
                         <div className="font-medium text-gray-900">
-                          {stockOut.stockin?.product?.productName || 'Sale Transaction'}
+                          {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
+
                         </div>
-                        {stockOut.transactionId && (
-                          <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
-                        )}
-                        
+                        <div className="flex gap-2 items-center">
+                          {stockOut.backorderId && (
+                            <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
+                              {stockOut.backorderId && 'Non-Stock Sale'}
+                            </div>
+
+
+
+                          )}
+
+                          {stockOut.stockinId && (
+                            <div className="text-xs text-green-800 font-mono bg-green-100 px-2 py-1 rounded inline-block">
+                              {stockOut.stockinId && 'Stock In Sale'}
+                            </div>
+                          )}
+                          {stockOut.transactionId && (
+                            <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
+                          )}
+                        </div>
+
+
                       </div>
                     </div>
                   </td>
@@ -560,11 +913,11 @@ const CardView = () => (
                       <button
                         className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                         title="View Details"
-                        onClick={()=> handleViewMoreDetails(stockOut.id)}
+                        onClick={() => handleViewMoreDetails(stockOut.id)}
                       >
                         <Eye size={16} />
                       </button>
-                    
+
                     </div>
                   </td>
                 </tr>
@@ -581,12 +934,12 @@ const CardView = () => (
   if (loading) {
     return (
       <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className=" mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Sales Report</h1>
             <p className="text-gray-600">Loading sales analytics...</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {[1, 2, 3, 4].map((index) => (
               <div key={index} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 animate-pulse">
@@ -609,19 +962,19 @@ const CardView = () => (
   if (error) {
     return (
       <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className=" mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Sales Report</h1>
             <p className="text-gray-600">Analytics and insights for your sales performance</p>
           </div>
-          
+
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
             <div className="flex items-center">
               <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
               <div>
                 <h3 className="text-lg font-semibold text-red-800">Error Loading Sales Data</h3>
                 <p className="text-red-700 mt-1">{error}</p>
-                <button 
+                <button
                   onClick={refresh}
                   className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
@@ -637,6 +990,12 @@ const CardView = () => (
 
   return (
     <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'} animate-in slide-in-from-top-2 duration-300`}>
+          {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
+          {notification.message}
+        </div>
+      )}
       <div className="px-4 mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -645,7 +1004,7 @@ const CardView = () => (
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Sales Report</h1>
               <p className="text-gray-600">Analytics and insights for your sales performance</p>
             </div>
-            <button 
+            <button
               onClick={refresh}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
             >
@@ -656,18 +1015,18 @@ const CardView = () => (
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className={`grid ${getStatsGridCols()} gap-4  mb-10`}>
           {stats.map((stat, index) => (
-            <div key={index} 
-            className="bg-white rounded-xl cursor-pointer shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow"
-            onClick={() =>  stat.path && navigate(stat.path)}
+            <div key={index}
+              className="bg-white rounded-xl cursor-pointer shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow"
+              onClick={() => stat.path && navigate(stat.path)}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
                   <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                   <p className="text-sm text-gray-500 mt-1">{stat.change}</p>
-                  
+
                 </div>
                 <div className={`p-3 rounded-xl ${stat.bgColor}`}>
                   <stat.icon className={`w-6 h-6 ${stat.color}`} />
@@ -680,7 +1039,7 @@ const CardView = () => (
         {/* Period Filter Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Today Card */}
-          <div 
+          <div
             className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'today' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
             onClick={() => setCurrentPeriod('today')}
           >
@@ -706,7 +1065,7 @@ const CardView = () => (
           </div>
 
           {/* Week Card */}
-          <div 
+          <div
             className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'week' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
             onClick={() => setCurrentPeriod('week')}
           >
@@ -732,7 +1091,7 @@ const CardView = () => (
           </div>
 
           {/* Month Card */}
-          <div 
+          <div
             className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'month' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
             onClick={() => setCurrentPeriod('month')}
           >
@@ -768,7 +1127,7 @@ const CardView = () => (
               {filteredSalesData.length} transactions
             </span>
           </div>
-          
+
           {filteredSalesData.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -777,8 +1136,8 @@ const CardView = () => (
             </div>
           ) : (
             <>
-            <CardView />
-            <TableView />
+              <CardView />
+              <TableView />
             </>
           )}
         </div>

@@ -4,6 +4,10 @@ import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import productService from "../../../services/productService";
 import categoryService from "../../../services/categoryService";
+import { useNetworkStatus } from "../../../hooks/useNetworkStatus";
+import { useCategoryOfflineSync } from "../../../hooks/useCategoryOffline";
+import { db } from "../../../db/database";
+
 
 // update or create Product Modal Component
 const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, title }) => {
@@ -13,6 +17,8 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
         categoryId: '',
         description: ''
     });
+    const {isOnline} = useNetworkStatus()
+    const {triggerSync} = useCategoryOfflineSync()
     const [images, setImages] = useState([]);
     const [existingImages, setExistingImages] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -37,20 +43,43 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
         'list', 'bullet', 'color', 'background', 'link'
     ];
 
-    useEffect(() => {
-        const fetchCategories = async () => {
-            setLoading(true);
-            try {
-                const data = await categoryService.getAllCategories();
-                setCategories(data);
-            } catch (error) {
-                console.error(`Failed to fetch categories: ${error.message}`);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchCategories();
-    }, []);
+useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      if (isOnline) {
+        // 1. Fetch from API
+        const response = await categoryService.getAllCategories();
+        if (response && response.categories) {
+          for (const category of response.categories) {
+            await db.categories_all.put({
+              id: category.id,
+              name: category.name,
+              description: category.description,
+              lastModified: category.lastModified || new Date(),
+              updatedAt: category.updatedAt || new Date()
+            });
+          }
+        }
+
+        // 2. Sync any offline adds/updates/deletes
+        await triggerSync();
+      }
+
+      // 3. Always read from IndexedDB (so offline works too)
+      const allCategories = await db.categories_all.toArray();
+
+      console.log('log categories : +>', allCategories);
+
+      setCategories(allCategories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+  // ✅ Actually call it
+  fetchCategories();
+}, [isOnline, triggerSync]);  // runs when network status changes
+    
 
     useEffect(() => {
         if (product) {
@@ -149,6 +178,8 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
     const handleSubmit = () => {
         if (validateForm()) {
             const submissionData = {
+                ...product,
+                
                 productName: formData.productName.trim(),
                 brand: formData.brand.trim(),
                 categoryId: formData.categoryId,
@@ -258,22 +289,6 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Brand *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.brand}
-                                    onChange={(e) => handleChange('brand', e.target.value)}
-                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${errors.brand ? 'border-red-500' : 'border-gray-300'
-                                        }`}
-                                    placeholder="Enter brand name"
-                                />
-                                {errors.brand && <p className="text-red-500 text-xs mt-1">{errors.brand}</p>}
-                            </div>
-                        </div>
-
-                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Category *
                             </label>
@@ -292,6 +307,10 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
                             </select>
                             {errors.categoryId && <p className="text-red-500 text-xs mt-1">{errors.categoryId}</p>}
                         </div>
+
+                                                </div>
+
+                        
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -390,6 +409,7 @@ const UpsertProductModal = ({ isOpen, onClose, onSubmit, product, isLoading, tit
                             {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
                         </div>
 
+                        
                         <div className="flex gap-3 pt-4 mt-16">
                             <button
                                 type="button"

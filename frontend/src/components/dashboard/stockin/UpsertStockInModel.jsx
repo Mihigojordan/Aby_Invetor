@@ -30,7 +30,7 @@ const SearchableProductSelect = ({
   }, [searchTerm, products]);
 
   // Get selected product name
-  const selectedProduct = products?.find(p => p.id === value);
+  const selectedProduct = products?.find(p => p.id === value ||  p.localId === value);
   const displayText = selectedProduct ? selectedProduct.productName : '';
 
   // Close dropdown when clicking outside
@@ -52,7 +52,7 @@ const SearchableProductSelect = ({
   };
 
   const handleProductSelect = (product) => {
-    onChange({ target: { value: product.id } });
+    onChange({ target: { value: product.id || product?.localId } });
     setIsOpen(false);
     setSearchTerm('');
   };
@@ -113,15 +113,19 @@ const SearchableProductSelect = ({
                   {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
                 </div>
               )}
-              {filteredProducts.map((product) => (
+              {filteredProducts.map((product,key) => (
                 <div
-                  key={product.id}
+                  key={key}
                   onClick={() => handleProductSelect(product)}
                   className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${
-                    value === product.id ? 'bg-blue-100 text-blue-800' : 'text-gray-900'
+                   ( value ===  product.id || value === product.localId )? 'bg-blue-100 text-blue-800' : 'text-gray-900'
                   }`}
                 >
-                  {product.productName}
+                  {product.productName}  {!product.synced && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                            Pending
+                          </span>
+                        )}
                 </div>
               ))}
             </>
@@ -171,7 +175,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
       // Update mode - single entry
       setFormData({
         productId: stockIn.productId || '',
-        quantity: stockIn.quantity || '',
+        quantity: stockIn.offlineQuantity ?? stockIn.quantity ?? '',
         price: stockIn.price || '',
         supplier: stockIn.supplier || '',
         sellingPrice: stockIn.sellingPrice || '',
@@ -359,10 +363,13 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
       
       // Prepare single entry data
       const submitData = {
+        ...stockIn,
         productId: formData.productId,
         quantity: Number(formData.quantity),
+        offlineQuantity: Number(formData.quantity),
         price: Number(formData.price),
         sellingPrice: Number(formData.sellingPrice)
+
       };
       
       if (formData.supplier.trim()) {
@@ -606,9 +613,9 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     {/* Product Selection */}
-                    <div className="sm:col-span-2">
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Product <span className="text-red-500">*</span>
                       </label>

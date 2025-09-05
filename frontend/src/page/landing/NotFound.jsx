@@ -10,32 +10,7 @@ import {
 } from 'lucide-react';
 
 export default function NotFoundPage() {
-  const suggestions = [
-    {
-      icon: <Home className="h-5 w-5" />,
-      title: "Go to Dashboard",
-      description: "Return to your main dashboard",
-      action: "dashboard"
-    },
-    {
-      icon: <Package className="h-5 w-5" />,
-      title: "View Products",
-      description: "Browse your product inventory",
-      action: "products"
-    },
-    {
-      icon: <Search className="h-5 w-5" />,
-      title: "Search Inventory",
-      description: "Find what you're looking for",
-      action: "search"
-    }
-  ];
-
-  const handleNavigation = (action) => {
-    // This would integrate with your routing system
-    console.log(`Navigate to: ${action}`);
-  };
-
+  
   const handleRefresh = () => {
     window.location.reload();
   };

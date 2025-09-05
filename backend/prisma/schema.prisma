@@ -27,6 +27,7 @@ model Admin {
   stockin    StockIn[]
   product    Product[]
   activity   Activity[]
+  backorder BackOrder[]
 }
 
 model Employee {
@@ -49,6 +50,7 @@ model Employee {
   product      Product[]
   activity  Activity[]
   report    Report[]
+  backorder BackOrder[]
 }
 
 enum Status {
@@ -120,13 +122,17 @@ model StockOut {
   clientEmail String?
   clientPhone String?
   paymentMethod PaymentMethod?
+  backorderId String?
+  backorder   BackOrder? @relation(fields: [backorderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   stockin     StockIn?  @relation(fields: [stockinId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  salesReturnItems SalesReturnItem[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
+
 
 
 enum PaymentMethod {
@@ -135,6 +141,20 @@ enum PaymentMethod {
   CASH
 }
 
+
+model BackOrder{
+  id  String    @id @default(uuid())
+  productName String?
+  quantity     Int?
+  soldPrice    Int?
+  adminId      String?
+  employeeId   String? 
+  admin        Admin?     @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  employee     Employee?  @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  stockout     StockOut[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
 
 model Activity {
   id           String   @id @default(uuid())
@@ -149,6 +169,25 @@ model Activity {
 }
 
 
+model SalesReturn {
+  id        String              @id @default(uuid())
+  transactionId String?
+  creditnoteId String?
+  reason    String?
+  createdAt DateTime            @default(now())
+  items     SalesReturnItem[]
+}
+
+model SalesReturnItem {
+  id            String   @id @default(uuid())
+  salesReturnId String
+  stockoutId    String
+  quantity      Int
+  stockout      StockOut?     @relation(fields: [stockoutId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+
 
 
 
@@ -156,9 +195,6 @@ model Report {
   id             String         @id @default(cuid())
   employeeId   String
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  // Products sold in the report (relation to ProductSold)
-  productsSold   Json?
   expenses       Expense[]
 
   // Credit & Debit records

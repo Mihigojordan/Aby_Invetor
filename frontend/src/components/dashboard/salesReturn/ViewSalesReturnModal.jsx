@@ -169,7 +169,7 @@ const ViewSalesReturnModal = ({ isOpen, onClose, salesReturn }) => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                              {item.stockout.stockin?.product?.productName || 'Unknown Product'}
+                              {item.stockout.stockin?.product?.productName || item.stockout.backorder?.productName || 'Unknown Product'}
                             </h4>
                             <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                              

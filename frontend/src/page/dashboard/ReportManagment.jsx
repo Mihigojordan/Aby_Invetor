@@ -28,7 +28,6 @@ const UpsertReportModal = ({
   title,
 }) => {
   const [formData, setFormData] = useState({
-    productsSold: [],
     cashAtHand: "",
     moneyOnPhone: "",
     expenses: [],
@@ -41,7 +40,6 @@ const UpsertReportModal = ({
   useEffect(() => {
     if (report) {
       setFormData({
-        productsSold: report.productsSold || [],
         cashAtHand: report.cashAtHand?.toString() || "",
         moneyOnPhone: report.moneyOnPhone?.toString() || "",
         expenses: report.expenses || [],
@@ -49,7 +47,7 @@ const UpsertReportModal = ({
       });
     } else {
       setFormData({
-        productsSold: [],
+      
         cashAtHand: "",
         moneyOnPhone: "",
         expenses: [],
@@ -99,11 +97,6 @@ const UpsertReportModal = ({
 
   const validateForm = () => {
     const errors = {};
-
-    if (!formData.productsSold || formData.productsSold.length === 0) {
-      errors.productsSold = "At least one product name is required";
-    }
-
     const cashAtHand = parseFloat(formData.cashAtHand);
     if (formData.cashAtHand && (isNaN(cashAtHand) || cashAtHand < 0)) {
       errors.cashAtHand = "Cash at hand must be a valid non-negative number";
@@ -146,7 +139,6 @@ const UpsertReportModal = ({
     }
 
     const submitData = {
-      productsSold: formData.productsSold || [],
       cashAtHand: parseFloat(formData.cashAtHand) || 0,
       moneyOnPhone: parseFloat(formData.moneyOnPhone) || 0,
       expenses: (formData.expenses || []).map((expense) => ({
@@ -162,30 +154,6 @@ const UpsertReportModal = ({
     onSubmit(submitData);
   };
 
-  // Product management
-  const addProduct = () => {
-    if (currentProductName.trim()) {
-      setFormData((prev) => ({
-        ...prev,
-        productsSold: [...(prev.productsSold || []), currentProductName.trim()],
-      }));
-      setCurrentProductName("");
-    }
-  };
-
-  const removeProduct = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      productsSold: (prev.productsSold || []).filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleProductKeyPress = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addProduct();
-    }
-  };
 
   // Expense management
   const addExpense = () => {
@@ -290,64 +258,6 @@ const UpsertReportModal = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Products Sold Section */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Products Sold <span className="text-red-500">*</span>
-              </h3>
-              <div className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
-                {(formData.productsSold || []).length} products
-              </div>
-            </div>
-
-            <div className="flex gap-2 mb-3">
-              <input
-                type="text"
-                value={currentProductName}
-                onChange={(e) => setCurrentProductName(e.target.value)}
-                onKeyPress={handleProductKeyPress}
-                placeholder="Enter product name"
-                className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 ${
-                  validationErrors.productsSold
-                    ? "border-red-300 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-primary-500"
-                }`}
-              />
-              <button
-                type="button"
-                onClick={addProduct}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-              >
-                Add
-              </button>
-            </div>
-
-            {validationErrors.productsSold && (
-              <p className="text-red-500 text-xs mb-3">
-                {validationErrors.productsSold}
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              {(formData.productsSold || []).map((product, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 bg-primary-50 text-primary-700 px-3 py-1 rounded-full"
-                >
-                  <span className="text-sm font-medium">{product}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeProduct(index)}
-                    className="text-primary-500 hover:text-primary-700"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Cash Summary Section with Live Total */}
           <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
@@ -640,12 +550,6 @@ const UpsertReportModal = ({
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary-600">
-                  {(formData.productsSold || []).length}
-                </div>
-                <div className="text-sm text-gray-600">Products</div>
-              </div>
-              <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
                   {formatCurrency(totalCash)}
                 </div>
@@ -752,7 +656,6 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
   const netCashFlow = calculateNetCashFlow();
   const totalCredit = calculateTotalCredit();
   const totalDebit = calculateTotalDebit();
-  const productsSold = report.productsSold || [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -765,9 +668,6 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Daily Report</h2>
-              <p className="text-primary-600 font-medium">
-                {productsSold.length} products sold
-              </p>
             </div>
           </div>
           <button
@@ -869,32 +769,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
 
             {/* Right Column - Details */}
             <div className="space-y-6">
-              {/* Products Sold Information */}
-              <div className="bg-purple-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Receipt className="w-5 h-5 text-purple-600" />
-                  <h3 className="font-semibold text-gray-900">Products Sold</h3>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Products ({productsSold.length})
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {productsSold.map((product, index) => (
-                      <span
-                        key={index}
-                        className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium"
-                      >
-                        {product}
-                      </span>
-                    ))}
-                    {productsSold.length === 0 && (
-                      <span className="text-gray-500 text-sm">No products added</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
+              
               {/* Expense Details */}
               {report.expenses && report.expenses.length > 0 && (
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -1022,7 +897,6 @@ const DeleteModal = ({ isOpen, onClose, onConfirm, report, isLoading }) => {
     });
   };
 
-  const productsSold = report.productsSold || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -1030,8 +904,7 @@ const DeleteModal = ({ isOpen, onClose, onConfirm, report, isLoading }) => {
         <h2 className="text-xl font-semibold mb-4">Delete Report</h2>
         <p className="text-gray-600 mb-6">
           Are you sure you want to delete the report from{" "}
-          {formatDate(report.createdAt)} with {productsSold.length}{" "}
-          products sold? This action cannot be undone.
+          {formatDate(report.createdAt)}
         </p>
         <div className="flex gap-3">
           <button
@@ -1080,7 +953,6 @@ const ReportManagement = ({ role }) => {
       const reportDate = new Date(report.createdAt)
         .toLocaleDateString()
         .toLowerCase();
-      const productsText = (report.productsSold || []).join(" ").toLowerCase();
 
       return (
         reportDate.includes(searchLower) || productsText.includes(searchLower)
@@ -1231,10 +1103,6 @@ const ReportManagement = ({ role }) => {
 
   // Calculate summary statistics
   const calculateSummaryStats = () => {
-    const totalProductsSold = filteredReports.reduce(
-      (sum, report) => sum + ((report.productsSold || []).length || 0),
-      0
-    );
     const totalCashAtHand = filteredReports.reduce(
       (sum, report) => sum + (report.cashAtHand || 0),
       0
@@ -1266,7 +1134,6 @@ const ReportManagement = ({ role }) => {
     }, 0);
 
     return {
-      totalProductsSold,
       totalCashAtHand,
       totalMoneyOnPhone,
       totalMoney: totalCashAtHand + totalMoneyOnPhone,
@@ -1370,7 +1237,6 @@ const ReportManagement = ({ role }) => {
             .filter((t) => t.type === "DEBIT")
             .reduce((total, t) => total + (t.amount || 0), 0);
           const netCashFlow = totalCredit - totalDebit;
-          const productsSold = report.productsSold || [];
 
           return (
             <div
@@ -1387,12 +1253,6 @@ const ReportManagement = ({ role }) => {
                       <h3 className="font-semibold text-gray-900">
                         Daily Report
                       </h3>
-                      <div className="flex items-center gap-1 mt-1">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-xs text-gray-500">
-                          {productsSold.length} products sold
-                        </span>
-                      </div>
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -1474,25 +1334,7 @@ const ReportManagement = ({ role }) => {
                       <span className="text-xs font-medium text-purple-800">
                         Products
                       </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {productsSold.slice(0, 3).map((product, idx) => (
-                        <span
-                          key={idx}
-                          className="bg-white text-purple-700 px-2 py-1 rounded text-xs"
-                        >
-                          {product}
-                        </span>
-                      ))}
-                      {productsSold.length > 3 && (
-                        <span className="text-purple-600 text-xs">
-                          +{productsSold.length - 3} more
-                        </span>
-                      )}
-                      {productsSold.length === 0 && (
-                        <span className="text-gray-500 text-xs">No products</span>
-                      )}
-                    </div>
+                    </div>        
                   </div>
                 </div>
 
@@ -1528,9 +1370,6 @@ const ReportManagement = ({ role }) => {
                 Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Products Sold
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Cash Summary
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1558,7 +1397,6 @@ const ReportManagement = ({ role }) => {
               const totalDebit = (report.transactions || [])
                 .filter((t) => t.type === "DEBIT")
                 .reduce((total, t) => total + (t.amount || 0), 0);
-              const productsSold = report.productsSold || [];
 
               return (
                 <tr
@@ -1576,19 +1414,6 @@ const ReportManagement = ({ role }) => {
                       <span className="text-sm text-gray-900">
                         {formatDate(report.createdAt)}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Receipt size={14} className="text-purple-500" />
-                      <span className="text-sm font-medium text-purple-600">
-                        {productsSold.length} products
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {productsSold.length === 0 && (
-                        <span className="text-gray-500 text-xs">No products</span>
-                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -1696,14 +1521,6 @@ const ReportManagement = ({ role }) => {
             <div className="flex items-center gap-3">
               <div className="p-2 bg-purple-100 rounded-lg">
                 <Receipt className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">
-                  Products Sold
-                </p>
-                <p className="text-xl font-bold text-gray-900">
-                  {summaryStats.totalProductsSold}
-                </p>
               </div>
             </div>
           </div>

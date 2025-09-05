@@ -12,6 +12,9 @@ import { EmailModule } from './global/email/email.module';
 import { ActivityManagmentModule } from './modules/activity-managament/activity.module';
 import { SummaryModule } from './modules/Summary/summary.module';
 import { ReportModule } from './modules/report-management/report.module';
+import { BackOrderManagementModule } from './modules/backorder-management/backorder-management.module';
+import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.module';
+
 
 
 @Module({
@@ -27,7 +30,9 @@ import { ReportModule } from './modules/report-management/report.module';
     EmailModule,
     ReportModule,
     ActivityManagmentModule,
-    SummaryModule
+    SummaryModule,
+    BackOrderManagementModule,
+    SalesReturnModule
   ],
   controllers: [AppController],
   providers: [],
