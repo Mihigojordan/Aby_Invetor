@@ -737,6 +737,8 @@ const ProductManagement = ({ role }) => {
           product={selectedProduct}
           isLoading={isLoading}
         />
+
+        <button className='' onClick={handleMultipleProduct}>push more products</button>
        
       </div>
     </div>
