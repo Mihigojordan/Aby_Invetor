@@ -42,7 +42,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
   const fetchTransactionData  =async (transactionId) =>{
      if (transactionId) {
         if (isOnline) {
-        return  await fetchTransactionDetails(transactionId);
+        return  await loadOfflineTransactionDetails(transactionId);
         } else {
     return    await  loadOfflineTransactionDetails(transactionId);
         }
@@ -63,7 +63,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
         console.error('Error fetching transaction details:', err);
       //   setSearchError(err.message || 'Failed to fetch transaction details');
       //   // Fallback to offline data
-        loadOfflineTransactionDetails();
+        loadOfflineTransactionDetails(transactionId);
       } finally {
         setIsSearching(false);
       }
@@ -284,7 +284,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
   };
 
   const handleQuantityChange = (stockoutId, quantity) => {
-    const numQuantity = parseInt(quantity) || 0;
+    const numQuantity = parseInt(quantity) ?? 0;
     setSelectedItems(prev => 
       prev.map(item => 
         item.stockoutId === stockoutId 
@@ -619,7 +619,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
                                   <div>
                                     <h4 className="font-medium text-gray-900 text-lg">
                                       {product?.stockin?.product?.productName || product?.backorder?.productName || 'Unknown Product'}
-                                      {!product.synced && (
+                                      {!product?.synced && (
                           <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                             Pending sync
                           </span>

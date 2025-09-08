@@ -694,6 +694,18 @@ const StockOutManagement = ({ role }) => {
     window.history.pushState({}, "", newUrl);
   }
 
+  const handleCopyTransactionId =async(transactionId)=>{
+    if(!transactionId) return showNotification('Please must select the transaction Id');
+   try {
+    
+    await navigator.clipboard.writeText(transactionId)
+
+    showNotification('Successfully Copied the Transaction Id');
+   } catch (error) {
+    showNotification('Failed to Copy the Transaction Id ','error');
+   }
+
+  }
 
   const handleShowInvoiceComponent = (transactionId) => {
     updateSearchParam('transactionId', transactionId);
@@ -979,7 +991,12 @@ const StockOutManagement = ({ role }) => {
                           </span>
                         )}
                         {stockOut.transactionId && (
-                          <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
+                          <div 
+                          className="text-xs text-gray-500 font-mono underline cursor-pointer hover:text-gray-700 ease-linear" 
+                          onClick={()=> handleCopyTransactionId(stockOut.transactionId.trim())}
+                          >
+                            {stockOut.transactionId}
+                            </div>
                         )}
                       </div>
                     </div>

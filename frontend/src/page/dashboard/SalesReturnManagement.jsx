@@ -44,7 +44,7 @@ const SalesReturnManagement = ({ role }) => {
   useEffect(() => {
     loadSalesReturns();
     if (isOnline) handleManualSync();
-    
+
     const params = new URLSearchParams(window.location.search);
     const saleId = params.get("salesReturnId");
     if (saleId?.trim()) {
@@ -144,126 +144,271 @@ const SalesReturnManagement = ({ role }) => {
   };
 
   const fetchStockOuts = async () => {
-   try {
-       
-        
-        const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
-          db.stockouts_all.toArray(),
-          db.stockouts_offline_add.toArray(),
-          db.stockouts_offline_update.toArray(),
-          db.stockouts_offline_delete.toArray(),
-          fetchStockIns(),
-          fetchProducts(),
-          fetchBackorders()
-        ]);
-  
-        const deleteIds = new Set(offlineDeletes.map(d => d.id));
-        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-  
-        const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
-        const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
-        const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
-  
-        const combinedStockOuts = allStockOuts
-          .filter(so => !deleteIds.has(so.id))
-          .map(so => ({
-            ...so,
-            ...updateMap.get(so.id),
-            synced: true,
-            stockin: stockinMap.get(so.stockinId),
-            backorder: backOrderMap.get(so.backorderId)
-          }))
-          .concat(offlineAdds.map(a => ({
-            ...a,
-            synced: false,
-            backorder: backOrderMap.get(a.backorderLocalId),
-            stockin: stockinMap.get(a.stockinId)
-          })));
-  
-        // Filter by transaction ID
-  return  combinedStockOuts
-        
-       
-  
-      } catch (error) {
-        console.error('Error loading offline transaction details:', error);
-        setError('Failed to load transaction details');
-      } 
-    };
-  
-    const fetchStockIns = async () => {
-      try {
-        const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-          db.stockins_all.toArray(),
-          db.stockins_offline_add.toArray(),
-          db.stockins_offline_update.toArray(),
-          db.stockins_offline_delete.toArray()
-        ]);
-  
-        const deleteIds = new Set(offlineDeletes.map(d => d.id));
-        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-  
-        return allStockin
-          .filter(c => !deleteIds.has(c.id))
-          .map(c => ({
-            ...c,
-            ...updateMap.get(c.id),
-            synced: true
-          }))
-          .concat(offlineAdds.map(a => ({ ...a, synced: false })));
-  
-      } catch (error) {
-        console.error('Error fetching stock-ins:', error);
+    setIsLoading(true);
+    try {
+      
+
+
+
+      const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
+        db.stockouts_all.toArray(),
+        db.stockouts_offline_add.toArray(),
+        db.stockouts_offline_update.toArray(),
+        db.stockouts_offline_delete.toArray(),
+        fetchStockIns(),
+        fetchProducts(),
+        fetchBackorders()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
+      const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
+
+      const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
+
+      const combinedStockOuts = allStockOuts
+        .filter(so => !deleteIds.has(so.id))
+        .map(so => ({
+          ...so,
+          ...updateMap.get(so.id),
+          synced: true,
+          stockin: stockinMap.get(so.stockinId),
+          backorder: backOrderMap.get(so.backorderId)
+        }))
+        .concat(offlineAdds.map(a => ({
+          ...a,
+          synced: false,
+          backorder: backOrderMap.get(a.backorderLocalId),
+          stockin: stockinMap.get(a.stockinId)
+        })))
+        .sort((a, b) => a.synced - b.synced)
+        ;
+
+      const convertedStockIns = Array.from(stockinMap.values())
+
+      console.warn('STOCK INS', backOrderMap);
+      return combinedStockOuts;
+    } catch (error) {
+      console.error('Error loading stock-outs:', error);
+      showNotification('Failed to load stock-outs', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+
+  const fetchStockIns = async () => {
+    try {
+      if (isOnline) {
+        const response = await stockInService.getAllStockIns();
+        for (const si of response) {
+          await db.stockins_all.put({
+            id: si.id,
+            productId: si.productId,
+            quantity: si.quantity,
+            price: si.price,
+            sellingPrice: si.sellingPrice,
+            supplier: si.supplier,
+            sku: si.sku,
+            barcodeUrl: si.barcodeUrl,
+            lastModified: new Date(),
+            updatedAt: si.updatedAt || new Date()
+          });;
+          if (si.product && !(await db.products_all.get(si.product.id))) {
+            await db.products_all.put({
+              id: si.product.id,
+              productName: si.product.productName,
+              categoryId: si.product.categoryId,
+              description: si.product.description,
+              brand: si.product.brand,
+              lastModified: new Date(),
+              updatedAt: new Date()
+            });
+          }
+        }
+      }
+
+      // 3. Merge all data (works offline too)
+      const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.stockins_all.toArray(),
+        db.stockins_offline_add.toArray(),
+        db.stockins_offline_update.toArray(),
+        db.stockins_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedStockin = allStockin
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      console.warn('THIS THE COMBINED STOCK IN :', combinedStockin);
+
+
+      return combinedStockin;
+
+    } catch (error) {
+      console.error('Error fetching stock-ins:', error);
+      if (!error.response) {
         return await db.stockins_all.toArray();
       }
-    };
-  
-    const fetchBackorders = async () => {
-      try {
+
+    }
+  };
+
+  const fetchBackorders = async () => {
+    try {
+      if (isOnline) {
+        // Assuming you have a backorderService similar to productService
+        const response = await backOrderService.getAllBackOrders();
+
+        for (const b of response.backorders || response) {
+          await db.backorders_all.put({
+            id: b.id,
+            quantity: b.quantity,
+            soldPrice: b.soldPrice,
+            productName: b.productName,
+            adminId: b.adminId,
+            employeeId: b.employeeId,
+            lastModified: b.lastModified || new Date(),
+            createdAt: b.createdAt || new Date(),
+            updatedAt: b.updatedAt || new Date()
+          });
+        }
+        // 3. Merge all data (works offline too)
+
+
+      }
+
+      const [allBackOrder, offlineAdds] = await Promise.all([
+        db.backorders_all.toArray(),
+        db.backorders_offline_add.toArray(),
+
+      ]);
+
+      const combinedBackOrder = allBackOrder
+
+        .map(c => ({
+          ...c,
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+      console.warn('backend', combinedBackOrder);
+
+      return combinedBackOrder;
+
+    } catch (error) {
+      console.error('Error fetching backorders:', error);
+
+      // Fallback: return local cache if API fails or offline
+      if (!error?.response) {
+
         const [allBackOrder, offlineAdds] = await Promise.all([
           db.backorders_all.toArray(),
           db.backorders_offline_add.toArray(),
+
         ]);
-  
-        return allBackOrder
+
+        const combinedBackOrder = allBackOrder
+
           .map(c => ({
             ...c,
             synced: true
           }))
-          .concat(offlineAdds.map(a => ({ ...a, synced: false })));
-  
-      } catch (error) {
-        console.error('Error fetching backorders:', error);
-        return [];
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+        console.warn('backend', combinedBackOrder);
+
+        return combinedBackOrder;
+
       }
-    };
-  
-    const fetchProducts = async () => {
-      try {
+    }
+  };
+
+
+  const fetchProducts = async () => {
+    try {
+      if (isOnline) {
+        // Assuming a productService.getAllProducts() exists, similar to categories
+        const response = await productService.getAllProducts(); // Adjust if needed
+        for (const p of response.products || response) {
+          await db.products_all.put({
+            id: p.id,
+            productName: p.productName,
+            categoryId: p.categoryId,
+            description: p.description,
+            brand: p.brand,
+            lastModified: p.createdAt || new Date(),
+            updatedAt: p.updatedAt || new Date()
+          });
+        }
+      }
+
+      // 3. Merge all data (works offline too)
+      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.products_all.toArray(),
+        db.products_offline_add.toArray(),
+        db.products_offline_update.toArray(),
+        db.products_offline_delete.toArray()
+      ]);
+
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
+      const combinedProducts = allProducts
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true
+        }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+
+      return combinedProducts;
+
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      if (!error?.response) {
+
+        // 3. Merge all data (works offline too)
         const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
           db.products_all.toArray(),
           db.products_offline_add.toArray(),
           db.products_offline_update.toArray(),
           db.products_offline_delete.toArray()
         ]);
-  
+
         const deleteIds = new Set(offlineDeletes.map(d => d.id));
         const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-  
-        return allProducts
+
+        const combinedProducts = allProducts
           .filter(c => !deleteIds.has(c.id))
           .map(c => ({
             ...c,
             ...updateMap.get(c.id),
             synced: true
           }))
-          .concat(offlineAdds.map(a => ({ ...a, synced: false })));
-  
-      } catch (error) {
-        console.error('Error fetching products:', error);
-        return [];
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+          .sort((a, b) => a.synced - b.synced);
+
+        return combinedProducts;
+
       }
-    };
+
+    }
+  };
   const calculateReturnStatistics = (returns) => {
     if (!Array.isArray(returns) || returns.length === 0) {
       return {
@@ -275,7 +420,7 @@ const SalesReturnManagement = ({ role }) => {
     }
 
     const totalItems = returns.reduce((sum, ret) => sum + (ret.items?.length || 0), 0);
-    const totalQuantity = returns.reduce((sum, ret) => 
+    const totalQuantity = returns.reduce((sum, ret) =>
       sum + (ret.items?.reduce((itemSum, item) => itemSum + (item.quantity || 0), 0) || 0), 0);
 
     return {
@@ -297,7 +442,7 @@ const SalesReturnManagement = ({ role }) => {
         salesReturn?.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         salesReturn?.items?.some(item =>
           item?.stockout?.stockin?.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item?.stockout?.backorder?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) 
+          item?.stockout?.backorder?.productName?.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
       // Date range filter
@@ -352,7 +497,7 @@ const SalesReturnManagement = ({ role }) => {
         throw new Error('User authentication required');
       }
 
-    
+
 
       const userInfo = role === 'admin' && adminData?.id
         ? { adminId: adminData.id }
@@ -495,18 +640,22 @@ const SalesReturnManagement = ({ role }) => {
     try {
       // Find the original stockout to get the stockin reference
       const stockout = await db.stockouts_all.get(stockoutId) ||
-                     await db.stockouts_offline_add.where('localId').equals(stockoutId).first();
+        await db.stockouts_offline_add.where('localId').equals(stockoutId).first();
 
-                     
-                     await db.stockouts_all.update(stockoutId,{
-                       quantity: stockout.quantity - returnQuantity
-                     })
-   
+
+      await db.stockouts_all.update(stockoutId, {
+        quantity: stockout.quantity - returnQuantity
+      })
+
+      await db.stockouts_offline_add.update(stockoutId, {
+        quantity: stockout.quantity - returnQuantity
+      })
+
       if (stockout && stockout.stockinId) {
         // Restore stock quantity
-        const stockin = await db.stockins_all.get(stockout.stockinId) 
+        const stockin = await db.stockins_all.get(stockout.stockinId)
         if (stockin) {
-          const newQuantity = (stockin.offlineQuantity ??  stockin.quantity) + returnQuantity;
+          const newQuantity = (stockin.offlineQuantity ?? stockin.quantity) + returnQuantity;
           await db.stockins_all.update(stockout.stockinId, { quantity: newQuantity });
 
         } else {
@@ -644,11 +793,11 @@ const SalesReturnManagement = ({ role }) => {
     return pages;
   };
 
-  const handleOpenCreditNote = (Id)=>{
-    if(!Id) return showNotification('Didnt choose the transaction')
-      updateSearchParam('salesReturnId', Id);
-        setSalesReturnId(Id);
-        setIsCreditNoteOpen(true);
+  const handleOpenCreditNote = (Id) => {
+    if (!Id) return showNotification('Didnt choose the transaction')
+    updateSearchParam('salesReturnId', Id);
+    setSalesReturnId(Id);
+    setIsCreditNoteOpen(true);
   }
 
   // Statistics Cards Component
@@ -823,11 +972,10 @@ const SalesReturnManagement = ({ role }) => {
     <div className="md:hidden">
       <div className="grid grid-cols-1 gap-4 mb-6">
         {currentItems.map((salesReturn) => (
-          <div 
-            key={salesReturn.id || salesReturn.localId} 
-            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${
-              salesReturn.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
-            }`}
+          <div
+            key={salesReturn.id || salesReturn.localId}
+            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${salesReturn?.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
+              }`}
           >
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -840,7 +988,7 @@ const SalesReturnManagement = ({ role }) => {
                       Return #{truncateId(salesReturn.id || salesReturn.localId)}
                     </h3> */}
                     <div className="flex items-center gap-2 mt-1">
-                      {!salesReturn.synced && (
+                      {!salesReturn?.synced && (
                         <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                           Pending sync
                         </span>
@@ -857,7 +1005,7 @@ const SalesReturnManagement = ({ role }) => {
                   <Eye size={16} />
                 </button>
                 <button
-                  onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId )}
+                  onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
                   className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                 >
                   <Receipt size={16} />
@@ -910,7 +1058,7 @@ const SalesReturnManagement = ({ role }) => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-            
+
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
@@ -945,11 +1093,11 @@ const SalesReturnManagement = ({ role }) => {
                   <span className="text-sm font-medium text-gray-900">
                     {salesReturn.transactionId || 'N/A'}
                   </span>
-                                      {!salesReturn.synced && (
-                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                        Offline
-                      </span>
-                    )}
+                  {!salesReturn?.synced && (
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                      Offline
+                    </span>
+                  )}
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -994,13 +1142,13 @@ const SalesReturnManagement = ({ role }) => {
                     <Eye size={16} />
                   </button>
                   <button
-                  onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId )}
-                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                >
-                  <Receipt size={16} />
-                </button>
+                    onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
+                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                  >
+                    <Receipt size={16} />
+                  </button>
                 </td>
-                
+
               </tr>
             ))}
           </tbody>
@@ -1014,10 +1162,9 @@ const SalesReturnManagement = ({ role }) => {
   return (
     <div className="bg-gray-50 p-4 max-h-[90vh] overflow-y-auto sm:p-6 lg:p-8">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500 text-white' :
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' :
           notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
-        } animate-in slide-in-from-top-2 duration-300`}>
+          } animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>
@@ -1036,9 +1183,8 @@ const SalesReturnManagement = ({ role }) => {
               <h1 className="text-3xl font-bold text-gray-900">Sales Return Management</h1>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
                 {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
                 {isOnline ? 'Online' : 'Offline'}
               </div>
@@ -1075,11 +1221,10 @@ const SalesReturnManagement = ({ role }) => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg font-medium transition-colors ${
-                  showFilters
-                    ? 'bg-primary-50 border-primary-200 text-primary-700'
-                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg font-medium transition-colors ${showFilters
+                  ? 'bg-primary-50 border-primary-200 text-primary-700'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Filter size={20} />
                 Filters
