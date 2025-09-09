@@ -53,6 +53,10 @@ const CategoryManagement = ({ role }) => {
     if (isOnline) handleManualSync();
   }, [isOnline]);
 
+  useEffect(()=>{
+     console.warn('categories:', categories)
+  })
+
   useEffect(() => {
     if (syncError) {
       showNotification(`Sync status error: ${syncError}`, "error");
@@ -604,7 +608,7 @@ const CategoryManagement = ({ role }) => {
                   <div className="flex items-center gap-2">
                     <Calendar size={12} className="text-gray-400" />
                     <span className="text-xs text-gray-600">
-                      {formatDate(category.createdAt)}
+                      {formatDate(category.updatedAt)}
                     </span>
                   </div>
                 </td>

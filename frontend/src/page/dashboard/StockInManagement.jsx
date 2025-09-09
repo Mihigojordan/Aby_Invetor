@@ -950,7 +950,7 @@ const StockInManagement = ({ role }) => {
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stockIn.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${stockIn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    {stockIn.synced ? 'Active' : 'Syncing...'}
+                    {stockIn.synced ? 'Synced' : 'Syncing...'}
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
