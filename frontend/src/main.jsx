@@ -104,13 +104,12 @@ import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-   
-      <AdminAuthContextProvider>
-        <EmployeeAuthContextProvider>
 
-          <App />
-        </EmployeeAuthContextProvider>
-      </AdminAuthContextProvider>
-    
+    <AdminAuthContextProvider>
+      <EmployeeAuthContextProvider>
+        <App />
+      </EmployeeAuthContextProvider>
+    </AdminAuthContextProvider>
+
   </StrictMode>,
 )

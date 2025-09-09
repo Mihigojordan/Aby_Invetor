@@ -362,7 +362,9 @@ const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, 
   };
 
   // Calculate totals
-  const total = invoiceData?.reduce((sum, item) => sum + item.soldPrice, 0) || 0;
+  const total = (invoiceData?.reduce((sum, item) => sum + (item?.soldPrice * item?.quantity), 0)) || 0;
+
+ 
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-RW', {
@@ -550,7 +552,7 @@ const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, 
                   </div>
                   <div className="flex justify-between">
                     <span>{item.quantity}x{formatCurrency( item.soldPrice )}</span>
-                    <span className="font-bold">{formatCurrency(item.soldPrice )}</span>
+                    <span className="font-bold">{formatCurrency(item.soldPrice ) * item.quantity}</span>
                   </div>
                 </div>
               ))}
