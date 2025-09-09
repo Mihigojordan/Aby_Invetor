@@ -33,7 +33,6 @@ const UpsertReportModal = ({
     expenses: [],
     transactions: [],
   });
-
   const [validationErrors, setValidationErrors] = useState({});
   const [currentProductName, setCurrentProductName] = useState("");
 
@@ -47,7 +46,6 @@ const UpsertReportModal = ({
       });
     } else {
       setFormData({
-      
         cashAtHand: "",
         moneyOnPhone: "",
         expenses: [],
@@ -101,43 +99,34 @@ const UpsertReportModal = ({
     if (formData.cashAtHand && (isNaN(cashAtHand) || cashAtHand < 0)) {
       errors.cashAtHand = "Cash at hand must be a valid non-negative number";
     }
-
     const moneyOnPhone = parseFloat(formData.moneyOnPhone);
     if (formData.moneyOnPhone && (isNaN(moneyOnPhone) || moneyOnPhone < 0)) {
-      errors.moneyOnPhone =
-        "Money on phone must be a valid non-negative number";
+      errors.moneyOnPhone = "Money on phone must be a valid non-negative number";
     }
-
     // Validate expenses
     (formData.expenses || []).forEach((expense, index) => {
       const amount = parseFloat(expense.amount);
       if (expense.amount && (isNaN(amount) || amount < 0)) {
-        errors[`expense_${index}`] =
-          "Expense amount must be a valid non-negative number";
+        errors[`expense_${index}`] = "Expense amount must be a valid non-negative number";
       }
     });
-
     // Validate transactions
     (formData.transactions || []).forEach((transaction, index) => {
       const amount = parseFloat(transaction.amount);
       if (transaction.amount && (isNaN(amount) || amount < 0)) {
-        errors[`transaction_${index}`] =
-          "Transaction amount must be a valid non-negative number";
+        errors[`transaction_${index}`] = "Transaction amount must be a valid non-negative number";
       }
     });
-
     return errors;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     const errors = validateForm();
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
       return;
     }
-
     const submitData = {
       cashAtHand: parseFloat(formData.cashAtHand) || 0,
       moneyOnPhone: parseFloat(formData.moneyOnPhone) || 0,
@@ -150,10 +139,8 @@ const UpsertReportModal = ({
         amount: parseFloat(transaction.amount) || 0,
       })),
     };
-
     onSubmit(submitData);
   };
-
 
   // Expense management
   const addExpense = () => {
@@ -168,7 +155,6 @@ const UpsertReportModal = ({
       ...prev,
       expenses: (prev.expenses || []).filter((_, i) => i !== index),
     }));
-    // Clear validation error for this expense
     setValidationErrors((prev) => {
       const newErrors = { ...prev };
       delete newErrors[`expense_${index}`];
@@ -183,8 +169,6 @@ const UpsertReportModal = ({
         i === index ? { ...expense, [field]: value } : expense
       ),
     }));
-
-    // Clear validation error when user starts typing
     if (field === "amount" && validationErrors[`expense_${index}`]) {
       setValidationErrors((prev) => {
         const newErrors = { ...prev };
@@ -210,7 +194,6 @@ const UpsertReportModal = ({
       ...prev,
       transactions: (prev.transactions || []).filter((_, i) => i !== index),
     }));
-    // Clear validation error for this transaction
     setValidationErrors((prev) => {
       const newErrors = { ...prev };
       delete newErrors[`transaction_${index}`];
@@ -225,8 +208,6 @@ const UpsertReportModal = ({
         i === index ? { ...transaction, [field]: value } : transaction
       ),
     }));
-
-    // Clear validation error when user starts typing
     if (field === "amount" && validationErrors[`transaction_${index}`]) {
       setValidationErrors((prev) => {
         const newErrors = { ...prev };
@@ -246,37 +227,35 @@ const UpsertReportModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-5xl mx-4 max-h-[95vh] overflow-y-auto">
+      <div className="bg-white rounded-xl p-6 w-full max-w-5xl mx-4 max-h-[95vh] overflow-y-auto text-sm">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg"
           >
-            <X size={20} />
+            <X size={16} />
           </button>
         </div>
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Cash Summary Section with Live Total */}
           <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-base font-semibold text-gray-900">
                 Cash Summary
               </h3>
               <div className="bg-green-50 text-green-700 px-4 py-2 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <DollarSign size={16} />
-                  <span className="text-sm font-medium">
+                  <DollarSign size={14} />
+                  <span className="text-xs font-medium">
                     Total: {formatCurrency(totalCash)}
                   </span>
                 </div>
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Cash at Hand
                 </label>
                 <input
@@ -296,7 +275,7 @@ const UpsertReportModal = ({
                     validationErrors.cashAtHand
                       ? "border-red-300 focus:ring-red-500"
                       : "border-gray-300 focus:ring-primary-500"
-                  }`}
+                  } text-sm`}
                   placeholder="Enter cash amount"
                   min="0"
                   step="0.01"
@@ -307,9 +286,8 @@ const UpsertReportModal = ({
                   </p>
                 )}
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Money on Phone
                 </label>
                 <input
@@ -329,7 +307,7 @@ const UpsertReportModal = ({
                     validationErrors.moneyOnPhone
                       ? "border-red-300 focus:ring-red-500"
                       : "border-gray-300 focus:ring-primary-500"
-                  }`}
+                  } text-sm`}
                   placeholder="Enter mobile money amount"
                   min="0"
                   step="0.01"
@@ -342,16 +320,15 @@ const UpsertReportModal = ({
               </div>
             </div>
           </div>
-
           {/* Expenses Section with Live Total */}
           <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Expenses</h3>
+              <h3 className="text-base font-semibold text-gray-900">Expenses</h3>
               <div className="flex items-center gap-3">
                 <div className="bg-red-50 text-red-700 px-4 py-2 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <TrendingDown size={16} />
-                    <span className="text-sm font-medium">
+                    <TrendingDown size={14} />
+                    <span className="text-xs font-medium">
                       Total: {formatCurrency(totalExpenses)}
                     </span>
                   </div>
@@ -359,17 +336,16 @@ const UpsertReportModal = ({
                 <button
                   type="button"
                   onClick={addExpense}
-                  className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm"
+                  className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-xs"
                 >
                   Add Expense
                 </button>
               </div>
             </div>
-
             {(!formData.expenses || formData.expenses.length === 0) ? (
               <div className="text-center py-8 text-gray-500">
-                <TrendingDown size={24} className="mx-auto mb-2 opacity-50" />
-                <p>No expenses added yet</p>
+                <TrendingDown size={20} className="mx-auto mb-2 opacity-50" />
+                <p className="text-xs">No expenses added yet</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -386,7 +362,7 @@ const UpsertReportModal = ({
                           updateExpense(index, "description", e.target.value)
                         }
                         placeholder="Expense description"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -401,7 +377,7 @@ const UpsertReportModal = ({
                           validationErrors[`expense_${index}`]
                             ? "border-red-300 focus:ring-red-500"
                             : "border-gray-300 focus:ring-primary-500"
-                        }`}
+                        } text-sm`}
                         min="0"
                         step="0.01"
                       />
@@ -410,7 +386,7 @@ const UpsertReportModal = ({
                         onClick={() => removeExpense(index)}
                         className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                     {validationErrors[`expense_${index}`] && (
@@ -425,29 +401,28 @@ const UpsertReportModal = ({
               </div>
             )}
           </div>
-
           {/* Transactions Section with Separated Credit/Debit Totals */}
           <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-base font-semibold text-gray-900">
                 Transactions
               </h3>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="bg-green-50 text-green-700 px-3 py-1 rounded-lg text-sm">
+                  <div className="bg-green-50 text-green-700 px-3 py-1 rounded-lg text-xs">
                     <div className="flex items-center gap-1">
-                      <TrendingUp size={14} />
+                      <TrendingUp size={12} />
                       <span>Credit: {formatCurrency(totalCredit)}</span>
                     </div>
                   </div>
-                  <div className="bg-red-50 text-red-700 px-3 py-1 rounded-lg text-sm">
+                  <div className="bg-red-50 text-red-700 px-3 py-1 rounded-lg text-xs">
                     <div className="flex items-center gap-1">
-                      <TrendingDown size={14} />
+                      <TrendingDown size={12} />
                       <span>Debit: {formatCurrency(totalDebit)}</span>
                     </div>
                   </div>
                   <div
-                    className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                    className={`px-3 py-1 rounded-lg text-xs font-medium ${
                       netCashFlow >= 0
                         ? "bg-blue-50 text-blue-700"
                         : "bg-orange-50 text-orange-700"
@@ -460,17 +435,16 @@ const UpsertReportModal = ({
                 <button
                   type="button"
                   onClick={addTransaction}
-                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
+                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-xs"
                 >
                   Add Transaction
                 </button>
               </div>
             </div>
-
             {(!formData.transactions || formData.transactions.length === 0) ? (
               <div className="text-center py-8 text-gray-500">
-                <Receipt size={24} className="mx-auto mb-2 opacity-50" />
-                <p>No transactions added yet</p>
+                <Receipt size={20} className="mx-auto mb-2 opacity-50" />
+                <p className="text-xs">No transactions added yet</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -485,7 +459,7 @@ const UpsertReportModal = ({
                         onChange={(e) =>
                           updateTransaction(index, "type", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
                       >
                         <option value="CREDIT">Credit (+)</option>
                         <option value="DEBIT">Debit (-)</option>
@@ -503,7 +477,7 @@ const UpsertReportModal = ({
                           )
                         }
                         placeholder="Transaction description"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -518,7 +492,7 @@ const UpsertReportModal = ({
                           validationErrors[`transaction_${index}`]
                             ? "border-red-300 focus:ring-red-500"
                             : "border-gray-300 focus:ring-primary-500"
-                        }`}
+                        } text-sm`}
                         min="0"
                         step="0.01"
                       />
@@ -527,7 +501,7 @@ const UpsertReportModal = ({
                         onClick={() => removeTransaction(index)}
                         className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                     {validationErrors[`transaction_${index}`] && (
@@ -542,41 +516,39 @@ const UpsertReportModal = ({
               </div>
             )}
           </div>
-
           {/* Summary Panel */}
           <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">
               Report Summary
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-lg font-bold text-green-600">
                   {formatCurrency(totalCash)}
                 </div>
-                <div className="text-sm text-gray-600">Total Cash</div>
+                <div className="text-xs text-gray-600">Total Cash</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
+                <div className="text-lg font-bold text-red-600">
                   {formatCurrency(totalExpenses)}
                 </div>
-                <div className="text-sm text-gray-600">Total Expenses</div>
+                <div className="text-xs text-gray-600">Total Expenses</div>
               </div>
             </div>
           </div>
-
           {/* Form Actions */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors text-sm"
             >
               {isLoading
                 ? "Processing..."
@@ -650,34 +622,31 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
   // Separate credit and debit transactions
   const creditTransactions = (report.transactions || []).filter(t => t.type === "CREDIT");
   const debitTransactions = (report.transactions || []).filter(t => t.type === "DEBIT");
-
   const totalMoney = (report.cashAtHand || 0) + (report.moneyOnPhone || 0);
   const totalExpenses = calculateTotalExpenses();
-  const netCashFlow = calculateNetCashFlow();
   const totalCredit = calculateTotalCredit();
   const totalDebit = calculateTotalDebit();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto text-sm">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-primary-100">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center text-white">
-              <FileText size={24} />
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center text-white">
+              <FileText size={20} />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Daily Report</h2>
+              <h2 className="text-xl font-bold text-gray-900">Daily Report</h2>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
           >
-            <X size={24} className="text-gray-600" />
+            <X size={20} className="text-gray-600" />
           </button>
         </div>
-
         {/* Content */}
         <div className="p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -686,94 +655,90 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
               {/* Cash Summary */}
               <div className="bg-green-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <DollarSign className="w-5 h-5 text-green-600" />
-                  <h3 className="font-semibold text-gray-900">Cash Summary</h3>
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                  <h3 className="font-semibold text-gray-900 text-base">Cash Summary</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Cash at Hand
                     </label>
-                    <p className="text-xl font-bold text-gray-900">
+                    <p className="text-lg font-bold text-gray-900">
                       {formatCurrency(report.cashAtHand || 0)}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Money on Phone
                     </label>
-                    <p className="text-xl font-bold text-gray-900">
+                    <p className="text-lg font-bold text-gray-900">
                       {formatCurrency(report.moneyOnPhone || 0)}
                     </p>
                   </div>
                   <div className="col-span-2 border-t pt-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Total Available
                     </label>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-lg font-bold text-green-600">
                       {formatCurrency(totalMoney)}
                     </p>
                   </div>
                 </div>
               </div>
-
               {/* Transaction Flow */}
               <div className="bg-blue-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-semibold text-gray-900">
+                  <TrendingUp className="w-4 h-4 text-blue-600" />
+                  <h3 className="font-semibold text-gray-900 text-base">
                     Transaction Flow
                   </h3>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Total Credit
                     </label>
-                    <p className="text-xl font-bold text-green-600">
+                    <p className="text-lg font-bold text-green-600">
                       {formatCurrency(totalCredit)}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Total Debit
                     </label>
-                    <p className="text-xl font-bold text-red-600">
+                    <p className="text-lg font-bold text-red-600">
                       {formatCurrency(totalDebit)}
                     </p>
                   </div>
                 </div>
               </div>
-
               {/* Expenses Summary */}
               <div className="bg-red-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <TrendingDown className="w-5 h-5 text-red-600" />
-                  <h3 className="font-semibold text-gray-900">
+                  <TrendingDown className="w-4 h-4 text-red-600" />
+                  <h3 className="font-semibold text-gray-900 text-base">
                     Expenses Summary
                   </h3>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Total Expenses
                   </label>
-                  <p className="text-2xl font-bold text-red-600">
+                  <p className="text-lg font-bold text-red-600">
                     {formatCurrency(totalExpenses)}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
                     {(report.expenses || []).length} expense entries
                   </p>
                 </div>
               </div>
             </div>
-
             {/* Right Column - Details */}
             <div className="space-y-6">
-              
               {/* Expense Details */}
               {report.expenses && report.expenses.length > 0 && (
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">
+                  <h3 className="font-semibold text-gray-900 mb-3 text-base">
                     Expense Breakdown
                   </h3>
                   <div className="space-y-2">
@@ -782,10 +747,10 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                         key={index}
                         className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0"
                       >
-                        <span className="text-gray-700">
+                        <span className="text-gray-700 text-xs">
                           {expense.description || 'No description'}
                         </span>
-                        <span className="font-medium text-red-600">
+                        <span className="font-medium text-red-600 text-sm">
                           {formatCurrency(expense.amount)}
                         </span>
                       </div>
@@ -793,11 +758,10 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                   </div>
                 </div>
               )}
-
               {/* Credit Transactions */}
               {creditTransactions.length > 0 && (
                 <div className="bg-green-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-base">
                     <span className="w-3 h-3 bg-green-600 rounded-full"></span>
                     Credit Transactions ({creditTransactions.length})
                   </h3>
@@ -807,10 +771,10 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                         key={index}
                         className="flex justify-between items-center py-2 border-b border-green-200 last:border-b-0"
                       >
-                        <span className="text-gray-700">
+                        <span className="text-gray-700 text-xs">
                           {transaction.description || 'No description'}
                         </span>
-                        <span className="font-medium text-green-600">
+                        <span className="font-medium text-green-600 text-sm">
                           +{formatCurrency(transaction.amount)}
                         </span>
                       </div>
@@ -818,11 +782,10 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                   </div>
                 </div>
               )}
-
               {/* Debit Transactions */}
               {debitTransactions.length > 0 && (
                 <div className="bg-red-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-base">
                     <span className="w-3 h-3 bg-red-600 rounded-full"></span>
                     Debit Transactions ({debitTransactions.length})
                   </h3>
@@ -832,10 +795,10 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                         key={index}
                         className="flex justify-between items-center py-2 border-b border-red-200 last:border-b-0"
                       >
-                        <span className="text-gray-700">
+                        <span className="text-gray-700 text-xs">
                           {transaction.description || 'No description'}
                         </span>
-                        <span className="font-medium text-red-600">
+                        <span className="font-medium text-red-600 text-sm">
                           -{formatCurrency(transaction.amount)}
                         </span>
                       </div>
@@ -843,27 +806,26 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                   </div>
                 </div>
               )}
-
               {/* Timeline */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-5 h-5 text-gray-600" />
-                  <h3 className="font-semibold text-gray-900">Timeline</h3>
+                  <Clock className="w-4 h-4 text-gray-600" />
+                  <h3 className="font-semibold text-gray-900 text-base">Timeline</h3>
                 </div>
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Created
                     </label>
-                    <span className="text-gray-900">
+                    <span className="text-gray-900 text-sm">
                       {formatDate(report.createdAt)}
                     </span>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Last Updated
                     </label>
-                    <span className="text-gray-900">
+                    <span className="text-gray-900 text-sm">
                       {formatDate(report.updatedAt)}
                     </span>
                   </div>
@@ -872,12 +834,11 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
             </div>
           </div>
         </div>
-
         {/* Footer */}
         <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium text-sm"
           >
             Close
           </button>
@@ -886,9 +847,11 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
     </div>
   );
 };
+
 // Delete Report Modal Component
 const DeleteModal = ({ isOpen, onClose, onConfirm, report, isLoading }) => {
   if (!isOpen || !report) return null;
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -897,26 +860,25 @@ const DeleteModal = ({ isOpen, onClose, onConfirm, report, isLoading }) => {
     });
   };
 
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <h2 className="text-xl font-semibold mb-4">Delete Report</h2>
-        <p className="text-gray-600 mb-6">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 text-sm">
+        <h2 className="text-lg font-semibold mb-4">Delete Report</h2>
+        <p className="text-gray-600 mb-6 text-xs">
           Are you sure you want to delete the report from{" "}
           {formatDate(report.createdAt)}
         </p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
           >
             {isLoading ? "Deleting..." : "Delete"}
           </button>
@@ -938,7 +900,6 @@ const ReportManagement = ({ role }) => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -951,12 +912,17 @@ const ReportManagement = ({ role }) => {
     const filtered = reports.filter((report) => {
       const searchLower = searchTerm.toLowerCase();
       const reportDate = new Date(report.createdAt)
-        .toLocaleDateString()
+        .toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
         .toLowerCase();
-
-      return (
-        reportDate.includes(searchLower) || productsText.includes(searchLower)
+      // Check if any transaction description matches the search term
+      const transactionMatch = (report.transactions || []).some((transaction) =>
+        (transaction.description || "").toLowerCase().includes(searchLower)
       );
+      return reportDate.includes(searchLower) || transactionMatch;
     });
     setFilteredReports(filtered);
     setCurrentPage(1);
@@ -965,7 +931,6 @@ const ReportManagement = ({ role }) => {
   const fetchReports = async () => {
     setIsLoading(true);
     try {
-      // Replace with actual service call
       const data = await reportService.getEmployeeReports();
       setReports(data);
       setFilteredReports(data);
@@ -988,11 +953,9 @@ const ReportManagement = ({ role }) => {
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
     if (endPage - startPage < maxVisiblePages - 1) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
@@ -1118,21 +1081,18 @@ const ReportManagement = ({ role }) => {
       );
       return sum + reportExpenses;
     }, 0);
-
     const totalCredit = filteredReports.reduce((sum, report) => {
       const reportCredits = (report.transactions || [])
         .filter((t) => t.type === "CREDIT")
         .reduce((creditSum, t) => creditSum + (t.amount || 0), 0);
       return sum + reportCredits;
     }, 0);
-
     const totalDebit = filteredReports.reduce((sum, report) => {
       const reportDebits = (report.transactions || [])
         .filter((t) => t.type === "DEBIT")
         .reduce((debitSum, t) => debitSum + (t.amount || 0), 0);
       return sum + reportDebits;
     }, 0);
-
     return {
       totalCashAtHand,
       totalMoneyOnPhone,
@@ -1149,18 +1109,18 @@ const ReportManagement = ({ role }) => {
   const PaginationComponent = ({ showItemsPerPage = true }) => (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to{" "}
           {Math.min(endIndex, filteredReports.length)} of{" "}
           {filteredReports.length} entries
         </p>
         {showItemsPerPage && filteredReports.length > 0 && (
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Show:</label>
+            <label className="text-xs text-gray-600">Show:</label>
             <select
               value={itemsPerPage}
               onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-              className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value={5}>5</option>
               <option value={10}>10</option>
@@ -1170,28 +1130,26 @@ const ReportManagement = ({ role }) => {
           </div>
         )}
       </div>
-
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
               currentPage === 1
                 ? "border-gray-200 text-gray-400 cursor-not-allowed"
                 : "border-gray-300 text-gray-700 hover:bg-gray-100"
             }`}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
             Previous
           </button>
-
           <div className="flex items-center gap-1 mx-2">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                className={`px-3 py-2 text-xs rounded-md transition-colors ${
                   currentPage === page
                     ? "bg-primary-600 text-white"
                     : "border border-gray-300 text-gray-700 hover:bg-gray-100"
@@ -1201,18 +1159,17 @@ const ReportManagement = ({ role }) => {
               </button>
             ))}
           </div>
-
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
               currentPage === totalPages
                 ? "border-gray-200 text-gray-400 cursor-not-allowed"
                 : "border-gray-300 text-gray-700 hover:bg-gray-100"
             }`}
           >
             Next
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </button>
         </div>
       )}
@@ -1237,7 +1194,6 @@ const ReportManagement = ({ role }) => {
             .filter((t) => t.type === "DEBIT")
             .reduce((total, t) => total + (t.amount || 0), 0);
           const netCashFlow = totalCredit - totalDebit;
-
           return (
             <div
               key={report.id}
@@ -1246,11 +1202,11 @@ const ReportManagement = ({ role }) => {
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                      <FileText size={20} />
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-base">
+                      <FileText size={16} />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-900 text-sm">
                         Daily Report
                       </h3>
                     </div>
@@ -1260,87 +1216,83 @@ const ReportManagement = ({ role }) => {
                       onClick={() => openViewModal(report)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                     >
-                      <Eye size={16} />
+                      <Eye size={14} />
                     </button>
                     <button
                       onClick={() => openEditModal(report)}
                       className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                     >
-                      <Edit3 size={16} />
+                      <Edit3 size={14} />
                     </button>
                     <button
                       onClick={() => openDeleteModal(report)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-
                 <div className="space-y-3 mb-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-green-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
-                        <DollarSign size={14} className="text-green-600" />
+                        <DollarSign size={12} className="text-green-600" />
                         <span className="text-xs font-medium text-green-800">
                           Total Money
                         </span>
                       </div>
-                      <p className="font-bold text-green-700">
+                      <p className="font-bold text-green-700 text-sm">
                         {formatCurrency(totalMoney)}
                       </p>
                     </div>
                     <div className="bg-red-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
-                        <TrendingDown size={14} className="text-red-600" />
+                        <TrendingDown size={12} className="text-red-600" />
                         <span className="text-xs font-medium text-red-800">
                           Expenses
                         </span>
                       </div>
-                      <p className="font-bold text-red-700">
+                      <p className="font-bold text-red-700 text-sm">
                         {formatCurrency(totalExpenses)}
                       </p>
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-blue-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp size={14} className="text-blue-600" />
+                        <TrendingUp size={12} className="text-blue-600" />
                         <span className="text-xs font-medium text-blue-800">
                           Total Credit
                         </span>
                       </div>
-                      <p className="font-bold text-blue-700">
+                      <p className="font-bold text-blue-700 text-sm">
                         {formatCurrency(totalCredit)}
                       </p>
                     </div>
                     <div className="bg-orange-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
-                        <TrendingDown size={14} className="text-orange-600" />
+                        <TrendingDown size={12} className="text-orange-600" />
                         <span className="text-xs font-medium text-orange-800">
                           Total Debit
                         </span>
                       </div>
-                      <p className="font-bold text-orange-700">
+                      <p className="font-bold text-orange-700 text-sm">
                         {formatCurrency(totalDebit)}
                       </p>
                     </div>
                   </div>
-
                   <div className="bg-purple-50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <Receipt size={14} className="text-purple-600" />
+                      <Receipt size={12} className="text-purple-600" />
                       <span className="text-xs font-medium text-purple-800">
                         Products
                       </span>
-                    </div>        
+                    </div>
                   </div>
                 </div>
-
                 <div className="pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Calendar size={12} />
+                    <Calendar size={10} />
                     <span>Created {formatDate(report.createdAt)}</span>
                   </div>
                 </div>
@@ -1349,7 +1301,6 @@ const ReportManagement = ({ role }) => {
           );
         })}
       </div>
-
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <PaginationComponent showItemsPerPage={false} />
       </div>
@@ -1397,28 +1348,27 @@ const ReportManagement = ({ role }) => {
               const totalDebit = (report.transactions || [])
                 .filter((t) => t.type === "DEBIT")
                 .reduce((total, t) => total + (t.amount || 0), 0);
-
               return (
                 <tr
                   key={report.id}
                   className="hover:bg-gray-50 transition-colors"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                    <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
                       {startIndex + index + 1}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-gray-400" />
-                      <span className="text-sm text-gray-900">
+                      <Calendar size={12} className="text-gray-400" />
+                      <span className="text-xs text-gray-900">
                         {formatDate(report.createdAt)}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-xs font-medium text-gray-900">
                         {formatCurrency(totalMoney)}
                       </div>
                     </div>
@@ -1426,14 +1376,14 @@ const ReportManagement = ({ role }) => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1">
                       <div className="flex items-center gap-1">
-                        <TrendingUp size={12} className="text-green-400" />
-                        <span className="text-sm font-medium text-green-600">
+                        <TrendingUp size={10} className="text-green-400" />
+                        <span className="text-xs font-medium text-green-600">
                           {formatCurrency(totalCredit)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <TrendingDown size={12} className="text-red-400" />
-                        <span className="text-sm font-medium text-red-600">
+                        <TrendingDown size={10} className="text-red-400" />
+                        <span className="text-xs font-medium text-red-600">
                           {formatCurrency(totalDebit)}
                         </span>
                       </div>
@@ -1441,8 +1391,8 @@ const ReportManagement = ({ role }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-1">
-                      <TrendingDown size={14} className="text-red-400" />
-                      <span className="font-medium text-red-600">
+                      <TrendingDown size={12} className="text-red-400" />
+                      <span className="font-medium text-red-600 text-sm">
                         {formatCurrency(totalExpenses)}
                       </span>
                     </div>
@@ -1457,21 +1407,21 @@ const ReportManagement = ({ role }) => {
                         className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                         title="View Details"
                       >
-                        <Eye size={16} />
+                        <Eye size={14} />
                       </button>
                       <button
                         onClick={() => openEditModal(report)}
                         className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                         title="Edit"
                       >
-                        <Edit3 size={16} />
+                        <Edit3 size={14} />
                       </button>
                       <button
                         onClick={() => openDeleteModal(report)}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
@@ -1481,159 +1431,155 @@ const ReportManagement = ({ role }) => {
           </tbody>
         </table>
       </div>
-
       <PaginationComponent showItemsPerPage={false} />
     </div>
   );
 
   return (
-    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
+    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8 text-sm">
       {notification && (
         <div
           className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
             notification.type === "success"
               ? "bg-primary-500 text-white"
               : "bg-red-500 text-white"
-          } animate-in slide-in-from-top-2 duration-300`}
+          } animate-in slide-in-from-top-2 duration-300 text-xs`}
         >
           {notification.message}
         </div>
       )}
-
       <div className="h-full overflow-y-auto mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-primary-600 rounded-lg">
-              <FileText className="w-6 h-6 text-white" />
+              <FileText className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900">
               Report Management
             </h1>
           </div>
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-xs">
             Track daily sales reports with cash flow and expenses
           </p>
         </div>
-
         {/* Summary Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-purple-100 rounded-lg">
-                <Receipt className="w-5 h-5 text-purple-600" />
+                <Receipt className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-600">Reports</p>
+                <p className="text-base font-bold text-gray-900">
+                  {filteredReports.length}
+                </p>
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-green-600" />
+                <DollarSign className="w-4 h-4 text-green-600" />
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-600">Total Cash</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-base font-bold text-gray-900">
                   {formatCurrency(summaryStats.totalCashAtHand)}
                 </p>
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+                <TrendingUp className="w-4 h-4 text-blue-600" />
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-600">Phone Money</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-base font-bold text-gray-900">
                   {formatCurrency(summaryStats.totalMoneyOnPhone)}
                 </p>
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-red-100 rounded-lg">
-                <TrendingDown className="w-5 h-5 text-red-600" />
+                <TrendingDown className="w-4 h-4 text-red-600" />
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-600">Expenses</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-base font-bold text-gray-900">
                   {formatCurrency(summaryStats.totalExpenses)}
                 </p>
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-emerald-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-emerald-600" />
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-600">
                   Total Credit
                 </p>
-                <p className="text-lg font-bold text-emerald-600">
+                <p className="text-base font-bold text-emerald-600">
                   {formatCurrency(summaryStats.totalCredit)}
                 </p>
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-orange-100 rounded-lg">
-                <TrendingDown className="w-5 h-5 text-orange-600" />
+                <TrendingDown className="w-4 h-4 text-orange-600" />
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-600">Total Debit</p>
-                <p className="text-lg font-bold text-orange-600">
+                <p className="text-base font-bold text-orange-600">
                   {formatCurrency(summaryStats.totalDebit)}
                 </p>
               </div>
             </div>
           </div>
         </div>
-
         {/* Controls */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
             <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search by date or product names..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
               />
             </div>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm"
             >
-              <Plus size={20} />
+              <Plus size={16} />
               Create Report
             </button>
           </div>
         </div>
-
         {/* Content */}
         {isLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            <p className="text-gray-600 mt-4">Loading reports...</p>
+            <p className="text-gray-600 mt-4 text-xs">Loading reports...</p>
           </div>
         ) : filteredReports.length === 0 ? (
           <div className="text-center py-12">
-            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-base font-medium text-gray-900 mb-2">
               No reports found
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 mb-4 text-xs">
               {searchTerm
                 ? "Try adjusting your search terms."
                 : "Get started by creating your first daily report."}
@@ -1641,9 +1587,9 @@ const ReportManagement = ({ role }) => {
             {!searchTerm && (
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
               >
-                <Plus size={20} />
+                <Plus size={16} />
                 Create Report
               </button>
             )}
@@ -1654,7 +1600,6 @@ const ReportManagement = ({ role }) => {
             <TableView />
           </>
         )}
-
         {/* Modals */}
         <UpsertReportModal
           isOpen={isAddModalOpen || isEditModalOpen}
@@ -1668,7 +1613,6 @@ const ReportManagement = ({ role }) => {
           isLoading={isLoading}
           title={isEditModalOpen ? "Edit Report" : "Create New Report"}
         />
-
         <ViewReportModal
           isOpen={isViewModalOpen}
           onClose={() => {
@@ -1677,7 +1621,6 @@ const ReportManagement = ({ role }) => {
           }}
           report={selectedReport}
         />
-
         <DeleteModal
           isOpen={isDeleteModalOpen}
           onClose={() => {

@@ -14,8 +14,9 @@ const EmployeeReportManagement = () => {
   const [customEndDate, setCustomEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  
+
   const navigate = useNavigate();
+
   // Fetch all reports on component mount
   useEffect(() => {
     const fetchReports = async () => {
@@ -44,7 +45,7 @@ const EmployeeReportManagement = () => {
         const employeeName = `${report.employee?.firstname || ''} ${report.employee?.lastname || ''}`.toLowerCase();
         const employeeEmail = report.employee?.email?.toLowerCase() || '';
         const employeePhone = report.employee?.phoneNumber || '';
-        
+
         return employeeName.includes(searchTerm.toLowerCase()) ||
                employeeEmail.includes(searchTerm.toLowerCase()) ||
                employeePhone.includes(searchTerm);
@@ -54,7 +55,7 @@ const EmployeeReportManagement = () => {
     // Filter by date
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     switch (dateFilter) {
       case 'today':
         filtered = filtered.filter(report => {
@@ -104,7 +105,7 @@ const EmployeeReportManagement = () => {
     const totalEmployees = new Set(filteredReports.map(r => r.employeeId)).size;
     const totalCash = filteredReports.reduce((sum, r) => sum + (r.cashAtHand || 0), 0);
     const totalPhoneMoney = filteredReports.reduce((sum, r) => sum + (r.moneyOnPhone || 0), 0);
-    const totalExpenses = filteredReports.reduce((sum, r) => 
+    const totalExpenses = filteredReports.reduce((sum, r) =>
       sum + (r.expenses?.reduce((expSum, exp) => expSum + (exp.amount || 0), 0) || 0), 0);
 
     return {
@@ -198,7 +199,6 @@ const EmployeeReportManagement = () => {
 
   const handleViewMore = (reportId) => {
     if (!reportId) return;
-    // Navigate to report details page
     navigate(`/admin/dashboard/employee-report/${reportId}`);
   };
 
@@ -206,9 +206,9 @@ const EmployeeReportManagement = () => {
 
   // Pagination Component
   const PaginationComponent = () => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
-      <div className="flex items-center gap-4">
-        <p className="text-sm text-gray-600">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50">
+      <div className="flex items-center gap-3">
+        <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredReports.length)} of {filteredReports.length} entries
         </p>
       </div>
@@ -217,12 +217,12 @@ const EmployeeReportManagement = () => {
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1
+            className={`flex items-center gap-1 px-2 py-1 text-xs border rounded-md transition-colors ${currentPage === 1
               ? 'border-gray-200 text-gray-400 cursor-not-allowed'
               : 'border-gray-300 text-gray-700 hover:bg-gray-100'
               }`}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
             Previous
           </button>
           <div className="flex items-center gap-1 mx-2">
@@ -230,7 +230,7 @@ const EmployeeReportManagement = () => {
               <button
                 key={idx}
                 onClick={() => typeof page === 'number' && handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${
                   typeof page !== 'number'
                     ? 'cursor-default text-gray-500'
                     : currentPage === page
@@ -246,13 +246,13 @@ const EmployeeReportManagement = () => {
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages
+            className={`flex items-center gap-1 px-2 py-1 text-xs border rounded-md transition-colors ${currentPage === totalPages
               ? 'border-gray-200 text-gray-400 cursor-not-allowed'
               : 'border-gray-300 text-gray-700 hover:bg-gray-100'
               }`}
           >
             Next
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </button>
         </div>
       )}
@@ -261,18 +261,18 @@ const EmployeeReportManagement = () => {
 
   // Table View Component
   const TableView = () => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash at Hand</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Money</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash at Hand</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Money</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -280,50 +280,47 @@ const EmployeeReportManagement = () => {
               const totalExpenses = report.expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0;
               return (
                 <tr key={report.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
                       {startIndex + index + 1}
                     </span>
                   </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
-                        <User size={16} />
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                        <User size={12} />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="text-xs font-medium text-gray-900">
                           {report.employee?.firstname} {report.employee?.lastname}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs text-gray-500">
                           {report.employee?.email}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <DollarSign size={14} className="text-green-500" />
-                      <span className="text-sm text-gray-900">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <DollarSign size={12} className="text-green-500" />
+                      <span className="text-xs text-gray-900">
                         {formatCurrency(report.cashAtHand || 0)}
                       </span>
                     </div>
                   </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <DollarSign size={14} className="text-blue-500" />
-                      <span className="text-sm text-gray-900">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <DollarSign size={12} className="text-blue-500" />
+                      <span className="text-xs text-gray-900">
                         {formatCurrency(report.moneyOnPhone || 0)}
                       </span>
                     </div>
                   </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp size={14} className="text-red-500" />
-                      <div className="text-sm">
-                        <div className="text-gray-900 font-medium">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp size={12} className="text-red-500" />
+                      <div className="text-xs">
+                        <div className="font-medium text-gray-900">
                           {formatCurrency(totalExpenses)}
                         </div>
                         <div className="text-gray-500 text-xs">
@@ -332,24 +329,22 @@ const EmployeeReportManagement = () => {
                       </div>
                     </div>
                   </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-gray-400" />
-                      <span className="text-sm text-gray-600">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar size={12} className="text-gray-400" />
+                      <span className="text-xs text-gray-600">
                         {formatDate(report.createdAt)}
                       </span>
                     </div>
                   </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleViewMore(report.id)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="View Details"
                       >
-                        <Eye size={16} />
+                        <Eye size={12} />
                       </button>
                     </div>
                   </td>
@@ -359,18 +354,16 @@ const EmployeeReportManagement = () => {
           </tbody>
         </table>
       </div>
-
-      {/* Table Pagination */}
       <PaginationComponent />
     </div>
   );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-5 lg:p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
         </div>
       </div>
@@ -378,71 +371,71 @@ const EmployeeReportManagement = () => {
   }
 
   return (
-    <div className="h-[90vh] overflow-y-auto px-4 bg-gray-50 p-6">
-      <div className=" mx-auto">
+    <div className="h-[90vh] overflow-y-auto px-4 bg-gray-50 p-4 sm:p-5 lg:p-6">
+      <div className="mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Employee Report Management</h1>
-          <p className="text-gray-600">View and analyze all employee reports</p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Employee Report Management</h1>
+          <p className="text-xs text-gray-600">View and analyze all employee reports</p>
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded mb-4 text-xs">
             {error}
           </div>
         )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center">
-              <FileText className="h-12 w-12 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Reports</p>
-                <p className="text-2xl font-bold text-gray-900">{summaryStats.totalReports}</p>
+              <FileText className="h-10 w-10 text-blue-600" />
+              <div className="ml-3">
+                <p className="text-xs font-medium text-gray-600">Total Reports</p>
+                <p className="text-lg font-bold text-gray-900">{summaryStats.totalReports}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center">
-              <User className="h-12 w-12 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Employees</p>
-                <p className="text-2xl font-bold text-gray-900">{summaryStats.totalEmployees}</p>
+              <User className="h-10 w-10 text-green-600" />
+              <div className="ml-3">
+                <p className="text-xs font-medium text-gray-600">Employees</p>
+                <p className="text-lg font-bold text-gray-900">{summaryStats.totalEmployees}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center">
-              <DollarSign className="h-12 w-12 text-yellow-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Money</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(summaryStats.totalMoney)}</p>
+              <DollarSign className="h-10 w-10 text-yellow-600" />
+              <div className="ml-3">
+                <p className="text-xs font-medium text-gray-600">Total Money</p>
+                <p className="text-lg font-bold text-gray-900">{formatCurrency(summaryStats.totalMoney)}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center">
-              <TrendingUp className="h-12 w-12 text-red-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Expenses</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(summaryStats.totalExpenses)}</p>
+              <TrendingUp className="h-10 w-10 text-red-600" />
+              <div className="ml-3">
+                <p className="text-xs font-medium text-gray-600">Total Expenses</p>
+                <p className="text-lg font-bold text-gray-900">{formatCurrency(summaryStats.totalExpenses)}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
                 placeholder="Search employees (name, email, phone)..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -450,9 +443,9 @@ const EmployeeReportManagement = () => {
 
             {/* Date Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Filter className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <select
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none text-sm"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
               >
@@ -469,13 +462,13 @@ const EmployeeReportManagement = () => {
               <div className="flex space-x-2">
                 <input
                   type="date"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
                 />
                 <input
                   type="date"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
                 />
@@ -489,9 +482,9 @@ const EmployeeReportManagement = () => {
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                 >
-                  <X size={16} />
+                  <X size={14} />
                   Clear Filters
                 </button>
               )}
@@ -500,12 +493,12 @@ const EmployeeReportManagement = () => {
         </div>
 
         {/* Reports Table */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {filteredReports.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-xl text-gray-600 mb-2">No reports found</p>
-              <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+            <div className="bg-white rounded-lg shadow-md p-6 text-center">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-base text-gray-600 mb-1">No reports found</p>
+              <p className="text-xs text-gray-500">Try adjusting your search or filter criteria</p>
             </div>
           ) : (
             <TableView />

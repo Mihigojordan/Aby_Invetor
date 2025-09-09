@@ -17,7 +17,7 @@ import {
   ChevronRight,
   CreditCard
 } from 'lucide-react';
-import stockOutService from '../../services/stockoutService'; // Adjust path as needed
+import stockOutService from '../../services/stockoutService';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../db/database';
@@ -29,7 +29,7 @@ import productService from '../../services/productService';
 const SalesReportPage = () => {
   const [salesData, setSalesData] = useState([]);
   const [filteredSalesData, setFilteredSalesData] = useState([]);
-  const { isOnline } = useNetworkStatusContext()
+  const { isOnline } = useNetworkStatusContext();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPeriod, setCurrentPeriod] = useState('today');
@@ -100,7 +100,7 @@ const SalesReportPage = () => {
       setError(null);
     } catch (err) {
       console.error('Error fetching sales data:', err);
-      loadStockOuts()
+      loadStockOuts();
     } finally {
       setLoading(false);
     }
@@ -108,11 +108,9 @@ const SalesReportPage = () => {
 
   useEffect(() => {
     if (isOnline) {
-      fetchSalesData()
-    }
-    else {
+      fetchSalesData();
+    } else {
       loadStockOuts();
-
     }
   }, []);
 
@@ -125,11 +123,9 @@ const SalesReportPage = () => {
     filterDataByPeriod();
   }, [salesData, currentPeriod]);
 
-
   const loadStockOuts = async () => {
     setLoading(true);
     try {
-
       const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
         db.stockouts_all.toArray(),
         db.stockouts_offline_add.toArray(),
@@ -142,10 +138,8 @@ const SalesReportPage = () => {
 
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
       const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
       const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
-
       const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
 
       const combinedStockOuts = allStockOuts
@@ -163,18 +157,11 @@ const SalesReportPage = () => {
           backorder: backOrderMap.get(a.backorderLocalId),
           stockin: stockinMap.get(a.stockinId)
         })))
-        .sort((a, b) => a.synced - b.synced)
-        ;
-
-      const convertedStockIns = Array.from(stockinMap.values())
-
-      console.warn('STOCK OUTs', combinedStockOuts);
-
+        .sort((a, b) => a.synced - b.synced);
 
       setSalesData(combinedStockOuts);
       calculateStats(combinedStockOuts);
       setError(null);
-
 
       if (!isOnline && combinedStockOuts.length === 0) {
         showNotification('No offline data available', 'warning');
@@ -187,12 +174,8 @@ const SalesReportPage = () => {
     }
   };
 
-
-
   const fetchStockIns = async () => {
     try {
-
-      // 3. Merge all data (works offline too)
       const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.stockins_all.toArray(),
         db.stockins_offline_add.toArray(),
@@ -213,74 +196,41 @@ const SalesReportPage = () => {
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
 
-      console.warn('THIS THE COMBINED STOCK IN :', combinedStockin);
-
-
       return combinedStockin;
-
     } catch (error) {
       console.error('Error fetching stock-ins:', error);
       if (!error.response) {
         return await db.stockins_all.toArray();
       }
-
     }
   };
 
   const fetchBackorders = async () => {
     try {
-
       const [allBackOrder, offlineAdds] = await Promise.all([
         db.backorders_all.toArray(),
         db.backorders_offline_add.toArray(),
-
       ]);
 
       const combinedBackOrder = allBackOrder
-
         .map(c => ({
           ...c,
           synced: true
         }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-      console.warn('backend', combinedBackOrder);
 
       return combinedBackOrder;
-
     } catch (error) {
       console.error('Error fetching backorders:', error);
-
-      // Fallback: return local cache if API fails or offline
       if (!error?.response) {
-
-        const [allBackOrder, offlineAdds] = await Promise.all([
-          db.backorders_all.toArray(),
-          db.backorders_offline_add.toArray(),
-
-        ]);
-
-        const combinedBackOrder = allBackOrder
-
-          .map(c => ({
-            ...c,
-            synced: true
-          }))
-          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-          .sort((a, b) => a.synced - b.synced);
-        console.warn('backend', combinedBackOrder);
-
-        return combinedBackOrder;
-
+        return await db.backorders_all.toArray();
       }
     }
   };
 
-
   const fetchProducts = async () => {
     try {
-
-      // 3. Merge all data (works offline too)
       const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.products_all.toArray(),
         db.products_offline_add.toArray(),
@@ -302,40 +252,13 @@ const SalesReportPage = () => {
         .sort((a, b) => a.synced - b.synced);
 
       return combinedProducts;
-
     } catch (error) {
       console.error('Error fetching products:', error);
       if (!error?.response) {
-
-        // 3. Merge all data (works offline too)
-        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-          db.products_all.toArray(),
-          db.products_offline_add.toArray(),
-          db.products_offline_update.toArray(),
-          db.products_offline_delete.toArray()
-        ]);
-
-        const deleteIds = new Set(offlineDeletes.map(d => d.id));
-        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
-        const combinedProducts = allProducts
-          .filter(c => !deleteIds.has(c.id))
-          .map(c => ({
-            ...c,
-            ...updateMap.get(c.id),
-            synced: true
-          }))
-          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-          .sort((a, b) => a.synced - b.synced);
-
-        return combinedProducts;
-
+        return await db.products_all.toArray();
       }
-
     }
   };
-
-
 
   const filterDataByPeriod = () => {
     const now = new Date();
@@ -389,7 +312,6 @@ const SalesReportPage = () => {
     return (soldPrice - costPrice) * quantity;
   };
 
-  // Responsive helper function to determine grid columns based on visible stats
   const getStatsGridCols = () => {
     const visibleStatsCount = stats.length;
     if (visibleStatsCount === 1) return 'grid-cols-1';
@@ -397,9 +319,8 @@ const SalesReportPage = () => {
     if (visibleStatsCount === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
     if (visibleStatsCount === 4) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4';
     if (visibleStatsCount === 5) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5';
-    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ';
+    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
   };
-
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
@@ -434,8 +355,7 @@ const SalesReportPage = () => {
       text: 'No stock-out ID provided'
     });
     navigate(`/admin/dashboard/sales-report/stockout/${ID}`);
-  }
-
+  };
 
   const calculateStats = (data) => {
     if (!Array.isArray(data) || data.length === 0) {
@@ -447,22 +367,16 @@ const SalesReportPage = () => {
       return;
     }
 
-    // Calculate total sales + quantities
     const totalSalesAmount = data.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
     const totalQuantitySold = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-    // Backorder sales (filter only stock-outs that are linked to a backorder)
     const backorderSales = data.filter(item => item.backorderId);
     const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
-    const totalBackorderQuantity = backorderSales.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
-    // Group by product (normal stockouts)
     const productStats = {};
     data.forEach(item => {
       if (item.stockin && item.stockin.product) {
         const productId = item.stockin.product.id;
         const productName = item.stockin.product.productName || 'Unknown Product';
-
         if (!productStats[productId]) {
           productStats[productId] = {
             name: productName,
@@ -470,17 +384,14 @@ const SalesReportPage = () => {
             totalValue: 0,
           };
         }
-
         productStats[productId].totalQuantity += item.quantity || 0;
         productStats[productId].totalValue += item.soldPrice || 0;
       }
     });
 
-    // Group by backorder productName
     const backorderStats = {};
     backorderSales.forEach(item => {
       const productName = item.backorder?.productName || 'Unknown Backorder';
-
       if (!backorderStats[productName]) {
         backorderStats[productName] = {
           name: productName,
@@ -488,29 +399,10 @@ const SalesReportPage = () => {
           totalValue: 0,
         };
       }
-
       backorderStats[productName].totalQuantity += item.quantity || 0;
       backorderStats[productName].totalValue += item.soldPrice || 0;
     });
 
-    // Group by transactionId
-    const transactionStats = {};
-    data.forEach(item => {
-      const transactionId = item.transactionId || 'Unknown Transaction';
-
-      if (!transactionStats[transactionId]) {
-        transactionStats[transactionId] = {
-          id: transactionId,
-          totalQuantity: 0,
-          totalValue: 0,
-        };
-      }
-
-      transactionStats[transactionId].totalQuantity += item.quantity || 0;
-      transactionStats[transactionId].totalValue += item.soldPrice || 0;
-    });
-
-    // Highest / lowest stockout product
     const productArray = Object.values(productStats);
     let highestProduct = null, lowestProduct = null;
     if (productArray.length > 0) {
@@ -519,7 +411,6 @@ const SalesReportPage = () => {
       lowestProduct = productArray[productArray.length - 1];
     }
 
-    // Most frequent backorder
     const backorderArray = Object.values(backorderStats);
     let highestBackorder = null;
     if (backorderArray.length > 0) {
@@ -527,20 +418,11 @@ const SalesReportPage = () => {
       highestBackorder = backorderArray[0];
     }
 
-    // Highest transaction (by value)
-    const transactionArray = Object.values(transactionStats);
-    let highestTransaction = null;
-    if (transactionArray.length > 0) {
-      transactionArray.sort((a, b) => b.totalValue - a.totalValue);
-      highestTransaction = transactionArray[0];
-    }
-
     const formatCurrency = (amount) => new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'RWF'
     }).format(amount);
 
-    // Update stats including backorder + transactions
     setStats([
       {
         title: 'Total Sales',
@@ -589,32 +471,17 @@ const SalesReportPage = () => {
         color: 'text-red-600',
         path: '/admin/dashboard/sales-report/non-stock-analysis',
       },
-      {
-        title: 'Highest Transaction',
-        value: highestTransaction ? formatCurrency(highestTransaction.totalValue) : 'No data',
-        change: highestTransaction ? `Transaction ID: ${highestTransaction.id}` : 'No transactions',
-        icon: CreditCard, // you can use lucide-react "CreditCard"
-        bgColor: 'bg-purple-50',
-        color: 'text-purple-600',
-        path: '/admin/dashboard/sales-report/transaction-analysis',
-      },
     ]);
   };
 
-
   const refresh = () => {
     if (isOnline) {
-      fetchSalesData()
+      fetchSalesData();
     } else {
-
       loadStockOuts();
     }
   };
 
-
-
-
-  // Pagination logic
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentItems = filteredSalesData.slice(startIndex, endIndex);
@@ -623,7 +490,7 @@ const SalesReportPage = () => {
   const PaginationComponent = () => (
     <div className="px-6 py-4 border-t border-gray-200 bg-white rounded-b-xl">
       <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-700">
+        <div className="text-xs text-gray-700">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredSalesData.length)} of {filteredSalesData.length} results
         </div>
         <div className="flex items-center gap-2">
@@ -632,9 +499,9 @@ const SalesReportPage = () => {
             disabled={currentPage === 1}
             className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={16} />
           </button>
-          <span className="px-3 py-1 text-sm font-medium">
+          <span className="px-3 py-1 text-xs font-medium">
             {currentPage} of {totalPages}
           </span>
           <button
@@ -642,14 +509,13 @@ const SalesReportPage = () => {
             disabled={currentPage === totalPages}
             className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>
     </div>
   );
 
-  // Card View Component
   const CardView = () => (
     <div className="space-y-6 md:hidden">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -659,15 +525,14 @@ const SalesReportPage = () => {
 
           return (
             <div key={stockOut.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-gray-300">
-              {/* Card Header */}
               <div className="p-6 pb-4">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
-                      <ShoppingCart size={20} />
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
+                      <ShoppingCart size={16} />
                     </div>
                     <div>
-                      <div className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      <div className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
                         #{startIndex + index + 1}
                       </div>
                     </div>
@@ -677,13 +542,12 @@ const SalesReportPage = () => {
                     title="View Details"
                     onClick={() => handleViewMoreDetails(stockOut.id)}
                   >
-                    <Eye size={18} />
+                    <Eye size={14} />
                   </button>
                 </div>
 
-                {/* Product Info */}
                 <div className="mb-4">
-                  <h3 className="font-semibold text-gray-900 text-lg mb-1 leading-tight">
+                  <h3 className="font-semibold text-gray-900 text-base mb-1 leading-tight">
                     {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
                   </h3>
                   {stockOut.transactionId && (
@@ -703,10 +567,9 @@ const SalesReportPage = () => {
                   )}
                 </div>
 
-                {/* Client Info */}
                 <div className="mb-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <User size={16} className="text-gray-400" />
+                  <div className="flex items-center gap-2 text-xs">
+                    <User size={12} className="text-gray-400" />
                     <span className="text-gray-600">
                       {stockOut.clientName || 'Walk-in customer'}
                     </span>
@@ -714,60 +577,54 @@ const SalesReportPage = () => {
                 </div>
               </div>
 
-              {/* Card Body - Stats */}
               <div className="px-6 pb-4">
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Quantity */}
                   <div className="bg-gray-50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <Hash size={14} className="text-gray-400" />
+                      <Hash size={12} className="text-gray-400" />
                       <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</span>
                     </div>
-                    <div className="text-lg font-semibold text-gray-900">
+                    <div className="text-base font-semibold text-gray-900">
                       {stockOut.quantity || 'N/A'}
                     </div>
                   </div>
 
-                  {/* Unit Price */}
                   <div className="bg-gray-50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unit Price</span>
                     </div>
-                    <div className="text-lg font-semibold text-gray-900">
+                    <div className="text-base font-semibold text-gray-900">
                       {stockOut.soldPrice ? formatPrice(stockOut.soldPrice) : 'N/A'}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Card Footer */}
               <div className="px-6 py-4 bg-gray-50 rounded-b-xl">
                 <div className="flex items-center justify-between">
-                  {/* Profit/Loss */}
                   <div className="flex flex-col">
                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
                       Profit/Loss
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={`font-bold text-lg ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      <span className={`font-bold text-base ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                         {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
                       </span>
                       {profit !== 0 && (
-                        <span className={`text-sm ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`text-xs ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
                           {isProfit ? '↗' : '↘'}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Date */}
                   <div className="flex flex-col items-end">
                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
                       Date Sold
                     </span>
                     <div className="flex items-center gap-1">
-                      <Calendar size={14} className="text-gray-400" />
-                      <span className="text-sm text-gray-600 font-medium">
+                      <Calendar size={12} className="text-gray-400" />
+                      <span className="text-xs text-gray-600 font-medium">
                         {formatDate(stockOut.createdAt)}
                       </span>
                     </div>
@@ -779,14 +636,13 @@ const SalesReportPage = () => {
         })}
       </div>
 
-      {/* No Data State */}
       {currentItems.length === 0 && (
         <div className="text-center py-12">
-          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShoppingCart size={32} className="text-gray-400" />
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShoppingCart size={24} className="text-gray-400" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No stock out records</h3>
-          <p className="text-gray-500">Stock out transactions will appear here once you make some sales.</p>
+          <h3 className="text-base font-medium text-gray-900 mb-2">No stock out records</h3>
+          <p className="text-xs text-gray-500">Stock out transactions will appear here once you make some sales.</p>
         </div>
       )}
 
@@ -794,7 +650,6 @@ const SalesReportPage = () => {
     </div>
   );
 
-  // Table View Component
   const TableView = () => (
     <div className="bg-white hidden md:block rounded-xl shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
@@ -819,30 +674,25 @@ const SalesReportPage = () => {
               return (
                 <tr key={stockOut.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                    <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
                       {startIndex + index + 1}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
-                        <ShoppingCart size={16} />
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                        <ShoppingCart size={14} />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 text-sm">
                           {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
-
                         </div>
                         <div className="flex gap-2 items-center">
                           {stockOut.backorderId && (
                             <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
                               {stockOut.backorderId && 'Non-Stock Sale'}
                             </div>
-
-
-
                           )}
-
                           {stockOut.stockinId && (
                             <div className="text-xs text-green-800 font-mono bg-green-100 px-2 py-1 rounded inline-block">
                               {stockOut.stockinId && 'Stock In Sale'}
@@ -852,8 +702,6 @@ const SalesReportPage = () => {
                             <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
                           )}
                         </div>
-
-
                       </div>
                     </div>
                   </td>
@@ -862,36 +710,36 @@ const SalesReportPage = () => {
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">
                           <User size={12} className="text-gray-400" />
-                          <span className="text-sm text-gray-600 truncate max-w-32">
+                          <span className="text-xs text-gray-600 truncate max-w-32">
                             {stockOut.clientName}
                           </span>
                         </div>
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-400">Walk-in customer</span>
+                      <span className="text-xs text-gray-400">Walk-in customer</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {stockOut.quantity ? (
                       <div className="flex items-center gap-1">
-                        <Hash size={14} className="text-gray-400" />
-                        <span className="font-medium text-gray-900">{stockOut.quantity}</span>
+                        <Hash size={12} className="text-gray-400" />
+                        <span className="font-medium text-sm text-gray-900">{stockOut.quantity}</span>
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-400">N/A</span>
+                      <span className="text-xs text-gray-400">N/A</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {stockOut.soldPrice ? (
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-sm text-gray-900">
                         {formatPrice(stockOut.soldPrice)}
                       </span>
                     ) : (
-                      <span className="text-sm text-gray-400">N/A</span>
+                      <span className="text-xs text-gray-400">N/A</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`font-medium ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                    <span className={`font-medium text-sm ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                       {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
                       {profit !== 0 && (
                         <span className="text-xs ml-1">
@@ -902,8 +750,8 @@ const SalesReportPage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-1">
-                      <Calendar size={14} className="text-gray-400" />
-                      <span className="text-sm text-gray-600">
+                      <Calendar size={12} className="text-gray-400" />
+                      <span className="text-xs text-gray-600">
                         {formatDate(stockOut.createdAt)}
                       </span>
                     </div>
@@ -915,9 +763,8 @@ const SalesReportPage = () => {
                         title="View Details"
                         onClick={() => handleViewMoreDetails(stockOut.id)}
                       >
-                        <Eye size={16} />
+                        <Eye size={14} />
                       </button>
-
                     </div>
                   </td>
                 </tr>
@@ -926,7 +773,6 @@ const SalesReportPage = () => {
           </tbody>
         </table>
       </div>
-
       <PaginationComponent />
     </div>
   );
@@ -934,22 +780,21 @@ const SalesReportPage = () => {
   if (loading) {
     return (
       <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-        <div className=" mx-auto">
+        <div className="mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sales Report</h1>
-            <p className="text-gray-600">Loading sales analytics...</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Report</h1>
+            <p className="text-xs text-gray-600">Loading sales analytics...</p>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {[1, 2, 3, 4].map((index) => (
               <div key={index} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 animate-pulse">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
-                    <div className="h-8 bg-gray-200 rounded w-16 mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded w-20"></div>
+                    <div className="h-3 bg-gray-200 rounded w-24 mb-2"></div>
+                    <div className="h-6 bg-gray-200 rounded w-16 mb-1"></div>
+                    <div className="h-2 bg-gray-200 rounded w-20"></div>
                   </div>
-                  <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
+                  <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
                 </div>
               </div>
             ))}
@@ -962,21 +807,20 @@ const SalesReportPage = () => {
   if (error) {
     return (
       <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-        <div className=" mx-auto">
+        <div className="mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sales Report</h1>
-            <p className="text-gray-600">Analytics and insights for your sales performance</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Report</h1>
+            <p className="text-xs text-gray-600">Analytics and insights for your sales performance</p>
           </div>
-
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
             <div className="flex items-center">
-              <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
+              <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
               <div>
-                <h3 className="text-lg font-semibold text-red-800">Error Loading Sales Data</h3>
-                <p className="text-red-700 mt-1">{error}</p>
+                <h3 className="text-base font-semibold text-red-800">Error Loading Sales Data</h3>
+                <p className="text-xs text-red-700 mt-1">{error}</p>
                 <button
                   onClick={refresh}
-                  className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
                 >
                   Try Again
                 </button>
@@ -992,21 +836,20 @@ const SalesReportPage = () => {
     <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
       {notification && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'} animate-in slide-in-from-top-2 duration-300`}>
-          {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
-          {notification.message}
+          {notification.type === 'success' ? <Check size={14} /> : <AlertTriangle size={14} />}
+          <span className="text-xs">{notification.message}</span>
         </div>
       )}
       <div className="px-4 mx-auto">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Sales Report</h1>
-              <p className="text-gray-600">Analytics and insights for your sales performance</p>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Report</h1>
+              <p className="text-xs text-gray-600">Analytics and insights for your sales performance</p>
             </div>
             <button
               onClick={refresh}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
             >
               <Package className="w-4 h-4" />
               Refresh Data
@@ -1014,8 +857,7 @@ const SalesReportPage = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className={`grid ${getStatsGridCols()} gap-4  mb-10`}>
+        <div className={`grid ${getStatsGridCols()} gap-4 mb-10`}>
           {stats.map((stat, index) => (
             <div key={index}
               className="bg-white rounded-xl cursor-pointer shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow"
@@ -1023,33 +865,30 @@ const SalesReportPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-gray-500 mt-1">{stat.change}</p>
-
+                  <p className="text-xs font-medium text-gray-600 mb-1">{stat.title}</p>
+                  <p className="text-lg font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-xs text-gray-500 mt-1">{stat.change}</p>
                 </div>
                 <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Period Filter Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Today Card */}
           <div
             className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'today' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
             onClick={() => setCurrentPeriod('today')}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Today Sales</p>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xs font-medium text-gray-600 mb-1">Today Sales</p>
+                <p className="text-lg font-bold text-gray-900">
                   {currentPeriod === 'today' ? formatPrice(periodStats.totalSales) : 'Click to view'}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {currentPeriod === 'today' ? `${periodStats.totalQuantity} units sold` : 'Today\'s performance'}
                 </p>
                 {currentPeriod === 'today' && (
@@ -1059,23 +898,22 @@ const SalesReportPage = () => {
                 )}
               </div>
               <div className="p-3 rounded-xl bg-blue-50">
-                <Calendar className="w-6 h-6 text-blue-600" />
+                <Calendar className="w-5 h-5 text-blue-600" />
               </div>
             </div>
           </div>
 
-          {/* Week Card */}
           <div
             className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'week' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
             onClick={() => setCurrentPeriod('week')}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">This Week</p>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xs font-medium text-gray-600 mb-1">This Week</p>
+                <p className="text-lg font-bold text-gray-900">
                   {currentPeriod === 'week' ? formatPrice(periodStats.totalSales) : 'Click to view'}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {currentPeriod === 'week' ? `${periodStats.totalQuantity} units sold` : 'Weekly performance'}
                 </p>
                 {currentPeriod === 'week' && (
@@ -1085,23 +923,22 @@ const SalesReportPage = () => {
                 )}
               </div>
               <div className="p-3 rounded-xl bg-emerald-50">
-                <TrendingUp className="w-6 h-6 text-emerald-600" />
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
               </div>
             </div>
           </div>
 
-          {/* Month Card */}
           <div
             className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'month' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
             onClick={() => setCurrentPeriod('month')}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">This Month</p>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xs font-medium text-gray-600 mb-1">This Month</p>
+                <p className="text-lg font-bold text-gray-900">
                   {currentPeriod === 'month' ? formatPrice(periodStats.totalSales) : 'Click to view'}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {currentPeriod === 'month' ? `${periodStats.totalQuantity} units sold` : 'Monthly performance'}
                 </p>
                 {currentPeriod === 'month' && (
@@ -1111,28 +948,27 @@ const SalesReportPage = () => {
                 )}
               </div>
               <div className="p-3 rounded-xl bg-purple-50">
-                <Star className="w-6 h-6 text-purple-600" />
+                <Star className="w-5 h-5 text-purple-600" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Sales Table */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900">
               Sales Report - {getPeriodLabel()}
             </h2>
-            <span className="text-sm text-gray-500">
+            <span className="text-xs text-gray-500">
               {filteredSalesData.length} transactions
             </span>
           </div>
 
           {filteredSalesData.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-              <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Data</h3>
-              <p className="text-gray-600">No sales transactions found for {getPeriodLabel().toLowerCase()}.</p>
+              <Package className="w-10 h-10 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-base font-medium text-gray-900 mb-2">No Sales Data</h3>
+              <p className="text-xs text-gray-600">No sales transactions found for {getPeriodLabel().toLowerCase()}.</p>
             </div>
           ) : (
             <>

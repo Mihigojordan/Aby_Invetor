@@ -1,6 +1,5 @@
-// components/dashboard/product/ProductManagement.js
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, Tag, Image, Check, AlertTriangle, Eye, RefreshCw, ChevronLeft, ChevronRight, Calendar, Wifi, WifiOff } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, Check, AlertTriangle, Wifi, WifiOff, RefreshCw, ChevronLeft, ChevronRight, Calendar, FileText, Eye, RotateCcw } from 'lucide-react';
 import UpsertProductModal from '../../components/dashboard/product/UpsertProductModal';
 import DeleteProductModal from '../../components/dashboard/product/DeleteProductModal';
 import productService from '../../services/productService';
@@ -11,6 +10,7 @@ import { db } from '../../db/database';
 import { useProductOfflineSync } from '../../hooks/useProductOfflineSync';
 import categoryService from '../../services/categoryService';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
+
 const ProductManagement = ({ role }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -20,6 +20,7 @@ const ProductManagement = ({ role }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
   const { isOnline } = useNetworkStatusContext();
   const navigate = useNavigate();
@@ -34,10 +35,10 @@ const ProductManagement = ({ role }) => {
     loadProducts();
     if (isOnline) handleManualSync();
   }, [isOnline]);
+
   const fetchCategories = async () => {
     try {
       if (isOnline) {
-        // 1. Fetch from API
         const response = await categoryService.getAllCategories();
         if (response && response.categories) {
           for (const category of response.categories) {
@@ -50,22 +51,13 @@ const ProductManagement = ({ role }) => {
             });
           }
         }
-
-        // 2. Sync any offline adds/updates/deletes
-        // await triggerSync();
       }
-
-      // 3. Always read from IndexedDB (so offline works too)
       const allCategories = await db.categories_all.toArray();
-
-      console.log('log categories : +>', allCategories);
-
-      // setCategories(allCategories);
-      return allCategories
+      return allCategories;
     } catch (error) {
       if (!error.response) {
         const allCategories = await db.categories_all.toArray();
-        return allCategories
+        return allCategories;
       }
       console.error("Error fetching categories:", error);
     }
@@ -94,8 +86,12 @@ const ProductManagement = ({ role }) => {
     };
   }, [products]);
 
-  const loadProducts = async () => {
-    setIsLoading(true);
+  const loadProducts = async (showRefreshLoader = false) => {
+    if (showRefreshLoader) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       if (isOnline) await triggerSync();
 
@@ -106,8 +102,7 @@ const ProductManagement = ({ role }) => {
         db.products_offline_delete.toArray()
       ]);
 
-      const categories = await fetchCategories()
-
+      const categories = await fetchCategories();
 
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
@@ -124,11 +119,8 @@ const ProductManagement = ({ role }) => {
           ...a,
           synced: false,
           category: categories.find(cat => cat.id == a.categoryId)
-        })
-        )).sort((a, b) => a.synced - b.synced);
-
-      console.warn('combined product:', combinedProducts);
-
+        })))
+        .sort((a, b) => a.synced - b.synced);
 
       const productsWithImages = await Promise.all(combinedProducts.map(async product => {
         const images = await db.product_images
@@ -141,6 +133,9 @@ const ProductManagement = ({ role }) => {
 
       setProducts(productsWithImages);
       setFilteredProducts(productsWithImages);
+      if (showRefreshLoader) {
+        showNotification('Products refreshed successfully!');
+      }
       if (!isOnline && productsWithImages.length === 0) {
         showNotification('No offline data available', 'error');
       }
@@ -149,6 +144,7 @@ const ProductManagement = ({ role }) => {
       showNotification('Failed to load products', 'error');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -221,7 +217,6 @@ const ProductManagement = ({ role }) => {
           }
           await db.products_offline_add.delete(localId);
           showNotification('Product added successfully!');
-        // eslint-disable-next-line no-unused-vars
         } catch (error) {
           showNotification('Product saved offline (will sync when online)', 'warning');
         }
@@ -251,11 +246,10 @@ const ProductManagement = ({ role }) => {
       const now = new Date();
 
       if (!isOnline && productData && productData.localId && !productData.synced) {
-
-        await loadProducts()
+        await loadProducts();
         setIsEditModalOpen(false);
         setSelectedProduct(null);
-        return
+        return;
       }
 
       const updatedData = {
@@ -268,9 +262,6 @@ const ProductManagement = ({ role }) => {
         lastModified: now,
         updatedAt: now
       };
-
-
-
 
       if (isOnline) {
         try {
@@ -301,7 +292,6 @@ const ProductManagement = ({ role }) => {
             }
           }
           showNotification('Product updated successfully!');
-        // eslint-disable-next-line no-unused-vars
         } catch (error) {
           await db.products_offline_update.put(updatedData);
           if (productData.newImages?.length > 0) {
@@ -393,7 +383,6 @@ const ProductManagement = ({ role }) => {
       await triggerSync();
       await loadProducts();
       showNotification('Sync completed successfully!');
-    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       showNotification('Sync failed due to network error—will retry automatically.', 'error');
     } finally {
@@ -425,7 +414,13 @@ const ProductManagement = ({ role }) => {
     }
   };
 
-  // Pagination and UI rendering remain the same as provided
+  const closeAllModals = () => {
+    setIsAddModalOpen(false);
+    setIsEditModalOpen(false);
+    setIsDeleteModalOpen(false);
+    setSelectedProduct(null);
+  };
+
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -470,53 +465,54 @@ const ProductManagement = ({ role }) => {
       setCurrentPage(currentPage + 1);
     }
   };
+
   const PaginationComponent = () => (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} entries
         </p>
       </div>
-
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1
-              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-              }`}
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
+              currentPage === 1
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
             Previous
           </button>
-
           <div className="flex items-center gap-1 mx-2">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${currentPage === page
-                  ? 'bg-primary-600 text-white'
-                  : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
-                  }`}
+                className={`px-3 py-2 text-xs rounded-md transition-colors ${
+                  currentPage === page
+                    ? 'bg-primary-600 text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
               >
                 {page}
               </button>
             ))}
           </div>
-
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages
-              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-              }`}
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
+              currentPage === totalPages
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
           >
             Next
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </button>
         </div>
       )}
@@ -526,11 +522,12 @@ const ProductManagement = ({ role }) => {
   const CardView = () => (
     <div className="md:hidden">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-        {currentItems.map((product) => (
+        {currentItems.map((product, index) => (
           <div
             key={product.localId || product.id}
-            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${product.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
-              }`}
+            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${
+              product.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
+            }`}
           >
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -539,88 +536,77 @@ const ProductManagement = ({ role }) => {
                     <img
                       src={getFirstImage(product.imageUrls)}
                       alt={product.productName}
-                      className="w-12 h-12 object-cover rounded-lg shadow-sm"
+                      className="w-12 h-12 object-cover rounded-full shadow-sm"
                       onError={(e) => {
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'flex';
                       }}
                     />
                   ) : null}
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold text-lg"
-                    style={{ display: getFirstImage(product.imageUrls) ? 'none' : 'flex' }}>
+                  <div
+                    className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg"
+                    style={{ display: getFirstImage(product.imageUrls) ? 'none' : 'flex' }}
+                  >
                     <Package size={24} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 truncate" title={product.productName}>
                       {product.productName || 'Unnamed Product'}
                     </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      {!product.synced && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                          Pending sync
-                        </span>
-                      )}
-
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className={`w-2 h-2 rounded-full ${product.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                      <span className="text-xs text-gray-500">{product.synced ? 'Active' : 'Syncing...'}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  <button
-                    onClick={() => handleViewProduct(product)}
-                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    title="View product"
-                  >
-                    <Eye size={16} />
-                  </button>
+                  {isOnline && (
+                    <button
+                      onClick={() => handleViewProduct(product)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="View product"
+                    >
+                      <Eye size={14} />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleEditProduct(product)}
                     className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                     title="Edit product"
                   >
-                    <Edit3 size={16} />
+                    <Edit3 size={14} />
                   </button>
                   <button
                     onClick={() => handleDeleteProduct(product)}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Delete product"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
-
               <div className="space-y-2 mb-4">
-
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Package size={14} />
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <Package size={14} className="mt-0.5" />
                   <span className="truncate">{product.category?.name || 'No category'}</span>
                 </div>
-                
+                {product.description && (
+                  <div className="flex items-start gap-2 text-sm text-gray-600">
+                    <FileText size={14} className="mt-0.5" />
+                    <span className="line-clamp-2">{parseDescription(product.description)}</span>
+                  </div>
+                )}
               </div>
-
-              {product.description && (
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-700 mb-1">Description</div>
-                  <div
-                    className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{
-                      __html: parseDescription(product.description)
-                    }}
-                  />
-                </div>
-              )}
-
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <Calendar size={12} />
-                  <span>Added {formatDate(product.createdAt || product.lastModified)}</span>
+                  <span>Created {formatDate(product.createdAt || product.lastModified)}</span>
                 </div>
               </div>
             </div>
           </div>
         ))}
       </div>
-
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <PaginationComponent />
       </div>
@@ -633,102 +619,102 @@ const ProductManagement = ({ role }) => {
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-    
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {currentItems.map((product, index) => (
               <tr key={product.localId || product.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
                     {startIndex + index + 1}
                   </span>
                 </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                     {getFirstImage(product.imageUrls) ? (
                       <img
                         src={getFirstImage(product.imageUrls)}
                         alt={product.productName}
-                        className="w-10 h-10 object-cover rounded-lg shadow-sm"
+                        className="w-8 h-8 object-cover rounded-full shadow-sm"
                         onError={(e) => {
                           e.target.style.display = 'none';
                           e.target.nextSibling.style.display = 'flex';
                         }}
                       />
                     ) : null}
-                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white"
-                      style={{ display: getFirstImage(product.imageUrls) ? 'none' : 'flex' }}>
+                    <div
+                      className="w-8 h-8 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white"
+                      style={{ display: getFirstImage(product.imageUrls) ? 'none' : 'flex' }}
+                    >
                       <Package size={16} />
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-gray-900 text-sm">
                         {product.productName || 'Unnamed Product'}
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        {!product.synced && (
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                            Pending sync
-                          </span>
-                        )}
-
                       </div>
                     </div>
                   </div>
                 </td>
-
-
-
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <Package size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-900">
-                      {product.category?.name || 'No category'}
-                    </span>
+                    <span className="text-sm text-gray-900">{product.category?.name || 'No category'}</span>
                   </div>
                 </td>
-
-               
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-3">
+                  <div className="text-xs text-gray-900 max-w-xs">
+                    <div className="line-clamp-2">{parseDescription(product.description)}</div>
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                      product.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${product.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    {product.synced ? 'synced' : 'Syncing...'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-600">
+                    <Calendar size={12} className="text-gray-400" />
+                    <span className="text-xs text-gray-600">
                       {formatDate(product.createdAt || product.lastModified)}
                     </span>
                   </div>
                 </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    {
-                      isOnline && <button
+                    {isOnline && (
+                      <button
                         onClick={() => handleViewProduct(product)}
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                         title="View Details"
                       >
-                        <Eye size={16} />
+                        <Eye size={14} />
                       </button>
-                    }
+                    )}
                     <button
                       onClick={() => handleEditProduct(product)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                       title="Edit"
                     >
-                      <Edit3 size={16} />
+                      <Edit3 size={14} />
                     </button>
                     <button
                       onClick={() => handleDeleteProduct(product)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </td>
@@ -737,7 +723,6 @@ const ProductManagement = ({ role }) => {
           </tbody>
         </table>
       </div>
-
       <PaginationComponent />
     </div>
   );
@@ -745,61 +730,88 @@ const ProductManagement = ({ role }) => {
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' :
-          notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
-          } animate-in slide-in-from-top-2 duration-300`}>
+        <div
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
+            notification.type === 'success' ? 'bg-green-500 text-white' :
+            notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
+          } animate-in slide-in-from-top-2 duration-300`}
+        >
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>
       )}
       <div className="h-full overflow-y-auto mx-auto">
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary-600 rounded-lg"><Package className="w-6 h-6 text-white" /></div>
-              <h1 className="text-3xl font-bold text-gray-900">Product Management</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
-                {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-                {isOnline ? 'Online' : 'Offline'}
+              <div className="p-2 bg-primary-600 rounded-lg">
+                <Package className="w-6 h-6 text-white" />
               </div>
-              {isOnline && (
-                <button
-                  onClick={handleManualSync}
-                  disabled={isLoading}
-                  className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full transition-colors disabled:opacity-50"
-                >
-                  Sync
-                </button>
-              )}
+              <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
             </div>
           </div>
-          <p className="text-gray-600">Manage your product catalog and inventory - works offline and syncs when online</p>
+          <p className="text-sm text-gray-600">Manage your product catalog and inventory - works offline and syncs when online</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-4">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
             <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
               />
             </div>
-            <button
-              onClick={handleAddProduct}
-              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-            >
-              <Plus size={20} /> Add Product
-            </button>
+            <div className="flex gap-2">
+              <div
+                className={`flex items-center justify-center w-10 h-10 rounded-lg ${
+                  isOnline ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                }`}
+                title={isOnline ? 'Online' : 'Offline'}
+              >
+                {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+              </div>
+              {isOnline && (
+                <button
+                  onClick={handleManualSync}
+                  disabled={isLoading}
+                  className="flex items-center justify-center w-10 h-10 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  title="Sync now"
+                >
+                  <RotateCcw size={16} className={isLoading ? 'animate-spin' : ''} />
+                </button>
+              )}
+              {isOnline && (
+                <button
+                  onClick={() => loadProducts(true)}
+                  disabled={isRefreshing}
+                  className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  title="Refresh"
+                >
+                  <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                </button>
+              )}
+              <button
+                onClick={handleAddProduct}
+                disabled={isLoading}
+                className="flex items-center justify-center px-3 h-10 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm"
+                title="Add Product"
+              >
+                <Plus size={16} />
+                Add Product
+              </button>
+            </div>
           </div>
         </div>
-        {isLoading ? (
-          <div className="text-center py-12"><p className="text-gray-600">Loading products...</p></div>
+        {isLoading && !isRefreshing ? (
+          <div className="text-center py-12">
+            <div className="inline-flex items-center gap-3">
+              <RefreshCw className="w-5 h-5 animate-spin text-primary-600" />
+              <p className="text-gray-600">Loading products...</p>
+            </div>
+          </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -810,7 +822,8 @@ const ProductManagement = ({ role }) => {
                 onClick={handleAddProduct}
                 className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
-                <Plus size={20} /> Add Product
+                <Plus size={20} />
+                Add Product
               </button>
             )}
           </div>
@@ -823,11 +836,7 @@ const ProductManagement = ({ role }) => {
       </div>
       <UpsertProductModal
         isOpen={isAddModalOpen || isEditModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setIsEditModalOpen(false);
-          setSelectedProduct(null);
-        }}
+        onClose={closeAllModals}
         onSubmit={isEditModalOpen ? handleUpdateProduct : handleProductSubmit}
         product={selectedProduct}
         isLoading={isLoading}
@@ -835,15 +844,11 @@ const ProductManagement = ({ role }) => {
       />
       <DeleteProductModal
         isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setSelectedProduct(null);
-        }}
+        onClose={closeAllModals}
         onConfirm={handleConfirmDelete}
         product={selectedProduct}
         isLoading={isLoading}
       />
-      {/* <button onClick={handleMultipleProduct}>submit changes</button> */}
     </div>
   );
 };

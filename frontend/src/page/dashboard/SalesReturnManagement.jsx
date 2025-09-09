@@ -149,10 +149,6 @@ const SalesReturnManagement = ({ role }) => {
   const fetchStockOuts = async () => {
     setIsLoading(true);
     try {
-      
-
-
-
       const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
         db.stockouts_all.toArray(),
         db.stockouts_offline_add.toArray(),
@@ -186,12 +182,8 @@ const SalesReturnManagement = ({ role }) => {
           backorder: backOrderMap.get(a.backorderLocalId),
           stockin: stockinMap.get(a.stockinId)
         })))
-        .sort((a, b) => a.synced - b.synced)
-        ;
+        .sort((a, b) => a.synced - b.synced);
 
-      const convertedStockIns = Array.from(stockinMap.values())
-
-      console.warn('STOCK INS', backOrderMap);
       return combinedStockOuts;
     } catch (error) {
       console.error('Error loading stock-outs:', error);
@@ -200,8 +192,6 @@ const SalesReturnManagement = ({ role }) => {
       setIsLoading(false);
     }
   };
-
-
 
   const fetchStockIns = async () => {
     try {
@@ -219,7 +209,7 @@ const SalesReturnManagement = ({ role }) => {
             barcodeUrl: si.barcodeUrl,
             lastModified: new Date(),
             updatedAt: si.updatedAt || new Date()
-          });;
+          });
           if (si.product && !(await db.products_all.get(si.product.id))) {
             await db.products_all.put({
               id: si.product.id,
@@ -234,7 +224,6 @@ const SalesReturnManagement = ({ role }) => {
         }
       }
 
-      // 3. Merge all data (works offline too)
       const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.stockins_all.toArray(),
         db.stockins_offline_add.toArray(),
@@ -255,26 +244,19 @@ const SalesReturnManagement = ({ role }) => {
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
 
-      console.warn('THIS THE COMBINED STOCK IN :', combinedStockin);
-
-
       return combinedStockin;
-
     } catch (error) {
       console.error('Error fetching stock-ins:', error);
       if (!error.response) {
         return await db.stockins_all.toArray();
       }
-
     }
   };
 
   const fetchBackorders = async () => {
     try {
       if (isOnline) {
-        // Assuming you have a backorderService similar to productService
         const response = await backOrderService.getAllBackOrders();
-
         for (const b of response.backorders || response) {
           await db.backorders_all.put({
             id: b.id,
@@ -288,63 +270,47 @@ const SalesReturnManagement = ({ role }) => {
             updatedAt: b.updatedAt || new Date()
           });
         }
-        // 3. Merge all data (works offline too)
-
-
       }
 
       const [allBackOrder, offlineAdds] = await Promise.all([
         db.backorders_all.toArray(),
         db.backorders_offline_add.toArray(),
-
       ]);
 
       const combinedBackOrder = allBackOrder
-
         .map(c => ({
           ...c,
           synced: true
         }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-      console.warn('backend', combinedBackOrder);
 
       return combinedBackOrder;
-
     } catch (error) {
       console.error('Error fetching backorders:', error);
-
-      // Fallback: return local cache if API fails or offline
       if (!error?.response) {
-
         const [allBackOrder, offlineAdds] = await Promise.all([
           db.backorders_all.toArray(),
           db.backorders_offline_add.toArray(),
-
         ]);
 
         const combinedBackOrder = allBackOrder
-
           .map(c => ({
             ...c,
             synced: true
           }))
           .concat(offlineAdds.map(a => ({ ...a, synced: false })))
           .sort((a, b) => a.synced - b.synced);
-        console.warn('backend', combinedBackOrder);
 
         return combinedBackOrder;
-
       }
     }
   };
 
-
   const fetchProducts = async () => {
     try {
       if (isOnline) {
-        // Assuming a productService.getAllProducts() exists, similar to categories
-        const response = await productService.getAllProducts(); // Adjust if needed
+        const response = await productService.getAllProducts();
         for (const p of response.products || response) {
           await db.products_all.put({
             id: p.id,
@@ -358,7 +324,6 @@ const SalesReturnManagement = ({ role }) => {
         }
       }
 
-      // 3. Merge all data (works offline too)
       const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.products_all.toArray(),
         db.products_offline_add.toArray(),
@@ -380,12 +345,9 @@ const SalesReturnManagement = ({ role }) => {
         .sort((a, b) => a.synced - b.synced);
 
       return combinedProducts;
-
     } catch (error) {
       console.error('Error fetching products:', error);
       if (!error?.response) {
-
-        // 3. Merge all data (works offline too)
         const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
           db.products_all.toArray(),
           db.products_offline_add.toArray(),
@@ -407,11 +369,10 @@ const SalesReturnManagement = ({ role }) => {
           .sort((a, b) => a.synced - b.synced);
 
         return combinedProducts;
-
       }
-
     }
   };
+
   const calculateReturnStatistics = (returns) => {
     if (!Array.isArray(returns) || returns.length === 0) {
       return {
@@ -438,7 +399,6 @@ const SalesReturnManagement = ({ role }) => {
     const salesReturnsArray = Array.isArray(salesReturns) ? salesReturns : [];
 
     let filtered = salesReturnsArray.filter(salesReturn => {
-      // Search term filter
       const searchMatch = !searchTerm ||
         salesReturn?.transactionId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         salesReturn?.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -448,7 +408,6 @@ const SalesReturnManagement = ({ role }) => {
           item?.stockout?.backorder?.productName?.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
-      // Date range filter
       let dateMatch = true;
       if (filters.dateRange !== 'all') {
         const returnDate = new Date(salesReturn.createdAt);
@@ -476,7 +435,6 @@ const SalesReturnManagement = ({ role }) => {
         }
       }
 
-      // Reason filter
       const reasonMatch = filters.reason === 'all' ||
         (filters.reason === 'no-reason' && !salesReturn.reason) ||
         (filters.reason !== 'no-reason' && salesReturn.reason?.toLowerCase().includes(filters.reason.toLowerCase()));
@@ -500,8 +458,6 @@ const SalesReturnManagement = ({ role }) => {
         throw new Error('User authentication required');
       }
 
-
-
       const userInfo = role === 'admin' && adminData?.id
         ? { adminId: adminData.id }
         : { employeeId: employeeData.id };
@@ -509,7 +465,6 @@ const SalesReturnManagement = ({ role }) => {
       const now = new Date();
       const CreditNoteID = `credit-note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Validate required data
       if (!returnData.transactionId) {
         throw new Error('Transaction ID is required');
       }
@@ -517,7 +472,6 @@ const SalesReturnManagement = ({ role }) => {
         throw new Error('At least one item must be provided');
       }
 
-      // Prepare return record for offline storage
       const newReturn = {
         transactionId: returnData.transactionId,
         reason: returnData.reason,
@@ -528,10 +482,8 @@ const SalesReturnManagement = ({ role }) => {
         updatedAt: now
       };
 
-      // Save parent sales return offline first
       const localId = await db.sales_returns_offline_add.add(newReturn);
 
-      // Save each return item offline
       const savedItems = [];
       for (const item of returnData.items) {
         if (!item.stockoutId || !item.quantity) {
@@ -549,14 +501,11 @@ const SalesReturnManagement = ({ role }) => {
 
         await db.sales_return_items_offline_add.add(itemRecord);
         savedItems.push(itemRecord);
-
-        // Update stock quantities locally (restore stock)
         await restoreStockQuantity(item.stockoutId, item.quantity);
       }
 
       if (isOnline) {
         try {
-          // Attempt server sync
           const requestData = {
             transactionId: newReturn.transactionId,
             reason: newReturn.reason,
@@ -571,7 +520,6 @@ const SalesReturnManagement = ({ role }) => {
 
           const response = await salesReturnService.createSalesReturn(requestData);
 
-          // Save synced data
           await db.sales_returns_all.put({
             id: response.salesReturn.id,
             transactionId: response.salesReturn.transactionId,
@@ -583,7 +531,6 @@ const SalesReturnManagement = ({ role }) => {
             lastModified: response.salesReturn.lastModified || now
           });
 
-          // Save synced items
           for (const item of response.salesReturn.items) {
             await db.sales_return_items_all.put({
               id: item.id,
@@ -596,7 +543,6 @@ const SalesReturnManagement = ({ role }) => {
             });
           }
 
-          // Clean up offline records
           await db.sales_returns_offline_add.delete(localId);
           await db.sales_return_items_offline_add
             .where('salesReturnLocalId')
@@ -613,7 +559,6 @@ const SalesReturnManagement = ({ role }) => {
           setSalesReturnId(response.salesReturn.id);
           setIsCreditNoteOpen(true);
           showNotification('Sales return processed successfully!');
-
         } catch (error) {
           console.warn('Error posting sales return to server, keeping offline:', error);
           updateSearchParam('salesReturnId', localId);
@@ -630,7 +575,6 @@ const SalesReturnManagement = ({ role }) => {
 
       await loadSalesReturns();
       setIsAddModalOpen(false);
-
     } catch (error) {
       console.error('Error processing sales return:', error);
       showNotification(`Failed to process sales return: ${error.message}`, 'error');
@@ -641,28 +585,23 @@ const SalesReturnManagement = ({ role }) => {
 
   const restoreStockQuantity = async (stockoutId, returnQuantity) => {
     try {
-      // Find the original stockout to get the stockin reference
       const stockout = await db.stockouts_all.get(stockoutId) ||
         await db.stockouts_offline_add.where('localId').equals(stockoutId).first();
 
-
       await db.stockouts_all.update(stockoutId, {
         quantity: stockout.quantity - returnQuantity
-      })
+      });
 
       await db.stockouts_offline_add.update(stockoutId, {
         quantity: stockout.quantity - returnQuantity
-      })
+      });
 
       if (stockout && stockout.stockinId) {
-        // Restore stock quantity
-        const stockin = await db.stockins_all.get(stockout.stockinId)
+        const stockin = await db.stockins_all.get(stockout.stockinId);
         if (stockin) {
           const newQuantity = (stockin.offlineQuantity ?? stockin.quantity) + returnQuantity;
           await db.stockins_all.update(stockout.stockinId, { quantity: newQuantity });
-
         } else {
-          // Check offline stockins
           const offlineStockin = await db.stockins_offline_add.get(stockout.stockinId);
           if (offlineStockin) {
             const newQuantity = (offlineStockin.offlineQuantity ?? offlineStockin.quantity) + returnQuantity;
@@ -724,7 +663,6 @@ const SalesReturnManagement = ({ role }) => {
     });
   };
 
-
   const getTotalItemsCount = (salesReturn) => {
     return salesReturn.items ? salesReturn.items.length : 0;
   };
@@ -749,7 +687,6 @@ const SalesReturnManagement = ({ role }) => {
     return names.join(', ') || 'Unknown products';
   };
 
-  // Pagination handlers
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
@@ -770,16 +707,13 @@ const SalesReturnManagement = ({ role }) => {
     loadSalesReturns();
   };
 
-  // Ensure filteredSalesReturns is always an array for pagination
   const safeFilteredReturns = Array.isArray(filteredSalesReturns) ? filteredSalesReturns : [];
 
-  // Pagination calculations
   const totalPages = Math.ceil(safeFilteredReturns.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentItems = safeFilteredReturns.slice(startIndex, endIndex);
 
-  // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -797,79 +731,77 @@ const SalesReturnManagement = ({ role }) => {
   };
 
   const handleOpenCreditNote = (Id) => {
-    if (!Id) return showNotification('Didnt choose the transaction')
+    if (!Id) return showNotification('Didnt choose the transaction');
     updateSearchParam('salesReturnId', Id);
     setSalesReturnId(Id);
     setIsCreditNoteOpen(true);
-  }
+  };
 
-  // Statistics Cards Component
   const StatisticsCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-600">Total Returns</p>
-            <p className="text-2xl font-bold text-gray-900">{statistics?.totalReturns || 0}</p>
+            <p className="text-xs font-medium text-gray-600">Total Returns</p>
+            <p className="text-lg font-bold text-gray-900">{statistics?.totalReturns || 0}</p>
           </div>
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-            <RotateCcw className="w-6 h-6 text-blue-600" />
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <RotateCcw className="w-5 h-5 text-blue-600" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-600">Total Items</p>
-            <p className="text-2xl font-bold text-gray-900">{statistics?.totalItems || 0}</p>
+            <p className="text-xs font-medium text-gray-600">Total Items</p>
+            <p className="text-lg font-bold text-gray-900">{statistics?.totalItems || 0}</p>
           </div>
-          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-            <Package className="w-6 h-6 text-green-600" />
+          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+            <Package className="w-5 h-5 text-green-600" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-600">Total Quantity</p>
-            <p className="text-2xl font-bold text-gray-900">{statistics?.totalQuantity || 0}</p>
+            <p className="text-xs font-medium text-gray-600">Total Quantity</p>
+            <p className="text-lg font-bold text-gray-900">{statistics?.totalQuantity || 0}</p>
           </div>
-          <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-            <TrendingUp className="w-6 h-6 text-orange-600" />
+          <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-orange-600" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-600">Avg Items/Return</p>
-            <p className="text-2xl font-bold text-gray-900">{statistics?.averageItemsPerReturn || 0}</p>
+            <p className="text-xs font-medium text-gray-600">Avg Items/Return</p>
+            <p className="text-lg font-bold text-gray-900">{statistics?.averageItemsPerReturn || 0}</p>
           </div>
-          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-            <Hash className="w-6 h-6 text-purple-600" />
+          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+            <Hash className="w-5 h-5 text-purple-600" />
           </div>
         </div>
       </div>
     </div>
   );
 
-  // Filters Component
   const FiltersComponent = () => (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 mb-6 transition-all duration-300 ${showFilters ? 'p-6' : 'p-0 h-0 overflow-hidden'}`}>
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 mb-4 transition-all duration-300 ${showFilters ? 'p-4' : 'p-0 h-0 overflow-hidden'}`}>
       {showFilters && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+        <div className="space-y-3">
+          <h3 className="text-base font-semibold text-gray-900 mb-3">Filters</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Date Range</label>
               <select
                 value={filters.dateRange}
                 onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
               >
                 <option value="all">All Time</option>
                 <option value="today">Today</option>
@@ -882,21 +814,21 @@ const SalesReturnManagement = ({ role }) => {
             {filters.dateRange === 'custom' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
                   <input
                     type="date"
                     value={filters.startDate}
                     onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
                   <input
                     type="date"
                     value={filters.endDate}
                     onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                   />
                 </div>
               </>
@@ -906,7 +838,7 @@ const SalesReturnManagement = ({ role }) => {
           <div className="flex gap-2">
             <button
               onClick={() => setFilters({ dateRange: 'all', reason: 'all', startDate: '', endDate: '' })}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Clear Filters
             </button>
@@ -916,11 +848,10 @@ const SalesReturnManagement = ({ role }) => {
     </div>
   );
 
-  // Pagination Component
   const PaginationComponent = () => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
-      <div className="flex items-center gap-4">
-        <p className="text-sm text-gray-600">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50">
+      <div className="flex items-center gap-3">
+        <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, safeFilteredReturns.length)} of {safeFilteredReturns.length} entries
         </p>
       </div>
@@ -930,12 +861,12 @@ const SalesReturnManagement = ({ role }) => {
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1
+            className={`flex items-center gap-1 px-2 py-1 text-xs border rounded-md transition-colors ${currentPage === 1
               ? 'border-gray-200 text-gray-400 cursor-not-allowed'
               : 'border-gray-300 text-gray-700 hover:bg-gray-100'
               }`}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
             Previous
           </button>
 
@@ -944,7 +875,7 @@ const SalesReturnManagement = ({ role }) => {
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${currentPage === page
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${currentPage === page
                   ? 'bg-primary-600 text-white'
                   : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
                   }`}
@@ -957,42 +888,38 @@ const SalesReturnManagement = ({ role }) => {
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages
+            className={`flex items-center gap-1 px-2 py-1 text-xs border rounded-md transition-colors ${currentPage === totalPages
               ? 'border-gray-200 text-gray-400 cursor-not-allowed'
               : 'border-gray-300 text-gray-700 hover:bg-gray-100'
               }`}
           >
             Next
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </button>
         </div>
       )}
     </div>
   );
 
-  // Card View Component (Mobile/Tablet)
   const CardView = () => (
     <div className="md:hidden">
-      <div className="grid grid-cols-1 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-3 mb-4">
         {currentItems.map((salesReturn) => (
           <div
             key={salesReturn.id || salesReturn.localId}
-            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${salesReturn?.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
+            className={`bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${salesReturn?.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
               }`}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    <RotateCcw size={20} />
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    <RotateCcw size={16} />
                   </div>
                   <div>
-                    {/* <h3 className="font-semibold text-gray-900">
-                      Return #{truncateId(salesReturn.id || salesReturn.localId)}
-                    </h3> */}
                     <div className="flex items-center gap-2 mt-1">
                       {!salesReturn?.synced && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full">
                           Pending sync
                         </span>
                       )}
@@ -1001,43 +928,45 @@ const SalesReturnManagement = ({ role }) => {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => openViewModal(salesReturn)}
-                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                >
-                  <Eye size={16} />
-                </button>
-                <button
-                  onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
-                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                >
-                  <Receipt size={16} />
-                </button>
+                <div className='flex gap-2'>
+                  <button
+                    onClick={() => openViewModal(salesReturn)}
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                  >
+                    <Eye size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                  >
+                    <Receipt size={14} />
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Hash size={14} />
+              <div className="space-y-1.5 mb-3">
+                <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                  <Hash size={12} />
                   <span>Transaction: {salesReturn.transactionId || 'N/A'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Package size={14} />
+                <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                  <Package size={12} />
                   <span>Items: {getTotalItemsCount(salesReturn)} ({getTotalQuantity(salesReturn)} qty)</span>
                 </div>
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <FileText size={14} className="mt-0.5" />
+                <div className="flex items-start gap-1.5 text-xs text-gray-600">
+                  <FileText size={12} className="mt-0.5" />
                   <span className="line-clamp-2">{getProductNames(salesReturn)}</span>
                 </div>
                 {salesReturn.reason && (
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <FileText size={14} className="mt-0.5" />
+                  <div className="flex items-start gap-1.5 text-xs text-gray-600">
+                    <FileText size={12} className="mt-0.5" />
                     <span className="line-clamp-2">Reason: {salesReturn.reason}</span>
                   </div>
                 )}
               </div>
 
-              <div className="pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
                   <Calendar size={12} />
                   <span>{formatDate(salesReturn.createdAt)}</span>
                 </div>
@@ -1047,129 +976,110 @@ const SalesReturnManagement = ({ role }) => {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <PaginationComponent />
       </div>
     </div>
   );
 
-  // Table View Component (Desktop)
   const TableView = () => (
-    <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200">
+    <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {currentItems.map((salesReturn, index) => (
               <tr key={salesReturn.id || salesReturn.localId} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
                     {startIndex + index + 1}
                   </span>
                 </td>
-
-                {/* <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {truncateId(salesReturn?.id || salesReturn?.localId)}
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-gray-900">
+                      {salesReturn.transactionId || 'N/A'}
                     </span>
-                    {!salesReturn.synced && (
-                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                    {!salesReturn?.synced && (
+                      <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full">
                         Offline
                       </span>
                     )}
                   </div>
-                </td> */}
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-medium text-gray-900">
-                    {salesReturn.transactionId || 'N/A'}
-                  </span>
-                  {!salesReturn?.synced && (
-                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                      Offline
-                    </span>
-                  )}
                 </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="text-xs text-gray-900">
                     <div className="font-medium">{getTotalItemsCount(salesReturn)} items</div>
                     <div className="text-gray-500">{getTotalQuantity(salesReturn)} qty total</div>
                   </div>
                 </td>
-
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <div className="max-w-xs">
-                    <span className="text-sm text-gray-900 line-clamp-2">
+                    <span className="text-xs text-gray-900 line-clamp-2">
                       {getProductNames(salesReturn)}
                     </span>
                   </div>
                 </td>
-
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <div className="max-w-xs">
                     {salesReturn.reason ? (
-                      <span className="text-sm text-gray-600 line-clamp-2">
+                      <span className="text-xs text-gray-600 line-clamp-2">
                         {salesReturn.reason}
                       </span>
                     ) : (
-                      <span className="text-sm text-gray-400 italic">No reason provided</span>
+                      <span className="text-xs text-gray-400 italic">No reason provided</span>
                     )}
                   </div>
                 </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-600">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-xs text-gray-600">
                     {formatDate(salesReturn.createdAt)}
                   </span>
                 </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <button
-                    onClick={() => openViewModal(salesReturn)}
-                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    title="View Details"
-                  >
-                    <Eye size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
-                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                  >
-                    <Receipt size={16} />
-                  </button>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className='flex gap-2'>
+                    <button
+                      onClick={() => openViewModal(salesReturn)}
+                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <Eye size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
+                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    >
+                      <Receipt size={14} />
+                    </button>
+                  </div>
                 </td>
-
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
       <PaginationComponent />
     </div>
   );
 
   return (
-    <div className="bg-gray-50 p-4 max-h-[90vh] overflow-y-auto sm:p-6 lg:p-8">
+    <div className="bg-gray-50 p-3 max-h-[90vh] overflow-y-auto sm:p-4 lg:p-6">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' :
+        <div className={`fixed top-3 right-3 z-50 flex items-center gap-1.5 px-3 py-2 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' :
           notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
           } animate-in slide-in-from-top-2 duration-300`}>
-          {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
-          {notification.message}
+          {notification.type === 'success' ? <Check size={14} /> : <AlertTriangle size={14} />}
+          <span className="text-xs">{notification.message}</span>
         </div>
       )}
 
@@ -1177,74 +1087,74 @@ const SalesReturnManagement = ({ role }) => {
 
       <div className="mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary-600 rounded-lg">
-                <RotateCcw className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-primary-600 rounded-lg">
+                <RotateCcw className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-3xl font-bold text-gray-900">Sales Return Management</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Sales Return Management</h1>
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            <div className="flex items-center gap-1.5">
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                 }`}>
-                {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
+                {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
                 {isOnline ? 'Online' : 'Offline'}
               </div>
               {isOnline && (
                 <button
                   onClick={handleManualSync}
                   disabled={isLoading}
-                  className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full transition-colors disabled:opacity-50"
+                  className="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full transition-colors disabled:opacity-50"
                 >
                   Sync
                 </button>
               )}
             </div>
           </div>
-          <p className="text-gray-600">Manage product returns and track returned inventory - works offline and syncs when online</p>
+          <p className="text-xs text-gray-600">Manage product returns and track returned inventory - works offline and syncs when online</p>
         </div>
 
         {/* Statistics */}
         {statistics && <StatisticsCards />}
 
         {/* Search and Actions Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
-          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 p-4">
+          <div className="flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center">
             <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search by transaction ID, reason, or return ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
               />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg font-medium transition-colors ${showFilters
+                className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg font-medium text-sm transition-colors ${showFilters
                   ? 'bg-primary-50 border-primary-200 text-primary-700'
                   : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
               >
-                <Filter size={20} />
+                <Filter size={16} />
                 Filters
               </button>
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
-                <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
+                <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
                 Refresh
               </button>
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+                className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm"
               >
-                <Plus size={20} />
+                <Plus size={16} />
                 Process Return
               </button>
             </div>
@@ -1256,26 +1166,26 @@ const SalesReturnManagement = ({ role }) => {
 
         {/* Content */}
         {isLoading ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-10">
             <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
-              <p className="text-gray-600">Loading sales returns...</p>
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mb-3"></div>
+              <p className="text-xs text-gray-600">Loading sales returns...</p>
             </div>
           </div>
         ) : safeFilteredReturns.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-10">
             <div className="text-center">
-              <RotateCcw className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No sales returns found</h3>
-              <p className="text-gray-600 mb-6">
+              <RotateCcw className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-base font-medium text-gray-900 mb-1">No sales returns found</h3>
+              <p className="text-xs text-gray-600 mb-4">
                 {searchTerm || showFilters ? 'Try adjusting your search terms or filters.' : 'No returns have been processed yet.'}
               </p>
               {!searchTerm && !showFilters && (
                 <button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  className="inline-flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
                 >
-                  <Plus size={20} />
+                  <Plus size={16} />
                   Process Your First Return
                 </button>
               )}
