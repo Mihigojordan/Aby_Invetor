@@ -622,7 +622,6 @@ const ProductManagement = ({ role }) => {
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -666,11 +665,6 @@ const ProductManagement = ({ role }) => {
                   <div className="flex items-center gap-2">
                     <Package size={14} className="text-gray-400" />
                     <span className="text-sm text-gray-900">{product.category?.name || 'No category'}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-xs text-gray-900 max-w-xs">
-                    <div className="line-clamp-2">{parseDescription(product.description)}</div>
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
