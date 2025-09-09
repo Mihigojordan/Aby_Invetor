@@ -18,6 +18,7 @@ export const NetworkStatusProvider = ({ children, retryInterval = 1000 }) => {
           await employeeOfflineAuthService.syncAllEmployees();
           await adminOfflineAuthService.syncAllAdmins();
           console.log("✅ Sync complete.");
+          alert("✅ Sync complete.");
         }
       } catch (err) {
         console.error("❌ Sync failed:", err.message);
