@@ -746,7 +746,7 @@ const StockOutManagement = ({ role }) => {
                     </h3>
                     <div className="flex items-center gap-1 mt-1">
                       <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                      <span className="text-xs text-gray-500">{stockOut.synced ? 'Active' : 'Syncing...'}</span>
+                      <span className="text-xs text-gray-500">{stockOut.synced ? 'synced' : 'Syncing...'}</span>
                       {stockOut.transactionId && (
                         <span
                           className="text-xs text-gray-500 font-mono underline cursor-pointer hover:text-gray-700"
@@ -859,7 +859,7 @@ const StockOutManagement = ({ role }) => {
                       </div>
                       <div className="flex items-center gap-1 mt-1">
                         <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                        <span className="text-xs text-gray-500">{stockOut.synced ? 'Active' : 'Syncing...'}</span>
+                        <span className="text-xs text-gray-500">{stockOut.synced ? 'synced' : 'Syncing...'}</span>
                         {stockOut.transactionId && (
                           <span
                             className="text-xs text-gray-500 font-mono underline cursor-pointer hover:text-gray-700"
@@ -898,7 +898,7 @@ const StockOutManagement = ({ role }) => {
                     }`}
                   >
                     <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    {stockOut.synced ? 'Active' : 'Syncing...'}
+                    {stockOut.synced ? 'synced' : 'Syncing...'}
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
