@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff, Trash2Icon } from 'lucide-react';
-
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff, RotateCcw } from 'lucide-react';
 import productService from '../../services/productService';
 import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockInModel';
 import DeleteStockInModal from '../../components/dashboard/stockin/DeleteStockInModel';
@@ -10,19 +8,17 @@ import { API_URL } from '../../api/api';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
 import stockOutService from '../../services/stockoutService';
-import stockInService from '../../services/stockinService'
+import stockInService from '../../services/stockinService';
 import { db } from '../../db/database';
 import { useStockInOfflineSync } from '../../hooks/useStockInOfflineSync';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 
-// Barcode Service Class
+// Barcode Service Class (unchanged)
 class BarcodeService {
   constructor() {
     this.API_URL = API_URL || 'http://localhost:3000';
   }
 
-  // Generate print-ready barcode HTML for a single item
   generateBarcodeHTML(stockItem) {
     return `
       <div style="
@@ -65,10 +61,8 @@ class BarcodeService {
     `;
   }
 
-  // Generate HTML for multiple barcodes
   generateMultipleBarcodeHTML(stockItems) {
     const barcodeHTMLs = stockItems.map(item => this.generateBarcodeHTML(item));
-
     return `
       <!DOCTYPE html>
       <html>
@@ -102,9 +96,7 @@ class BarcodeService {
           </div>
           
           <script>
-            // Auto-print when page loads
             window.onload = function() {
-              // Wait for images to load
               const images = document.querySelectorAll('img');
               let loadedImages = 0;
               
@@ -136,7 +128,6 @@ class BarcodeService {
                 setTimeout(() => window.print(), 500);
               }
               
-              // Fallback timeout
               setTimeout(() => window.print(), 3000);
             };
           </script>
@@ -145,28 +136,19 @@ class BarcodeService {
     `;
   }
 
-  // Print barcodes using window.print()
   async printBarcodes(stockItems) {
     if (!Array.isArray(stockItems)) {
       stockItems = [stockItems];
     }
-
     try {
-      // Wait for barcode images to be generated (give server time)
       await new Promise(resolve => setTimeout(resolve, 1000));
-
       const printHTML = this.generateMultipleBarcodeHTML(stockItems);
-
-      // Create a new window for printing
       const printWindow = window.open('', '_blank', 'width=800,height=600');
-
       if (!printWindow) {
         throw new Error('Popup blocked. Please allow popups for barcode printing.');
       }
-
       printWindow.document.write(printHTML);
       printWindow.document.close();
-
       return true;
     } catch (error) {
       console.error('Error printing barcodes:', error);
@@ -174,43 +156,32 @@ class BarcodeService {
     }
   }
 
-  // Alternative: Print using iframe (more reliable for some browsers)
   async printBarcodesViaIframe(stockItems) {
     if (!Array.isArray(stockItems)) {
       stockItems = [stockItems];
     }
-
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
-
       const printHTML = this.generateMultipleBarcodeHTML(stockItems);
-
-      // Create invisible iframe
       const iframe = document.createElement('iframe');
       iframe.style.position = 'absolute';
       iframe.style.top = '-1000px';
       iframe.style.left = '-1000px';
       iframe.style.width = '0';
       iframe.style.height = '0';
-
       document.body.appendChild(iframe);
-
       const doc = iframe.contentWindow.document;
       doc.open();
       doc.write(printHTML);
       doc.close();
-
-      // Wait for content to load then print
       iframe.onload = () => {
         setTimeout(() => {
           iframe.contentWindow.print();
-          // Remove iframe after printing
           setTimeout(() => {
             document.body.removeChild(iframe);
           }, 1000);
         }, 500);
       };
-
       return true;
     } catch (error) {
       console.error('Error printing barcodes via iframe:', error);
@@ -218,7 +189,6 @@ class BarcodeService {
     }
   }
 
-  // Print individual barcode
   async printSingleBarcode(stockItem) {
     return this.printBarcodes([stockItem]);
   }
@@ -226,7 +196,7 @@ class BarcodeService {
 
 const barcodeService = new BarcodeService();
 
-// Print Barcode Button Component
+// Print Barcode Button Component (updated styling)
 const PrintBarcodeButton = ({ stockItems, onPrint, showNotification }) => {
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -235,7 +205,6 @@ const PrintBarcodeButton = ({ stockItems, onPrint, showNotification }) => {
       showNotification('No items to print', 'warning');
       return;
     }
-
     setIsPrinting(true);
     try {
       await barcodeService.printBarcodes(stockItems);
@@ -253,19 +222,15 @@ const PrintBarcodeButton = ({ stockItems, onPrint, showNotification }) => {
     <button
       onClick={handlePrint}
       disabled={isPrinting || !stockItems || stockItems.length === 0}
-      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex items-center justify-center px-3 h-10 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg transition-colors shadow-sm text-sm"
+      title="Print Barcodes"
     >
       {isPrinting ? (
-        <>
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          Printing...
-        </>
+        <RefreshCw size={16} className="animate-spin" />
       ) : (
-        <>
-          <Printer size={16} />
-          Print Barcodes
-        </>
+        <Printer size={16} />
       )}
+      {isPrinting ? 'Printing...' : 'Print Barcodes'}
     </button>
   );
 };
@@ -281,31 +246,25 @@ const StockInManagement = ({ role }) => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedStockIn, setSelectedStockIn] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
   const { isOnline } = useNetworkStatusContext();
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
   const { triggerSync, syncError } = useStockInOfflineSync();
-
-
   const [itemsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
-
   const [recentlyAddedItems, setRecentlyAddedItems] = useState([]);
 
-
   useEffect(() => {
-    console.log('Starting loadData');
     loadData();
-    if (isOnline) handleManualSync()
+    if (isOnline) handleManualSync();
   }, [isOnline]);
-
 
   const fetchProducts = async () => {
     try {
       if (isOnline) {
-        // Assuming a productService.getAllProducts() exists, similar to categories
-        const response = await productService.getAllProducts(); // Adjust if needed
+        const response = await productService.getAllProducts();
         for (const p of response.products || response) {
           await db.products_all.put({
             id: p.id,
@@ -318,18 +277,14 @@ const StockInManagement = ({ role }) => {
           });
         }
       }
-
-      // 3. Merge all data (works offline too)
       const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.products_all.toArray(),
         db.products_offline_add.toArray(),
         db.products_offline_update.toArray(),
         db.products_offline_delete.toArray()
       ]);
-
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
       const combinedProducts = allProducts
         .filter(c => !deleteIds.has(c.id))
         .map(c => ({
@@ -339,23 +294,18 @@ const StockInManagement = ({ role }) => {
         }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-
       return combinedProducts;
     } catch (error) {
       console.error('Error fetching products:', error);
       if (!error?.response) {
-
-        // 3. Merge all data (works offline too)
         const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
           db.products_all.toArray(),
           db.products_offline_add.toArray(),
           db.products_offline_update.toArray(),
           db.products_offline_delete.toArray()
         ]);
-
         const deleteIds = new Set(offlineDeletes.map(d => d.id));
         const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
         const combinedProducts = allProducts
           .filter(c => !deleteIds.has(c.id))
           .map(c => ({
@@ -365,32 +315,29 @@ const StockInManagement = ({ role }) => {
           }))
           .concat(offlineAdds.map(a => ({ ...a, synced: false })))
           .sort((a, b) => a.synced - b.synced);
-
         return combinedProducts;
-
       }
-
     }
   };
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (showRefreshLoader = false) => {
+    if (showRefreshLoader) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const productData = await fetchProducts();
       setProducts(productData);
-
       if (isOnline) await triggerSync();
-
       const [allStockIns, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.stockins_all.toArray(),
         db.stockins_offline_add.toArray(),
         db.stockins_offline_update.toArray(),
         db.stockins_offline_delete.toArray()
       ]);
-
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
       const combinedStockIns = allStockIns
         .filter(s => !deleteIds.has(s.id))
         .map(s => ({
@@ -404,9 +351,11 @@ const StockInManagement = ({ role }) => {
           synced: false,
           product: productData.find(p => p.id === a.productId || p.localId === a.productId) || { productName: 'Unknown Product' }
         }))).sort((a, b) => a.synced - b.synced);
-
       setStockIns(combinedStockIns);
       setFilteredStockIns(combinedStockIns);
+      if (showRefreshLoader) {
+        showNotification('Stock entries refreshed successfully!');
+      }
       if (!isOnline && combinedStockIns.length === 0) {
         showNotification('No offline data available', 'error');
       }
@@ -415,6 +364,7 @@ const StockInManagement = ({ role }) => {
       showNotification('Failed to load stock-ins', 'error');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -450,26 +400,21 @@ const StockInManagement = ({ role }) => {
       if (!adminData?.id && !employeeData?.id) {
         throw new Error('User authentication required');
       }
-
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
-
       if (stockInData.purchases && Array.isArray(stockInData.purchases)) {
         const purchases = stockInData.purchases.map(purchase => ({
           ...purchase,
           ...userData,
-
           lastModified: now,
           createdAt: now,
           updatedAt: now
         }));
-
         const localIds = [];
         for (const purchase of purchases) {
-          const localId = await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity, });
+          const localId = await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity });
           localIds.push(localId);
         }
-
         if (isOnline) {
           try {
             const response = await stockInService.createMultipleStockIn(purchases, userData);
@@ -511,14 +456,11 @@ const StockInManagement = ({ role }) => {
           createdAt: now,
           updatedAt: now
         };
-
         if (!newStockIn.productId || !newStockIn.quantity || !newStockIn.price || !newStockIn.sellingPrice) {
           throw new Error('Missing required fields');
         }
-
         const localId = await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity });
         const savedStockIn = { ...newStockIn, localId, synced: false };
-
         if (isOnline) {
           try {
             const response = await stockInService.createStockIn(newStockIn);
@@ -551,7 +493,6 @@ const StockInManagement = ({ role }) => {
           showNotification('Stock entry saved offline (will sync when online)', 'warning');
         }
       }
-
       await loadData();
       setIsAddModalOpen(false);
     } catch (error) {
@@ -575,24 +516,19 @@ const StockInManagement = ({ role }) => {
     try {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
-
-
       
-            if (!isOnline && stockInData && stockInData.localId && !stockInData.synced) {
-      
-              const localId = await db.stockins_offline_add.update(stockInData.localId, {
-                ...stockInData,
-                ...userData,
-                lastModified: now,
-                updatedAt: now
-              })
-      
-              await loadData()
-              setIsEditModalOpen(false);
-              setSelectedProduct(null);
-              return
-            }
-
+      if (!isOnline && stockInData && stockInData.localId && !stockInData.synced) {
+        const localId = await db.stockins_offline_add.update(stockInData.localId, {
+          ...stockInData,
+          ...userData,
+          lastModified: now,
+          updatedAt: now
+        });
+        await loadData();
+        setIsEditModalOpen(false);
+        setSelectedStockIn(null);
+        return;
+      }
 
       const updatedData = {
         id: selectedStockIn.id,
@@ -666,7 +602,6 @@ const StockInManagement = ({ role }) => {
         await db.stockins_offline_add.delete(selectedStockIn.localId);
         showNotification('Stock entry deleted!');
       }
-
       await loadData();
       setIsDeleteModalOpen(false);
       setSelectedStockIn(null);
@@ -701,12 +636,10 @@ const StockInManagement = ({ role }) => {
     iframe.style.display = "none";
     document.body.appendChild(iframe);
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-
     let barcodeImages = "";
     for (let i = 0; i < item.quantity; i++) {
       barcodeImages += `<div class="barcode"><img src="${imgUrl}" alt="Barcode" /></div>`;
     }
-
     iframeDoc.write(`
       <html>
         <head>
@@ -738,10 +671,8 @@ const StockInManagement = ({ role }) => {
       </html>
     `);
     iframeDoc.close();
-
     const images = iframeDoc.querySelectorAll("img");
     let loadedCount = 0;
-
     images.forEach((img) => {
       img.onload = () => {
         loadedCount++;
@@ -755,6 +686,19 @@ const StockInManagement = ({ role }) => {
         document.body.removeChild(iframe);
       };
     });
+  };
+
+  const handlePrintSingleBarcode = async (stockIn) => {
+    try {
+      const stockWithProduct = {
+        ...stockIn,
+        product: stockIn.product || { productName: 'Unknown Product' }
+      };
+      await barcodeService.printSingleBarcode(stockWithProduct);
+      showNotification('Printing barcode...', 'success');
+    } catch (error) {
+      showNotification(`Print failed: ${error.message}`, 'error');
+    }
   };
 
   const openEditModal = (stockIn) => {
@@ -773,6 +717,7 @@ const StockInManagement = ({ role }) => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
@@ -794,25 +739,19 @@ const StockInManagement = ({ role }) => {
     return pages;
   };
 
-  // Print individual barcode from table/card
-  const handlePrintSingleBarcode = async (stockIn) => {
-    try {
-      const stockWithProduct = {
-        ...stockIn,
-        product: stockIn.product || { productName: 'Unknown Product' }
-      };
-      await barcodeService.printSingleBarcode(stockWithProduct);
-      showNotification('Printing barcode...', 'success');
-    } catch (error) {
-      showNotification(`Print failed: ${error.message}`, 'error');
-    }
+  const closeAllModals = () => {
+    setIsAddModalOpen(false);
+    setIsEditModalOpen(false);
+    setIsDeleteModalOpen(false);
+    setIsViewModalOpen(false);
+    setSelectedStockIn(null);
   };
 
   // Pagination Component
   const PaginationComponent = () => (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, (filteredStockIns || []).length)} of {(filteredStockIns || []).length} entries
         </p>
       </div>
@@ -821,9 +760,9 @@ const StockInManagement = ({ role }) => {
           <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${currentPage === 1 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
             Previous
           </button>
           <div className="flex items-center gap-1 mx-2">
@@ -831,7 +770,7 @@ const StockInManagement = ({ role }) => {
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${currentPage === page ? 'bg-primary-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+                className={`px-3 py-2 text-xs rounded-md transition-colors ${currentPage === page ? 'bg-primary-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-100'}`}
               >
                 {page}
               </button>
@@ -840,91 +779,104 @@ const StockInManagement = ({ role }) => {
           <button
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${currentPage === totalPages ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
           >
             Next
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </button>
         </div>
       )}
     </div>
   );
 
+  // Card View Component (Mobile/Tablet)
   const CardView = () => (
     <div className="md:hidden">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-        {(currentItems || []).map((stockIn) => (
-          <div key={stockIn.localId || stockIn.id} className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${stockIn.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'}`}>
+        {(currentItems || []).map((stockIn, index) => (
+          <div
+            key={stockIn.localId || stockIn.id}
+            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${stockIn.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'}`}
+          >
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
                     <Package size={20} />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{stockIn.product?.productName || 'Unknown Product'}</h3>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 truncate" title={stockIn.product?.productName || 'Unknown Product'}>
+                      {stockIn.product?.productName || 'Unknown Product'}
+                    </h3>
                     <div className="flex items-center gap-1 mt-1">
-                      {!stockIn.synced && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Pending sync</span>
-                      )}
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      <span className="text-xs text-gray-500">In Stock</span>
+                      <div className={`w-2 h-2 rounded-full ${stockIn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                      <span className="text-xs text-gray-500">{stockIn.synced ? 'In Stock' : 'Syncing...'}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-1">
-
+                  <button
+                    onClick={() => openViewModal(stockIn)}
+                    disabled={isLoading}
+                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="View Details"
+                  >
+                    <Eye size={16} />
+                  </button>
                   <button
                     onClick={() => handlePrint(stockIn)}
-                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    disabled={isLoading}
+                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="Print Barcode"
                   >
                     <Printer size={16} />
                   </button>
                   <button
                     onClick={() => openEditModal(stockIn)}
-                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    disabled={isLoading}
+                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="Edit"
                   >
                     <Edit3 size={16} />
                   </button>
-                
+                  <button
+                    onClick={() => openDeleteModal(stockIn)}
+                    disabled={isLoading}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
               <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Hash size={14} />
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <Hash size={14} className="mt-0.5" />
                   <span>Qty: {stockIn.quantity}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <DollarSign size={14} />
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <DollarSign size={14} className="mt-0.5" />
                   <span>Unit Price: {formatPrice(stockIn.price)}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <DollarSign size={14} />
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <DollarSign size={14} className="mt-0.5" />
                   <span className="font-medium">Total: {formatPrice(stockIn.price * stockIn.quantity)}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <DollarSign size={14} />
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <DollarSign size={14} className="mt-0.5" />
                   <span className="font-medium">Sell Price: {formatPrice(stockIn.sellingPrice)}</span>
                 </div>
                 {stockIn.supplier && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <User size={14} />
+                  <div className="flex items-start gap-2 text-sm text-gray-600">
+                    <User size={14} className="mt-0.5" />
                     <span className="truncate">{stockIn.supplier}</span>
                   </div>
                 )}
-              </div>
-              <div className="mb-4">
-                <div className="text-sm font-medium text-gray-700 mb-2">SKU & Barcode</div>
                 {stockIn.sku && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <Barcode size={14} className="text-gray-500" />
+                  <div className="flex items-start gap-2 text-sm text-gray-600">
+                    <Barcode size={14} className="mt-0.5" />
                     <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">{stockIn.sku}</span>
                   </div>
-                )}
-                {stockIn.barcodeUrl && (
-                  <img src={`${API_URL}${stockIn.barcodeUrl}`} alt="Barcode" className="h-8 object-contain" />
                 )}
               </div>
               <div className="pt-4 border-t border-gray-100">
@@ -943,118 +895,104 @@ const StockInManagement = ({ role }) => {
     </div>
   );
 
+  // Table View Component (Desktop)
   const TableView = () => (
     <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sell Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sell Price</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {(currentItems || []).map((stockIn, index) => (
               <tr key={stockIn.localId || stockIn.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">{startIndex + index + 1}</span>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">{startIndex + index + 1}</span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white">
-                      <Package size={16} />
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                      <Package size={14} />
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">{stockIn.product?.productName || 'Unknown Product'}</div>
-                      {!stockIn.synced && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Pending sync</span>
-                      )}
-                      {stockIn.sku && <div className="text-sm text-gray-500">{stockIn.sku}</div>}
+                      <div className="font-medium text-gray-900 text-sm">{stockIn.product?.productName || 'Unknown Product'}</div>
+                      {stockIn.sku && <div className="text-xs text-gray-500">{stockIn.sku}</div>}
                     </div>
                   </div>
                 </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-1">
-                    <Hash size={14} className="text-gray-400" />
-                    <span className="font-medium text-gray-900">
-                      {!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity ?? 0) : (stockIn.quantity ?? 0)}
-                    </span>
-
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="font-medium text-gray-900">{formatPrice(stockIn.price || 0)}</span>
-
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="font-semibold text-primary-600">
-                    {formatPrice(
-                      stockIn.price *
-                      (!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity) : stockIn.quantity)
-                    )}
-                  </span>
-
-                </td>
-
-
-
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="font-semibold text-primary-600">{formatPrice(stockIn.sellingPrice || 0)}</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-1">
-                    <Calendar size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-600">{formatDate(stockIn.createdAt || stockIn.lastModified)}</span>
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    {/* <button
-                      onClick={() => handlePrintSingleBarcode(stockIn)}
-                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                      title="Print Barcode"
-                    >
-                      <Printer size={16} />
-                    </button> */}
+                    <Hash size={12} className="text-gray-400" />
+                    <span className="text-xs text-gray-900">{!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity ?? 0) : (stockIn.quantity ?? 0)}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-xs text-gray-900">{formatPrice(stockIn.price || 0)}</span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-xs font-semibold text-primary-600">
+                    {formatPrice(stockIn.price * (!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity) : stockIn.quantity))}
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-xs font-semibold text-primary-600">{formatPrice(stockIn.sellingPrice || 0)}</span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stockIn.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${stockIn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    {stockIn.synced ? 'Active' : 'Syncing...'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={12} className="text-gray-400" />
+                    <span className="text-xs text-gray-600">{formatDate(stockIn.createdAt || stockIn.lastModified)}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => openViewModal(stockIn)}
-                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      disabled={isLoading}
+                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="View Details"
                     >
-                      <Eye size={16} />
+                      <Eye size={14} />
                     </button>
                     <button
                       onClick={() => handlePrint(stockIn)}
-                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      disabled={isLoading}
+                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="Print Barcode"
                     >
-                      <Printer size={16} />
+                      <Printer size={14} />
                     </button>
                     <button
                       onClick={() => openEditModal(stockIn)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      disabled={isLoading}
+                      className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="Edit"
                     >
-                      <Edit3 size={16} />
+                      <Edit3 size={14} />
                     </button>
-                    {/* <button
+                    <button
                       onClick={() => openDeleteModal(stockIn)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                      title="Edit"
+                      disabled={isLoading}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                      title="Delete"
                     >
-                      <Trash2Icon size={16} />
+                      <Trash2 size={14} />
                     </button>
-                 */}
                   </div>
                 </td>
               </tr>
@@ -1069,49 +1007,68 @@ const StockInManagement = ({ role }) => {
   return (
     <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'} animate-in slide-in-from-top-2 duration-300`}>
+        <div
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
+            notification.type === 'success' ? 'bg-green-500 text-white' :
+            notification.type === 'warning' ? 'bg-yellow-500 text-white' :
+            'bg-red-500 text-white'
+          } animate-in slide-in-from-top-2 duration-300`}
+        >
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>
       )}
       <div className="h-full overflow-y-auto mx-auto">
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary-600 rounded-lg"><Package className="w-6 h-6 text-white" /></div>
-              <h1 className="text-3xl font-bold text-gray-900">Stock In Management</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-                {isOnline ? 'Online' : 'Offline'}
+              <div className="p-2 bg-primary-600 rounded-lg">
+                <Package className="w-6 h-6 text-white" />
               </div>
-              {isOnline && (
-                <button
-                  onClick={handleManualSync}
-                  disabled={isLoading}
-                  className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full transition-colors disabled:opacity-50"
-                >
-                  Sync
-                </button>
-              )}
+              <h1 className="text-2xl font-bold text-gray-900">Stock In Management</h1>
             </div>
           </div>
-          <p className="text-gray-600">Manage your inventory stock entries and track incoming stock - works offline and syncs when online</p>
+          <p className="text-sm text-gray-600">Manage your inventory stock entries and track incoming stock - works offline and syncs when online</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-4">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
             <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search by product, supplier, or SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
+              <div
+                className={`flex items-center justify-center w-10 h-10 rounded-lg ${isOnline ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
+                title={isOnline ? 'Online' : 'Offline'}
+              >
+                {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+              </div>
+              {isOnline && (
+                <button
+                  onClick={handleManualSync}
+                  disabled={isLoading}
+                  className="flex items-center justify-center w-10 h-10 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  title="Sync now"
+                >
+                  <RotateCcw size={16} className={isLoading ? 'animate-spin' : ''} />
+                </button>
+              )}
+              {isOnline && (
+                <button
+                  onClick={() => loadData(true)}
+                  disabled={isRefreshing}
+                  className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  title="Refresh"
+                >
+                  <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                </button>
+              )}
               {recentlyAddedItems.length > 0 && (
                 <PrintBarcodeButton
                   stockItems={recentlyAddedItems}
@@ -1121,18 +1078,22 @@ const StockInManagement = ({ role }) => {
               )}
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+                disabled={isLoading}
+                className="flex items-center justify-center px-3 h-10 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm"
+                title="Add Stock Entry"
               >
-                <Plus size={20} />
+                <Plus size={16} />
                 Add Stock Entry
               </button>
             </div>
           </div>
         </div>
-        {isLoading ? (
+        {isLoading && !isRefreshing ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            <p className="text-gray-600 mt-4">Loading stock entries...</p>
+            <div className="inline-flex items-center gap-3">
+              <RefreshCw className="w-5 h-5 animate-spin text-primary-600" />
+              <p className="text-gray-600">Loading stock entries...</p>
+            </div>
           </div>
         ) : (filteredStockIns || []).length === 0 ? (
           <div className="text-center py-12">
@@ -1157,11 +1118,7 @@ const StockInManagement = ({ role }) => {
         )}
         <UpsertStockInModal
           isOpen={isAddModalOpen || isEditModalOpen}
-          onClose={() => {
-            setIsAddModalOpen(false);
-            setIsEditModalOpen(false);
-            setSelectedStockIn(null);
-          }}
+          onClose={closeAllModals}
           onSubmit={isEditModalOpen ? handleEditStockIn : handleAddStockIn}
           stockIn={selectedStockIn}
           products={products}
@@ -1170,18 +1127,12 @@ const StockInManagement = ({ role }) => {
         />
         <ViewStockInModal
           isOpen={isViewModalOpen}
-          onClose={() => {
-            setIsViewModalOpen(false);
-            setSelectedStockIn(null);
-          }}
+          onClose={closeAllModals}
           stockIn={selectedStockIn}
         />
         <DeleteStockInModal
           isOpen={isDeleteModalOpen}
-          onClose={() => {
-            setIsDeleteModalOpen(false);
-            setSelectedStockIn(null);
-          }}
+          onClose={closeAllModals}
           onConfirm={handleConfirmDelete}
           stockIn={selectedStockIn}
           isLoading={isLoading}
