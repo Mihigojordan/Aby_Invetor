@@ -1,14 +1,14 @@
 
-import { 
-  Package, 
-  Users, 
-  TrendingUp, 
-  AlertTriangle, 
-  Search, 
-  Bell, 
-  Settings, 
-  LogOut, 
-  Plus, 
+import {
+  Package,
+  Users,
+  TrendingUp,
+  AlertTriangle,
+  Search,
+  Bell,
+  Settings,
+  LogOut,
+  Plus,
   Filter,
   Download,
   Eye,
@@ -29,12 +29,11 @@ import { NetworkStatusProvider } from './context/useNetworkContext';
 // Main App Component
 const App = () => {
 
-  return( 
+  return (
     <NetworkStatusProvider retryInterval={3000}>
-
-  <RouterProvider router={routes}></RouterProvider>
+      <RouterProvider router={routes}></RouterProvider>
     </NetworkStatusProvider>
-)
+  )
 };
 
 export default App;
