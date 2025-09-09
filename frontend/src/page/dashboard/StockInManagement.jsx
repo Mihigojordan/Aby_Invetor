@@ -1079,7 +1079,8 @@ const StockInManagement = ({ role }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-primary-600 rounded-lg"><Package className="w-6 h-6 text-white" /></div>
-              <h1 className="text-3xl font-bold text-gray-900">Stock In Management</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Manage Stock</h1>
+              {/* <h1 className="text-3xl font-bold text-gray-900">Stock In Management</h1> */}
             </div>
             <div className="flex items-center gap-2">
               <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>

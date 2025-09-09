@@ -63,7 +63,7 @@ export class EmployeeManagmentController {
   }
 
   @Get('all')
-  @UseGuards(AdminJwtAuthGuard)
+  // @UseGuards(AdminJwtAuthGuard)
   async getAllEmployee() {
     try {
       return await this.employeeServices.getAllEmployee();

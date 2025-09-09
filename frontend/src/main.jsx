@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import { AdminAuthContextProvider } from './context/AdminAuthContext.jsx'
 import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
+import { NetworkStatusProvider } from './context/useNetworkContext.jsx'
 
 
 // // PWA Auto-Update Registration
@@ -104,6 +105,8 @@ import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
+     <NetworkStatusProvider retryInterval={3000}>
+
 
     <AdminAuthContextProvider>
       <EmployeeAuthContextProvider>
@@ -111,5 +114,6 @@ createRoot(document.getElementById('root')).render(
       </EmployeeAuthContextProvider>
     </AdminAuthContextProvider>
 
+     </NetworkStatusProvider>
   </StrictMode>,
 )

@@ -16,7 +16,7 @@ async syncStockIns(skipLocalFetch) {
   if (this.syncLock) {
     console.log('Sync already in progress, waiting for completion...');
     await this.syncLock;
-    return { success: false, error: 'Sync was already in progress' };
+    return { success: false,  };
   }
 
   if (!(await isOnline())) {

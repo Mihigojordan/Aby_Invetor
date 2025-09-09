@@ -5,10 +5,26 @@ import { API_URL } from '../../api/api';
 import GeneralInformation from '../../components/dashboard/employee/GeneralInformation';
 import ChangePassword from '../../components/dashboard/employee/ChangePassword';
 import WorkPerformance from '../../components/dashboard/employee/WorkPerformance';
+import { decrypt, encrypt } from '../../utils/Encryption';
+
 
 const EmployeeProfile = ({}) => {
   const [activeTab, setActiveTab] = useState('general');
   const { user: employee } = useEmployeeAuth();
+
+
+  // Usage
+const secret = "Hello World!";
+const encrypted = encrypt(secret).then(encrypted=>{
+  console.warn("Encrypted:", encrypted);
+
+  const decrypted = decrypt(encrypted).then((decrypted)=>{
+  
+    console.warn("Decrypted:", decrypted);
+  });
+});
+
+
 
   // Get tab from URL params on component mount
   useEffect(() => {
@@ -99,7 +115,7 @@ const EmployeeProfile = ({}) => {
         <div className="flex-1 p-4 h-[85vh] overflow-auto ">
           {activeTab === 'general' && <GeneralInformation employee={employee} formatDate={formatDate} getStatusBadge={getStatusBadge} />}
           {activeTab === 'password' && <ChangePassword employee={employee} />}
-          {activeTab === 'performance' && <WorkPerformance />}
+          {activeTab === 'performance' && <WorkPerformance employee={employee} />}
         </div>
       </div>
     </div>

@@ -963,6 +963,7 @@ const StockOutManagement = ({ role }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Sold</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -1029,9 +1030,19 @@ const StockOutManagement = ({ role }) => {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
+                  
                   {stockOut.soldPrice ? (
                     <span className="font-medium text-gray-900">
-                      {formatPrice(stockOut.soldPrice)}
+                      {formatPrice(stockOut.soldPrice )}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">N/A</span>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {stockOut.soldPrice  ? (
+                    <span className="font-medium text-gray-900">
+                      {formatPrice(stockOut?.soldPrice * stockOut?.quantity)}
                     </span>
                   ) : (
                     <span className="text-sm text-gray-400">N/A</span>

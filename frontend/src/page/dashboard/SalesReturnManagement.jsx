@@ -10,6 +10,9 @@ import { db } from '../../db/database';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import { useSalesReturnOfflineSync } from '../../hooks/useSalesReturnOfflineSync';
 import stockOutService from '../../services/stockoutService';
+import stockInService from '../../services/stockinService';
+import backOrderService from '../../services/backOrderService';
+import productService from '../../services/productService';
 
 const SalesReturnManagement = ({ role }) => {
   const [salesReturns, setSalesReturns] = useState([]);

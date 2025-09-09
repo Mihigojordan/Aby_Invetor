@@ -1,3 +1,4 @@
+// ./db/database.js
 import Dexie from 'dexie';
 
 export class AppDatabase extends Dexie {
@@ -51,14 +52,56 @@ export class AppDatabase extends Dexie {
       sales_return_items_offline_update: 'id, salesReturnId, stockoutId, quantity, adminId, employeeId, updatedAt',
       sales_return_items_offline_delete: 'id, deletedAt, adminId, employeeId',
       synced_sales_return_item_ids: 'localId, serverId, syncedAt',
+
+      // employee
+      employees_all: "id, firstname, lastname, email, phoneNumber, address, status, profileImg, cv, identityCard, password, encryptedPassword, isLocked, createdAt, updatedAt",
+      // admin
+      admins_all: "id, adminName, adminEmail, password, encryptedPassword, isLocked, createdAt, updatedAt",
     }).upgrade(trans => {
       // migrate existing data logic (optional for new tables)
+      trans.products_offline_add?.toCollection().modify(record => {
+        if (record.id) {
+          trans.products_offline_update.put(record);
+          trans.products_offline_add.delete(record.localId);
+        }
+      });
+
+      trans.categories_offline_add?.toCollection().modify(record => {
+        if (record.id) {
+          trans.categories_offline_update.put(record);
+          trans.categories_offline_add.delete(record.localId);
+        }
+      });
+
+      trans.stockins_offline_add?.toCollection().modify(record => {
+        if (record.id) {
+          trans.stockins_offline_update.put(record);
+          trans.stockins_offline_add.delete(record.localId);
+        }
+      });
+
+      trans.stockouts_offline_add?.toCollection().modify(record => {
+        if (record.id) {
+          trans.stockouts_offline_update.put(record);
+          trans.stockouts_offline_add.delete(record.localId);
+        }
+      });
+
+      trans.backorders_offline_add?.toCollection().modify(record => {
+        if (record.id) {
+          // if you have a backorders_offline_update table, move here
+          // trans.backorders_offline_update.put(record);
+          // else just leave it
+        }
+      });
+
       trans.sales_returns_offline_add?.toCollection().modify(ret => {
         if (ret.id) {
           trans.sales_returns_offline_update.put(ret);
           trans.sales_returns_offline_add.delete(ret.localId);
         }
       });
+
       trans.sales_return_items_offline_add?.toCollection().modify(item => {
         if (item.id) {
           trans.sales_return_items_offline_update.put(item);
@@ -113,6 +156,12 @@ export class AppDatabase extends Dexie {
     this.sales_return_items_offline_update = this.table('sales_return_items_offline_update');
     this.sales_return_items_offline_delete = this.table('sales_return_items_offline_delete');
     this.synced_sales_return_item_ids = this.table('synced_sales_return_item_ids');
+
+    // admins
+    this.admins_all = this.table('admins_all');
+
+    // employees
+    this.employees_all = this.table('employees_all');
   }
 }
 

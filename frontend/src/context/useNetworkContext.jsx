@@ -1,14 +1,31 @@
 // contexts/NetworkStatusContext.js
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { employeeOfflineAuthService } from '../services/offline-auth/employeeOfflineAuthService';
+import { adminOfflineAuthService } from '../services/offline-auth/adminOfflineAuthService';
 
 const NetworkStatusContext = createContext();
 
 export const NetworkStatusProvider = ({ children, retryInterval = 1000 }) => {
   const networkStatus = useNetworkStatus(retryInterval);
 
-  
-  
+  useEffect(() => {
+    const syncData = async () => {
+      try {
+        // Only run if online
+        if (networkStatus.isOnline) {
+          console.log("🔄 Syncing employees and admins...");
+          await employeeOfflineAuthService.syncAllEmployees();
+          await adminOfflineAuthService.syncAllAdmins();
+          console.log("✅ Sync complete.");
+        }
+      } catch (err) {
+        console.error("❌ Sync failed:", err.message);
+      }
+    };
+
+    syncData();
+  }, [networkStatus.isOnline]);
   return (
     <NetworkStatusContext.Provider value={networkStatus}>
       {children}

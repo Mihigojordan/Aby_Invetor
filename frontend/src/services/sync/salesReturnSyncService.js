@@ -19,7 +19,10 @@ class SalesReturnSyncService {
     if (this.syncLock) {
       console.log('Sales return sync already in progress, waiting for completion...');
       await this.syncLock;
-      return { success: false, error: 'Sync was already in progress' };
+      return { 
+        success: false,
+        //  error: 'Sync was already in progress'
+         };
     }
 
     if (!(await isOnline())) {

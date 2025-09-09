@@ -595,10 +595,7 @@ const ProductManagement = ({ role }) => {
                   <Package size={14} />
                   <span className="truncate">{product.category?.name || 'No category'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Image size={14} />
-                  <span>{product.imageUrls?.length || 0} image{(product.imageUrls?.length || 0) !== 1 ? 's' : ''}</span>
-                </div>
+                
               </div>
 
               {product.description && (
@@ -640,7 +637,7 @@ const ProductManagement = ({ role }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Images</th>
+    
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -698,15 +695,7 @@ const ProductManagement = ({ role }) => {
                   </div>
                 </td>
 
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <Image size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-600">
-                      {product.imageUrls?.length || 0} image{(product.imageUrls?.length || 0) !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </td>
-
+               
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-gray-400" />

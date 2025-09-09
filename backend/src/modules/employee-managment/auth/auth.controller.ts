@@ -30,6 +30,9 @@ export class EmployeeAuthController {
         console.log('error getting token');
       }
 
+      console.log('loggin in it :',req);
+      
+
       res.cookie('AccessEmployeeToken', token, {
         httpOnly: true,
         secure: true, // Set to true in production

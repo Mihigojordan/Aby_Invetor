@@ -29,6 +29,25 @@ class AdminAuthService {
         }
     }
 
+        /**
+     * Get all Admins
+     * @returns {Promise<Array>} Array of all Admins with their tasks
+     */
+    async getAllAdmins() {
+        try {
+            const response = await api.get('/admin/all');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching Admins:', error);
+            const errorMessage =
+                error.response.data.message ||
+                error.response.data.error ||
+                error.message ||
+                'Failed to fetch Admins';
+            throw new Error(errorMessage);
+        }
+    }
+
     /**
      * Admin login
      * @param {Object} loginData - Admin login data

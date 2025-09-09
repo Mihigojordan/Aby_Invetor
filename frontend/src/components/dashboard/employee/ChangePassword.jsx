@@ -1,11 +1,14 @@
 import employeeService from '../../../services/employeeService';
-import { User, Mail, Eye, EyeOff, Lock, Save } from 'lucide-react';
+import { User, Mail, Eye, EyeOff, Lock, Save, WifiOff, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
+import { useNetworkStatusContext } from '../../../context/useNetworkContext';
 
 const ChangePassword = ({ employee }) => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const {isOnline} = useNetworkStatusContext()
+
   const [passwordForm, setPasswordForm] = useState({
     email: employee?.email || '',
     fullname: `${employee?.firstname || ''} ${employee?.lastname || ''}`.trim(),
@@ -105,6 +108,45 @@ const ChangePassword = ({ employee }) => {
       setIsUpdating(false);
     }
   };
+
+  if (!isOnline) {
+    return (
+      <div className="max-h-[90vh] overflow-y-auto bg-gray-50">
+        <div className=" border-b border-gray-200">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Change Password</h1>
+                <p className="text-gray-600 mt-1">
+                  Hello, {employee?.firstname} {employee?.lastname}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center min-h-96 p-4">
+          <div className="text-center max-w-md mx-auto">
+            <div className="mb-6">
+              <WifiOff className="w-16 sm:w-24 h-16 sm:h-24 text-gray-300 mx-auto mb-4" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-700 mb-4">Offline Warning</h2>
+            <p className="text-gray-500 mb-6 leading-relaxed text-sm sm:text-base">
+              ⚠️ You must be online to change your password. Please check your internet connection and try again.
+            </p>
+
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm sm:text-base"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Retry</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

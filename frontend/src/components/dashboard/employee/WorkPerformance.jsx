@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Activity, Calendar, Clock, ChevronLeft, ChevronRight, RefreshCw, User, FileText, AlertTriangle, Check } from 'lucide-react';
+import { Search, Activity, Calendar, Clock, ChevronLeft, ChevronRight, RefreshCw, User, FileText, AlertTriangle, Check, WifiOff } from 'lucide-react';
 import employeeService from '../../../services/employeeService';
 import useEmployeeAuth from '../../../context/EmployeeAuthContext';
+import { useNetworkStatusContext } from '../../../context/useNetworkContext';
 
 const WorkPerformance = ({employee,notAsEmployee=false}) => {
     const [activities, setActivities] = useState([]);
@@ -17,7 +18,7 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
 
-   
+   const {isOnline} = useNetworkStatusContext()
 
     // Fetch employee activities
     const fetchActivities = async (showRefreshLoader = false) => {
@@ -337,6 +338,50 @@ const WorkPerformance = ({employee,notAsEmployee=false}) => {
             <PaginationComponent />
         </div>
     );
+
+     if (!isOnline) {
+    return (
+      <div className=" min-h-[70vh] overflow-y-auto bg-gray-50">
+        <div className=" border-b border-gray-200">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-primary-600 rounded-lg">
+                            <Activity className="w-6 h-6 text-white" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-gray-900">Work Performance</h1>
+                    </div>
+                <p className="text-gray-600 mt-1">
+                  Hello, {employee?.firstname} {employee?.lastname}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center min-h-96 p-4">
+          <div className="text-center max-w-md mx-auto">
+            <div className="mb-6">
+              <WifiOff className="w-16 sm:w-24 h-16 sm:h-24 text-gray-300 mx-auto mb-4" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-700 mb-4">Offline Warning</h2>
+            <p className="text-gray-500 mb-6 leading-relaxed text-sm sm:text-base">
+              ⚠️ You must be online to view work performance data. Please check your internet connection and try again.
+            </p>
+
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm sm:text-base"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Retry</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
     return (
         <div className="bg-gray-50 p-4 ">

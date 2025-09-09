@@ -53,6 +53,17 @@ export class AdminController {
     }
   }
 
+    @Get('all')
+  // @UseGuards(AdminJwtAuthGuard)
+  async getAllAdmin() {
+    try {
+      return await this.adminServices.getAllAdmins();
+    } catch (error) {
+      console.error('error getting  admins', error);
+      throw new HttpException(error.message, error.status);
+    }
+  }
+
   @Post('logout')
   @UseGuards(AdminJwtAuthGuard)
   async logoutByHost(

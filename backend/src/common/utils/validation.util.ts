@@ -4,6 +4,6 @@ export function isValidEmail(email: string): boolean {
 }
 
 export function isPhoneValid(phone: string): boolean {
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+  const phoneRegex = /^\+?[\d\s\-().]{7,20}$/;
   return phoneRegex.test(phone);
 }

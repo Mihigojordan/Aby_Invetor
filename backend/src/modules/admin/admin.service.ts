@@ -54,6 +54,16 @@ export class AdminService {
     }
   }
 
+    async getAllAdmins() {
+    try {
+      const admins = await this.prisma.admin.findMany();
+      return admins;
+    } catch (error) {
+      console.error('error getting   admins', error);
+      throw new Error(error.message);
+    }
+  }
+
   async registerAdmin(data: {
     adminName: string;
     adminEmail: string;
@@ -97,6 +107,9 @@ export class AdminService {
      
 
       const admin = await this.findAdminByEmail(adminEmail);
+
+      console.log('LOGGING IN :',admin);
+      
 
       if (!admin) throw new UnauthorizedException('this admin doesnt exist');
 
@@ -203,7 +216,7 @@ export class AdminService {
         });
       }
 
-      res.clearCookie('AccessHostToken', {
+      res.clearCookie('AccessAdminToken', {
         httpOnly: true,
         secure: true, // <-- Required for SameSite=None in production
         sameSite: 'none', // <-- Required for cross-origin cookies
