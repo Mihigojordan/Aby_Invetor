@@ -10,21 +10,26 @@ const UpsertTaskModal = ({ isOpen, onClose, onSubmit, task, isLoading, title }) 
     const [errors, setErrors] = useState({});
 
     // Define the task type options
-    const taskOptions = [
-        {
-            value: 'saling',
-            title: 'Saling',
-            fullName: 'saling',
-            description: 'Permission to record items leaving inventory due to sales, transfers, or other stock-out activities. Reduces available stock levels.'
-        },
-        {
-            value: 'receiving',
-            title: 'Receiving', 
-            fullName: 'receiving',
-            description: 'Permission to record items entering inventory through purchases, returns, or other stock-in activities. Increases available stock levels.'
-        }
-    ];
-
+ const taskOptions = [
+    {
+        value: 'saling',
+        title: 'Saling',
+        fullName: 'saling',
+        description: 'Permission to record items leaving inventory due to sales, transfers, or other stock-out activities. Reduces available stock levels.'
+    },
+    {
+        value: 'receiving',
+        title: 'Receiving', 
+        fullName: 'receiving',
+        description: 'Permission to record items entering inventory through purchases, returns, or other stock-in activities. Increases available stock levels.'
+    },
+    {
+        value: 'returning',
+        title: 'Returning',
+        fullName: 'returning',
+        description: 'Permission to record items being returned back into inventory after being sold, rented, or issued. Restores stock levels.'
+    }
+];
     useEffect(() => {
         if (task) {
             setFormData({
