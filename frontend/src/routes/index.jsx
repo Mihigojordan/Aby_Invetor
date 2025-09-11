@@ -278,6 +278,16 @@ const routes = createBrowserRouter([
                                 path:'profile',
                                 element: <SuspenseWrapper> <EmployeeProfile /> </SuspenseWrapper>
                             },
+
+                             {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
           
                             {
                                 path: "stockin",

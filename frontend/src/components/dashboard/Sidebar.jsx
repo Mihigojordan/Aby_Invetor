@@ -210,6 +210,12 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           path: "/employee/dashboard/sales-return",
           taskname: ["returning", "return"],
         },
+        {
+         key: "sales-report",
+         label: "Sales Report",
+         path: "/employee/dashboard/sales-report",
+         taskname: ["saling", "selling", "sales", "stockout"],
+       },
       ],
     },
     {
