@@ -19,7 +19,7 @@ import { db } from '../../../db/database';
 import productService from '../../../services/productService';
 import { useNetworkStatusContext } from '../../../context/useNetworkContext';
 
-const BackOrderDashboard = () => {
+const BackOrderDashboard = ({role}) => {
   const [dashboardData, setDashboardData] = useState({
     totalBackOrders: 0,
     totalBackOrderValue: 0,

@@ -26,7 +26,7 @@ import stockInService from '../../services/stockinService';
 import backOrderService from '../../services/backOrderService';
 import productService from '../../services/productService';
 
-const SalesReportPage = () => {
+const SalesReportPage = (role) => {
   const [salesData, setSalesData] = useState([]);
   const [filteredSalesData, setFilteredSalesData] = useState([]);
   const { isOnline } = useNetworkStatusContext();
@@ -354,7 +354,7 @@ const SalesReportPage = () => {
       title: 'Error',
       text: 'No stock-out ID provided'
     });
-    navigate(`/admin/dashboard/sales-report/stockout/${ID}`);
+    navigate(`/${role}/dashboard/sales-report/stockout/${ID}`);
   };
 
   const calculateStats = (data) => {
@@ -431,7 +431,7 @@ const SalesReportPage = () => {
         icon: DollarSign,
         bgColor: 'bg-green-50',
         color: 'text-green-600',
-        path: '/admin/dashboard/stockout',
+        path: role == 'admin' ? '/admin/dashboard/stockout' : '/employee/dashboard/stockout',
       },
       {
         title: 'Total Quantity Sold',
@@ -440,7 +440,7 @@ const SalesReportPage = () => {
         icon: ShoppingCart,
         bgColor: 'bg-blue-50',
         color: 'text-blue-600',
-        path: '/admin/dashboard/stockout',
+        path: role == 'admin' ? '/admin/dashboard/stockout' : '/employee/dashboard/stockout',
       },
       {
         title: 'Lowest Stock Out',
@@ -449,7 +449,7 @@ const SalesReportPage = () => {
         icon: TrendingDown,
         bgColor: 'bg-red-50',
         color: 'text-red-600',
-        path: '/admin/dashboard/sales-report/stockout-analysis',
+        path: role == 'admin' ? '/admin/dashboard/sales-report/stockout-analysis' :  '/employee/dashboard/sales-report/stockout-analysis',
       },
       {
         title: 'Highest Stock Out',
@@ -458,7 +458,7 @@ const SalesReportPage = () => {
         icon: TrendingUp,
         bgColor: 'bg-green-50',
         color: 'text-green-600',
-        path: '/admin/dashboard/sales-report/stockout-analysis',
+        path: role == 'admin' ?  '/admin/dashboard/sales-report/stockout-analysis' : '/employee/dashboard/sales-report/stockout-analysis',
       },
       {
         title: 'Non-Stock Sales',
@@ -469,7 +469,7 @@ const SalesReportPage = () => {
         icon: ShoppingCart,
         bgColor: 'bg-red-50',
         color: 'text-red-600',
-        path: '/admin/dashboard/sales-report/non-stock-analysis',
+        path: role == 'admin ' ? '/admin/dashboard/sales-report/non-stock-analysis' : '/employee/dashboard/sales-report/non-stock-analysis',
       },
     ]);
   };
