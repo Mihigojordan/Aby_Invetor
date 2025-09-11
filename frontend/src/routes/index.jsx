@@ -298,6 +298,54 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                                  {
+                                path:"sales-report",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <SalesReportPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/stockout/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <ViewStockoutReport role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/stockout-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <StockOutAnalysisPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/non-stock-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <BackOrderDashboard role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/transaction-analysis",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <TransactionAnalysis role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
+                            {
+                                path:"sales-report/transaction-analysis/:id",
+                                 element: (
+                                    <SuspenseWrapper>
+                                        <TransactionAnalysisDetails role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+                            },
                              {
                                 path: "category",
                                 element: (
