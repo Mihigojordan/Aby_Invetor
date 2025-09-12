@@ -207,7 +207,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
       setFormData({
         stockinId: stockOut.stockinId || '',
         backorderId: stockOut.backorderId || '',
-        quantity: stockOut.quantity || '',
+        quantity:  stockOut.offlineQuantity  ?? stockOut.quantity ?? '',
         soldPrice: stockOut.soldPrice || '', // Add this
         clientName: stockOut.clientName || '',
         clientEmail: stockOut.clientEmail || '',

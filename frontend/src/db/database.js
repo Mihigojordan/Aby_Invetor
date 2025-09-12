@@ -23,7 +23,7 @@ export class AppDatabase extends Dexie {
 
       // stockin
       stockins_all: 'id, productId, quantity, price, sellingPrice, supplier, sku, barcodeUrl, lastModified, updatedAt',
-      stockins_offline_add: '++localId, productId, quantity, price, sellingPrice, supplier, adminId, employeeId, lastModified, createdAt, updatedAt',
+      stockins_offline_add: '++localId, productId, quantity, offlineQuantity, price, sellingPrice, supplier, adminId, employeeId, lastModified, createdAt, updatedAt',
       stockins_offline_update: 'id, productId, quantity, price, sellingPrice, supplier, adminId, employeeId, lastModified, updatedAt',
       stockins_offline_delete: 'id, deletedAt, adminId, employeeId',
       synced_stockin_ids: 'localId, serverId, syncedAt',

@@ -552,7 +552,7 @@ const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, 
                   </div>
                   <div className="flex justify-between">
                     <span>{item.quantity}x{formatCurrency( item.soldPrice )}</span>
-                    <span className="font-bold">{formatCurrency(item.soldPrice ) * item.quantity}</span>
+                    <span className="font-bold">{formatCurrency(item.soldPrice * (item?.quantity || 0) ) }</span>
                   </div>
                 </div>
               ))}

@@ -265,7 +265,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
   };
 
   // Calculate totals
-  const total = creditNoteData?.items?.reduce((sum, item) => sum + item.stockout.soldPrice, 0) || 0;
+  const total = creditNoteData?.items?.reduce((sum, item) => sum + (item.stockout.soldPrice * item?.quantity), 0) || 0;
   const itemCount = creditNoteData?.items?.length || 0;
 
   const formatCurrency = (amount) => {
@@ -532,8 +532,8 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
                       {item.stockout?.stockin?.product?.productName || item.stockout?.backorder?.productName || `ITEM ${index + 1}`}
                     </div>
                     <div className="flex justify-between">
-                      <span>{item.quantity}x{formatCurrency(item.stockout.soldPrice / item.quantity)}</span>
-                      <span className="font-bold text-neutral-600">-{formatCurrency(item.stockout.soldPrice)}</span>
+                      <span>{item.quantity}x{formatCurrency(item.stockout.soldPrice )}</span>
+                      <span className="font-bold text-neutral-600">-{formatCurrency(item.stockout.soldPrice * item.quantity )}</span>
                     </div>
                   </div>
                 ))}

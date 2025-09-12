@@ -172,7 +172,7 @@ const SalesReturnManagement = ({ role }) => {
         .map(so => ({
           ...so,
           ...updateMap.get(so.id),
-          synced: true,
+          synced:updateMap.get(so.id) ? false : true ,
           stockin: stockinMap.get(so.stockinId),
           backorder: backOrderMap.get(so.backorderId)
         }))
@@ -583,36 +583,62 @@ const SalesReturnManagement = ({ role }) => {
     }
   };
 
-  const restoreStockQuantity = async (stockoutId, returnQuantity) => {
-    try {
-      const stockout = await db.stockouts_all.get(stockoutId) ||
-        await db.stockouts_offline_add.where('localId').equals(stockoutId).first();
+const restoreStockQuantity = async (stockoutId, returnQuantity) => {
+  try {
+    // Find stockout from either online or offline tables
+    const stockout =
+      (await db.stockouts_all.get(stockoutId)) ||
+      (await db.stockouts_offline_add.where('localId').equals(stockoutId).first()) ||
+      (await db.stockouts_offline_update.get(stockoutId));
 
+    if (!stockout) {
+      console.warn(`Stockout ${stockoutId} not found`);
+      return;
+    }
+
+    // Update online stockouts
+    const stockout_all = await db.stockouts_all.get(stockoutId);
+    if (stockout_all) {
       await db.stockouts_all.update(stockoutId, {
-        quantity: stockout.quantity - returnQuantity
+        quantity: (stockout_all?.offlineQuantity ?? stockout_all.quantity) - returnQuantity,
       });
+    }
 
+    // Update offline added stockouts
+    const stock_add = await db.stockouts_offline_add.get(stockoutId);
+    if (stock_add) {
       await db.stockouts_offline_add.update(stockoutId, {
-        quantity: stockout.quantity - returnQuantity
+        offlineQuantity: (stock_add?.offlineQuantity ?? stock_add.quantity) - returnQuantity,
       });
+    }
 
-      if (stockout && stockout.stockinId) {
-        const stockin = await db.stockins_all.get(stockout.stockinId);
-        if (stockin) {
-          const newQuantity = (stockin.offlineQuantity ?? stockin.quantity) + returnQuantity;
-          await db.stockins_all.update(stockout.stockinId, { quantity: newQuantity });
-        } else {
-          const offlineStockin = await db.stockins_offline_add.get(stockout.stockinId);
-          if (offlineStockin) {
-            const newQuantity = (offlineStockin.offlineQuantity ?? offlineStockin.quantity) + returnQuantity;
-            await db.stockins_offline_add.update(stockout.stockinId, { offlineQuantity: newQuantity });
-          }
+    // Update offline updated stockouts
+    const stock_update = await db.stockouts_offline_update.get(stockoutId);
+    if (stock_update) {
+      await db.stockouts_offline_update.update(stockoutId, {
+        offlineQuantity: (stock_update?.offlineQuantity ?? stock_update.quantity) - returnQuantity,
+      });
+    }
+
+    // Restore quantity to stockin
+    if (stockout.stockinId) {
+      const stockin = await db.stockins_all.get(stockout.stockinId);
+      if (stockin) {
+        const newQuantity = (stockin.offlineQuantity ?? stockin.quantity) + returnQuantity;
+        await db.stockins_all.update(stockout.stockinId, { quantity: newQuantity });
+      } else {
+        const offlineStockin = await db.stockins_offline_add.get(stockout.stockinId);
+        if (offlineStockin) {
+          const newQuantity = (offlineStockin.offlineQuantity ?? offlineStockin.quantity) + returnQuantity;
+          await db.stockins_offline_add.update(stockout.stockinId, { offlineQuantity: newQuantity });
         }
       }
-    } catch (error) {
-      console.error('Error restoring stock quantity:', error);
     }
-  };
+  } catch (error) {
+    console.error('Error restoring stock quantity:', error);
+  }
+};
+
 
   const handleManualSync = async () => {
     if (!isOnline) {

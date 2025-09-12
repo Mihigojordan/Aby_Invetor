@@ -320,6 +320,7 @@ const StockOutManagement = ({ role }) => {
           newStockout = {
             stockinId: null,
             quantity: sale.quantity,
+            offlineQuantity: sale.quantity,
             soldPrice: sale.soldPrice,
             clientName: clientInfo.clientName,
             clientEmail: clientInfo.clientEmail,
@@ -346,6 +347,7 @@ const StockOutManagement = ({ role }) => {
           newStockout = {
             stockinId: sale.stockinId,
             quantity: sale.quantity,
+            offlineQuantity: sale.quantity,
             soldPrice,
             clientName: clientInfo.clientName,
             clientEmail: clientInfo.clientEmail,
@@ -445,8 +447,10 @@ const StockOutManagement = ({ role }) => {
       const userInfo = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
       const updatedData = {
+        ...stockOutData,
         id: selectedStockOut.id,
         quantity: stockOutData.quantity,
+        offlineQuantity: stockOutData.quantity,
         soldPrice: stockOutData.soldPrice,
         clientName: stockOutData.clientName,
         clientEmail: stockOutData.clientEmail,
@@ -555,6 +559,41 @@ const StockOutManagement = ({ role }) => {
     }
   };
 
+  const confirmDeleteLocal = async ()=>{
+    setIsLoading(true);
+    try {
+       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
+      const now = new Date();
+
+      if (selectedStockOut.stockinId) {
+        const existingStockin = await db.stockins_all.get(selectedStockOut.stockinId);
+        if (existingStockin) {
+          const newQuantity = existingStockin.quantity + selectedStockOut.quantity;
+          await db.stockins_all.update(selectedStockOut.stockinId, { quantity: newQuantity });
+        } else {
+          const offlineStockin = await db.stockins_offline_add.get(selectedStockOut.stockinId);
+          if (offlineStockin) {
+            const newQuantity = offlineStockin.quantity + selectedStockOut.quantity;
+            await db.stockins_offline_add.update(selectedStockOut.stockinId, { offlineQuantity: newQuantity });
+          }
+        }
+      }
+
+      
+        await db.stockouts_offline_add.delete(selectedStockOut.localId);
+        showNotification('Stock out deleted!');
+  
+      await loadStockOuts();
+      setIsDeleteModalOpen(false);
+      setSelectedStockOut(null);
+    } catch (error) {
+      console.error('Error deleting stock out:', error);
+      showNotification(`Failed to delete stock out: ${error.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   const handleManualSync = async () => {
     if (!isOnline) {
       showNotification('No internet connection', 'error');
@@ -611,6 +650,10 @@ const StockOutManagement = ({ role }) => {
   };
 
   const openDeleteModal = (stockOut) => {
+    setSelectedStockOut(stockOut);
+    setIsDeleteModalOpen(true);
+  };
+  const openDeleteLocalModal = (stockOut) => {
     setSelectedStockOut(stockOut);
     setIsDeleteModalOpen(true);
   };
@@ -787,12 +830,12 @@ const StockOutManagement = ({ role }) => {
                 </div>
               </div>
               <div className="space-y-2 mb-4">
-                {stockOut.quantity && (
+              
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <Hash size={14} className="mt-0.5" />
-                    <span>Qty: {stockOut.quantity}</span>
+                    <span>Qty: {stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
                   </div>
-                )}
+                
                 {stockOut.soldPrice && (
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <DollarSign size={14} className="mt-0.5" />
@@ -882,7 +925,7 @@ const StockOutManagement = ({ role }) => {
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <Hash size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-900">{stockOut.quantity || 'N/A'}</span>
+                    <span className="text-sm text-gray-900">{ stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
@@ -918,7 +961,7 @@ const StockOutManagement = ({ role }) => {
                     >
                       <Eye size={14} />
                     </button>
-                    {stockOut.synced && (
+                   
                       <button
                         onClick={() => openEditModal(stockOut)}
                         className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -926,7 +969,19 @@ const StockOutManagement = ({ role }) => {
                       >
                         <Edit3 size={14} />
                       </button>
-                    )}
+                  
+                   
+                   {
+                    !stockOut.synced && stockOut.localId  &&
+                       <button
+                        onClick={() => openDeleteModal(stockOut)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                   }
+                  
                     {stockOut.transactionId && (
                       <button
                         onClick={() => handleShowInvoiceComponent(stockOut.transactionId)}
@@ -1081,7 +1136,7 @@ const StockOutManagement = ({ role }) => {
             setIsDeleteModalOpen(false);
             setSelectedStockOut(null);
           }}
-          onConfirm={handleConfirmDelete}
+          onConfirm={confirmDeleteLocal}
           stockOut={selectedStockOut}
           isLoading={isLoading}
         />

@@ -290,11 +290,22 @@ async create(data: {
         calculatedTotalPrice = newSoldPrice * newQuantity;
       }
 
-      const updateData = {
-        ...data,
-        totalPrice: calculatedTotalPrice ?? data.totalPrice, // Prioritize calculated if applicable
-      };
+     
+const updateData = {
+  quantity: data.quantity ?? stockout.quantity,
+  soldPrice: data.soldPrice ?? stockout.soldPrice,
+  
+  clientName: data.clientName ?? stockout.clientName,
+  clientEmail: data.clientEmail ?? stockout.clientEmail,
+  clientPhone: data.clientPhone ?? stockout.clientPhone,
+  adminId: data.adminId ?? stockout.adminId,
+  employeeId: data.employeeId ?? stockout.employeeId,
+};
 
+      console.log(updateData);
+      
+
+      
       const updatedStockout = await this.prisma.stockOut.update({
         where: { id },
         data: updateData,

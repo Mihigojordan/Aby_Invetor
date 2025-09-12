@@ -858,19 +858,19 @@ for (const item of relatedUpdateItems) {
     for (const stockOut of unsyncedUpdates) {
       try {
         const stockOutData = {
-          stockinId: stockOut.stockinId,
+          
           quantity: stockOut.quantity,
           soldPrice: stockOut.soldPrice,
           clientName: stockOut.clientName,
           clientEmail: stockOut.clientEmail,
           clientPhone: stockOut.clientPhone,
           paymentMethod: stockOut.paymentMethod,
-          adminId: stockOut.adminId,
-          employeeId: stockOut.employeeId,
           transactionId: stockOut.transactionId,
           // Add version or timestamp for optimistic locking
-          lastModified: stockOut.lastModified
+          
         };
+
+           
 
         const response = await stockOutService.updateStockOut(stockOut.id, stockOutData);
 

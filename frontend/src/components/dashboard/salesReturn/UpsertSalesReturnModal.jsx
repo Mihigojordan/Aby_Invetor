@@ -228,7 +228,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
         // Filter out items that have already been fully returned
         const availableProducts = response.filter(product => {
           // Check if product has remaining quantity available for return
-          return product.quantity > 0;
+          return product?.offlineQuantity ?   product.offlineQuantity : product.quantity > 0;
         });
 
         if (availableProducts.length > 0) {
@@ -262,12 +262,12 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
         const newItem = {
           stockoutId: stockoutId,
           quantity: 1, // Default to 1 instead of full quantity
-          maxQuantity: product.quantity,
+          maxQuantity:  product.offlineQuantity ?? product.quantity,
           productName: product.stockin?.product?.productName || product?.backorder?.productName || 'Unknown Product',
           sku: product.stockin?.sku || 'N/A',
-          unitPrice: product.soldPrice ? (product.soldPrice / product.quantity) : 0,
-          soldPrice: product.soldPrice || 0,
-          soldQuantity: product.quantity
+          unitPrice: product.soldPrice ?? 0,
+          soldPrice: product.soldPrice ? product.soldPrice * (product?.offlineQuantity ?? product.quantity ?? 0) : 0,
+          soldQuantity: product?.offlineQuantity ?? product.quantity
         };
         setSelectedItems(prev => [...prev, newItem]);
       }
@@ -587,7 +587,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
                       const isSelected = isItemSelected(product?.id || product?.localId );
                       const selectedItem = getSelectedItem(product?.id || product?.localId);
                       const hasError = validationErrors[product?.id || product?.localId];
-                      const unitPrice = product.soldPrice ? (product.soldPrice / product.quantity) : 0;
+                      const unitPrice = product.soldPrice || 0;
 
                       return (
                         <div
@@ -635,7 +635,7 @@ const UpsertSalesReturnModal = ({ isOpen, onClose, onSubmit, isLoading, title, c
                                         <span>Non-Stock Sales</span>
                                       }
                                       <span>•</span>
-                                      <span>Available: {product.quantity} units</span>
+                                      <span>Available: { product?.offlineQuantity ?? product.quantity} units</span>
                                     </div>
                                   </div>
                                 </div>
