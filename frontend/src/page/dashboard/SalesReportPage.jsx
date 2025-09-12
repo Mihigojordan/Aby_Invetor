@@ -26,7 +26,7 @@ import stockInService from '../../services/stockinService';
 import backOrderService from '../../services/backOrderService';
 import productService from '../../services/productService';
 
-const SalesReportPage = (role) => {
+const SalesReportPage = ({role}) => {
   const [salesData, setSalesData] = useState([]);
   const [filteredSalesData, setFilteredSalesData] = useState([]);
   const { isOnline } = useNetworkStatusContext();
