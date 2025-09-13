@@ -289,7 +289,7 @@ const SalesReportPage = ({role}) => {
   };
 
   const calculatePeriodStats = (data) => {
-    const totalSales = data.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
+    const totalSales = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * (item.quantity || 0)), 0);
     const totalQuantity = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
     const totalProfit = data.reduce((sum, item) => {
       const soldPrice = item.soldPrice || 0;
@@ -367,10 +367,10 @@ const SalesReportPage = ({role}) => {
       return;
     }
 
-    const totalSalesAmount = data.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
+    const totalSalesAmount = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * (item.quantity || 0)), 0);
     const totalQuantitySold = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
     const backorderSales = data.filter(item => item.backorderId);
-    const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
+    const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum +((item.soldPrice || 0) * (item.quantity || 0)), 0);
 
     const productStats = {};
     data.forEach(item => {
@@ -469,7 +469,7 @@ const SalesReportPage = ({role}) => {
         icon: ShoppingCart,
         bgColor: 'bg-red-50',
         color: 'text-red-600',
-        path: role == 'admin ' ? '/admin/dashboard/sales-report/non-stock-analysis' : '/employee/dashboard/sales-report/non-stock-analysis',
+        path: role == 'admin' ? '/admin/dashboard/sales-report/non-stock-analysis' : '/employee/dashboard/sales-report/non-stock-analysis',
       },
     ]);
   };
@@ -609,6 +609,7 @@ const SalesReportPage = ({role}) => {
                     <div className="flex items-center gap-2">
                       <span className={`font-bold text-base ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                         {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
+                        
                       </span>
                       {profit !== 0 && (
                         <span className={`text-xs ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
@@ -661,6 +662,7 @@ const SalesReportPage = ({role}) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profit/Loss</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Sold</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -739,13 +741,24 @@ const SalesReportPage = ({role}) => {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    {stockOut.soldPrice && stockOut.quantity ? (
+                      <span className="font-medium text-sm text-gray-900">
+                        {formatPrice(stockOut.soldPrice * stockOut.quantity)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">N/A</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`font-medium text-sm ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                       {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
                       {profit !== 0 && (
+                        
                         <span className="text-xs ml-1">
                           {isProfit ? '↗' : '↘'}
                         </span>
                       )}
+                     
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
