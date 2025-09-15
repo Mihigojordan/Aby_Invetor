@@ -153,12 +153,17 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
     purchases: []
   });
 
+   const [closeForm,setCloseForm] = useState(false)
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'RWF'
     }).format(amount);
   };
+
+  
+
 
   const [validationErrors, setValidationErrors] = useState({
     productId: '',
@@ -192,7 +197,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
         purchases: [{ productId: '', quantity: '', price: '', supplier: '', sellingPrice: '' }]
       });
     }
-    
+    setCloseForm(false)
     // Clear validation errors when modal opens/closes
     setValidationErrors({
       productId: '',
@@ -375,6 +380,8 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
       if (formData.supplier.trim()) {
         submitData.supplier = formData.supplier.trim();
       }
+
+      setCloseForm(true)
       
       onSubmit(submitData);
     } else {
@@ -420,8 +427,10 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
         ...(purchase.supplier.trim() && { supplier: purchase.supplier.trim() })
       }));
       
+      setCloseForm(true)
       onSubmit({ purchases: purchasesArray });
     }
+
     
     onClose();
     
@@ -770,7 +779,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isLoading || !isFormValid()}
+              disabled={ closeForm || isLoading || !isFormValid()}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? 'Processing...' : stockIn ? 'Update' : `Create ${formData.purchases?.length || 1} Purchase${formData.purchases?.length > 1 ? 's' : ''}`}

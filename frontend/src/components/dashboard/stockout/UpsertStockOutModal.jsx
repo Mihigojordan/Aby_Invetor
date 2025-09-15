@@ -187,6 +187,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
     // Multiple entries fields (for create mode)
     salesEntries: [{ stockinId: '', quantity: '', sku: '', soldPrice: '', isBackOrder: false, backOrder: null }]
   });
+  const [closeForm,setCloseForm] = useState(false)
   const {isOnline} = useNetworkStatusContext()
   const [validationErrors, setValidationErrors] = useState({
     stockinId: '',
@@ -229,6 +230,7 @@ const UpsertStockOutModal = ({ isOpen, onClose, onSubmit, stockOut, stockIns, is
         salesEntries: [{ stockinId: '', quantity: '', sku: '', soldPrice: '', isBackOrder: false, backOrder: null }]
       });
     }
+    setCloseForm(false)
 
     // Clear validation errors and SKU states when modal opens/closes
     setValidationErrors({
@@ -729,6 +731,7 @@ if (value && stockIns) {
       if (formData.clientEmail.trim()) submitData.clientEmail = formData.clientEmail.trim();
       if (formData.clientPhone.trim()) submitData.clientPhone = formData.clientPhone.trim();
       if (formData.paymentMethod) submitData.paymentMethod = formData.paymentMethod;
+       setCloseForm(true)
 
       onSubmit(submitData);
     } else {
@@ -805,6 +808,8 @@ if (value && stockIns) {
       if (formData.clientEmail.trim()) clientInfo.clientEmail = formData.clientEmail.trim();
       if (formData.clientPhone.trim()) clientInfo.clientPhone = formData.clientPhone.trim();
       if (formData.paymentMethod) clientInfo.paymentMethod = formData.paymentMethod;
+
+      setCloseForm(true)
 
       // Submit data in the format expected by the backend
       onSubmit({
@@ -1427,7 +1432,7 @@ if (value && stockIns) {
             </button>
             <button
               type="submit"
-              disabled={isLoading || !isFormValid()}
+              disabled={ closeForm || isLoading || !isFormValid()}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? 'Processing...' : stockOut ? 'Update' : 'Create Transaction'}

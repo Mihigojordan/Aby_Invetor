@@ -839,7 +839,13 @@ const StockOutManagement = ({ role }) => {
                 {stockOut.soldPrice && (
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <DollarSign size={14} className="mt-0.5" />
-                    <span>Unit Price: {formatPrice(stockOut.soldPrice)}</span>
+                    <span>Unit Price: {formatPrice(  stockOut.soldPrice )}</span>
+                  </div>
+                )}
+                {stockOut.soldPrice && (
+                  <div className="flex items-start gap-2 text-sm text-gray-600">
+                    <DollarSign size={14} className="mt-0.5" />
+                    <span>Total Price: {formatPrice( ((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice )}</span>
                   </div>
                 )}
                 {(stockOut.clientName || stockOut.clientEmail || stockOut.clientPhone) && (
@@ -878,6 +884,7 @@ const StockOutManagement = ({ role }) => {
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -925,23 +932,29 @@ const StockOutManagement = ({ role }) => {
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <Hash size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-900">{ stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
+                    <span className="text-sm text-gray-900">{ stockOut.offlineQuantity ?? stockOut.quantity ?? '0'}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <DollarSign size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
+                    <span className="text-sm text-gray-900">{formatPrice(  stockOut.soldPrice)}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <DollarSign size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-900">{formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span
                     className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                      stockOut.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      stockOut?.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                     }`}
                   >
                     <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    {stockOut.synced ? 'synced' : 'Syncing...'}
+                    {stockOut?.synced ? 'synced' : 'Syncing...'}
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
@@ -991,6 +1004,14 @@ const StockOutManagement = ({ role }) => {
                         <Receipt size={14} />
                       </button>
                     )}
+                      <button
+                        onClick={() => openDeleteModal(stockOut)}
+                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="Trash"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                  
                   </div>
                 </td>
               </tr>
@@ -1136,7 +1157,7 @@ const StockOutManagement = ({ role }) => {
             setIsDeleteModalOpen(false);
             setSelectedStockOut(null);
           }}
-          onConfirm={confirmDeleteLocal}
+          onConfirm={handleConfirmDelete}
           stockOut={selectedStockOut}
           isLoading={isLoading}
         />

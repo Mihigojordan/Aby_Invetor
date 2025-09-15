@@ -289,13 +289,15 @@ const SalesReportPage = ({role}) => {
   };
 
   const calculatePeriodStats = (data) => {
-    const totalSales = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * (item.quantity || 0)), 0);
-    const totalQuantity = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const totalSales = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * (  ( item.offlineQuantity ?? item.quantity) || 0)), 0);
+    const totalQuantity = data.reduce((sum, item) => sum + (( item.offlineQuantity ?? item.quantity) || 0), 0);
     const totalProfit = data.reduce((sum, item) => {
+      
       const soldPrice = item.soldPrice || 0;
       const costPrice = item.stockin?.price || 0;
-      const quantity = item.quantity || 0;
+      const quantity = ( item.offlineQuantity ?? item.quantity) || 0;
       return sum + ((soldPrice - costPrice) * quantity);
+
     }, 0);
 
     setPeriodStats({
@@ -367,10 +369,10 @@ const SalesReportPage = ({role}) => {
       return;
     }
 
-    const totalSalesAmount = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * (item.quantity || 0)), 0);
-    const totalQuantitySold = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const totalSalesAmount = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * (( item.offlineQuantity ?? item.quantity) || 0)), 0);
+    const totalQuantitySold = data.reduce((sum, item) => sum + (( item.offlineQuantity ?? item.quantity) || 0), 0);
     const backorderSales = data.filter(item => item.backorderId);
-    const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum +((item.soldPrice || 0) * (item.quantity || 0)), 0);
+    const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum +((item.soldPrice || 0) * (( item.offlineQuantity ?? item.quantity) || 0)), 0);
 
     const productStats = {};
     data.forEach(item => {
@@ -384,7 +386,7 @@ const SalesReportPage = ({role}) => {
             totalValue: 0,
           };
         }
-        productStats[productId].totalQuantity += item.quantity || 0;
+        productStats[productId].totalQuantity += ( item.offlineQuantity ?? item.quantity) || 0;
         productStats[productId].totalValue += item.soldPrice || 0;
       }
     });
@@ -399,7 +401,7 @@ const SalesReportPage = ({role}) => {
           totalValue: 0,
         };
       }
-      backorderStats[productName].totalQuantity += item.quantity || 0;
+      backorderStats[productName].totalQuantity += ( item.offlineQuantity ?? item.quantity) || 0;
       backorderStats[productName].totalValue += item.soldPrice || 0;
     });
 
