@@ -43,14 +43,6 @@ export const createUnifiedUploadConfig = (): MulterOptions => ({
     },
   }),
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|webp|pdf/;
-    const isValidExt = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const isValidMime = allowedTypes.test(file.mimetype);
-
-    if (!isValidExt || !isValidMime) {
-      return cb(new Error('Only JPEG, JPG, PNG, WebP files are allowed '), false);
-    }
-
     cb(null, true);
   },
   limits: {
