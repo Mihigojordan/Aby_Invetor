@@ -162,7 +162,6 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: "/employee/dashboard",
       alwaysShow: true,
     },
-    
     {
       key: "products",
       label: "Product Management",
@@ -211,18 +210,18 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           taskname: ["returning", "return"],
         },
         {
-         key: "sales-report",
-         label: "Sales Report",
-         path: "/employee/dashboard/sales-report",
-         taskname: ["saling", "selling", "sales", "stockout"],
-       },
+          key: "sales-report",
+          label: "Sales Report",
+          path: "/employee/dashboard/sales-report",
+          taskname: ["saling", "selling", "sales", "stockout"],
+        },
       ],
     },
     {
       key: "employee_reports",
       label: "Report Management",
-      taskname: ["receiving", "stockin","returning", "return","saling", "selling", "sales", "stockout", "returning", "return"],
-      icon: ArrowDown,
+      taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
+      icon: FileText,
       path: "/employee/dashboard/report",
     },
   ];
@@ -274,23 +273,23 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
   const SidebarItem = ({ item, isActive, onClick }) => (
     <button
       onClick={() => onClick(item.key)}
-      className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+      className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
         isActive
           ? "bg-primary-100 text-primary-700 border-r-2 border-primary-600"
           : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
       }`}
     >
       <item.icon
-        className={`w-5 h-5 ${isActive ? "text-primary-600" : "text-gray-400"}`}
+        className={`w-4 h-4 ${isActive ? "text-primary-600" : "text-gray-400"}`}
       />
-      <span className="font-medium text-sm">{item.label}</span>
+      <span className="font-medium text-[0.75rem]">{item.label}</span>
     </button>
   );
 
   const DropdownItem = ({ item, isActive }) => (
     <Link
       to={item.path}
-      className={`flex items-center space-x-3 px-6 py-2 text-sm rounded-lg transition-all duration-200 ${
+      className={`flex items-center space-x-2 px-6 py-1.5 text-[0.6rem] rounded-lg transition-all duration-200 ${
         isActive
           ? "bg-primary-50 text-primary-700"
           : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
@@ -299,7 +298,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
         if (window.innerWidth < 1024) onToggle();
       }}
     >
-      <span className="text-xs  font-normal">{item.label}</span>
+      <span className="font-normal">{item.label}</span>
     </Link>
   );
 
@@ -309,7 +308,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     return (
       <button
         onClick={onToggle}
-        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 ${
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 ${
           hasActiveChild
             ? "bg-primary-50 text-primary-700"
             : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -317,15 +316,15 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       >
         <div className="flex items-center space-x-2">
           <item.icon
-            className={`w-5 h-5 ${hasActiveChild ? "text-primary-600" : "text-gray-400"}`}
+            className={`w-4 h-4 ${hasActiveChild ? "text-primary-600" : "text-gray-400"}`}
           />
-          <span className="font-medium text-sm">{item.label}</span>
+          <span className="font-medium text-[0.75rem]">{item.label}</span>
         </div>
         <div className="transition-transform duration-200">
           {isOpen ? (
-            <ChevronUp className="w-4 h-4" />
+            <ChevronUp className="w-3 h-3" />
           ) : (
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="w-3 h-3" />
           )}
         </div>
       </button>
@@ -337,14 +336,14 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       const isOpen = openDropdown === item.key;
       
       return (
-        <div key={item.key} className="mb-1">
+        <div key={item.key} className="mb-0.5">
           <DropdownHeader
             item={item}
             isOpen={isOpen}
             onToggle={() => toggleDropdown(item.key)}
           />
           {isOpen && (
-            <div className="space-y-1 ml-2 mt-2">
+            <div className="space-y-0.5 ml-2 mt-1">
               {item.children.map((child) => (
                 <DropdownItem
                   key={child.key}
@@ -391,40 +390,40 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
         } lg:w-3/12 xl:w-2/12`}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
-              <Package className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between p-3 border-b border-gray-200">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center">
+              <Package className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-lg font-semibold text-gray-900">
                 ABY Inventory
               </h1>
-              <p className="text-xs text-gray-500 capitalize">
+              <p className="text-[0.6rem] text-gray-500 capitalize">
                 {role} Dashboard
               </p>
             </div>
           </div>
           <button
             onClick={onToggle}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Navigation Menu */}
-        <div className="flex-1 overflow-y-auto p-2 font-light">
-          <nav className="space-y-1">
+        <div className="flex-1 overflow-y-auto p-2">
+          <nav className="space-y-0.5">
             {currentMenuItems.length > 0 ? (
               currentMenuItems.map(renderMenuItem)
             ) : (
-              <div className="text-center py-3">
-                <p className="text-gray-500 text-sm font-light">
+              <div className="text-center py-2">
+                <p className="text-gray-500 text-[0.75rem] font-light">
                   No additional menu items available
                 </p>
                 {role === "employee" && (
-                  <p className="text-gray-400 text-xs mt-2">
+                  <p className="text-gray-400 text-[0.6rem] mt-1">
                     Contact admin to assign tasks for more options
                   </p>
                 )}

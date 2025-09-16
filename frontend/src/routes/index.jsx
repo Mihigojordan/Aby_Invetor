@@ -336,6 +336,25 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+
+                              {
+                                path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                                  {
+                                path: "sales-return/create",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertSalesReturnPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
           
                             {
                                 path: "stockin",
