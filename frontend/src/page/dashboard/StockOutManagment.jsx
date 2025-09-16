@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Receipt, Wifi, WifiOff, RotateCcw, RefreshCw, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Receipt, Wifi, WifiOff, RotateCcw, RefreshCw, ChevronLeft, ChevronRight, FileText, TrendingUp, X } from 'lucide-react';
 import stockOutService from '../../services/stockoutService';
 import stockInService from '../../services/stockinService';
 import UpsertStockOutModal from '../../components/dashboard/stockout/UpsertStockOutModal';
@@ -14,12 +15,15 @@ import productService from '../../services/productService';
 import backOrderService from '../../services/backOrderService';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import { stockOutSyncService } from '../../services/sync/stockOutSyncService';
+import { useNavigate } from 'react-router-dom';
 
 const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
   const [stockIns, setStockIns] = useState([]);
   const [filteredStockOuts, setFilteredStockOuts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -28,16 +32,16 @@ const StockOutManagement = ({ role }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [statistics, setStatistics] = useState(null);
   const { isOnline } = useNetworkStatusContext();
   const { triggerSync, syncError } = useStockOutOfflineSync();
   const [isInvoiceNoteOpen, setIsInvoiceNoteOpen] = useState(false);
   const [transactionId, setTransactionId] = useState(null);
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
-
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
-
+  const navigate =  useNavigate()
   useEffect(() => {
     loadStockOuts();
     if (isOnline) handleManualSync();
@@ -51,21 +55,77 @@ const StockOutManagement = ({ role }) => {
 
   useEffect(() => {
     if (syncError) {
-      showNotification(`Sync error: ${syncError}`, 'error');
+      setNotification({
+        type: 'error',
+        message: `Sync error: ${syncError}`,
+      });
     }
   }, [syncError]);
 
   useEffect(() => {
-    const filtered = stockOuts.filter(stockOut =>
-      stockOut.stockin?.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stockOut.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stockOut.clientEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stockOut.clientPhone?.includes(searchTerm) ||
-      stockOut.transactionId?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  useEffect(() => {
+    const filtered = stockOuts.filter(stockOut => {
+      const matchesSearch =
+        stockOut.stockin?.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stockOut.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stockOut.clientEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stockOut.clientPhone?.includes(searchTerm) ||
+        stockOut.transactionId?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const stockOutDate = new Date(stockOut.createdAt || stockOut.lastModified);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+
+      if (start) start.setHours(0, 0, 0, 0);
+      if (end) end.setHours(23, 59, 59, 999);
+
+      const matchesDate =
+        (!start || stockOutDate >= start) &&
+        (!end || stockOutDate <= end);
+
+      return matchesSearch && matchesDate;
+    });
     setFilteredStockOuts(filtered);
     setCurrentPage(1);
-  }, [searchTerm, stockOuts]);
+  }, [searchTerm, startDate, endDate, stockOuts]);
+
+  useEffect(() => {
+    const stats = calculateStockOutStatistics(filteredStockOuts);
+    setStatistics(stats);
+  }, [filteredStockOuts]);
+
+  const calculateStockOutStatistics = (stockOuts) => {
+    if (!Array.isArray(stockOuts) || stockOuts.length === 0) {
+      return {
+        totalStockOuts: 0,
+        totalQuantity: 0,
+        totalSalesValue: 0,
+        averageQuantityPerStockOut: 0
+      };
+    }
+
+    const totalQuantity = stockOuts.reduce((sum, so) => sum + (so.offlineQuantity ?? so.quantity ?? 0), 0);
+    const totalSalesValue = stockOuts.reduce((sum, so) => {
+      const quantity = so.offlineQuantity ?? so.quantity ?? 0;
+      const price = so.soldPrice ?? 0;
+      return sum + (quantity * price);
+    }, 0);
+
+    return {
+      totalStockOuts: stockOuts.length,
+      totalQuantity,
+      totalSalesValue: totalSalesValue.toFixed(2),
+      averageQuantityPerStockOut: stockOuts.length > 0 ? (totalQuantity / stockOuts.length).toFixed(1) : 0
+    };
+  };
 
   const loadStockOuts = async (showRefreshLoader = false) => {
     if (showRefreshLoader) {
@@ -115,14 +175,23 @@ const StockOutManagement = ({ role }) => {
       setStockIns(convertedStockIns);
 
       if (showRefreshLoader) {
-        showNotification('Stock-outs refreshed successfully!');
+        setNotification({
+          type: 'success',
+          message: 'Stock-outs refreshed successfully!'
+        });
       }
       if (!isOnline && combinedStockOuts.length === 0) {
-        showNotification('No offline data available', 'warning');
+        setNotification({
+          type: 'warning',
+          message: 'No offline data available'
+        });
       }
     } catch (error) {
       console.error('Error loading stock-outs:', error);
-      showNotification('Failed to load stock-outs', 'error');
+      setNotification({
+        type: 'error',
+        message: 'Failed to load stock-outs'
+      });
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -275,11 +344,6 @@ const StockOutManagement = ({ role }) => {
     }
   };
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 4000);
-  };
-
   const handleAddStockOut = async (stockOutData) => {
     setIsLoading(true);
     try {
@@ -416,26 +480,38 @@ const StockOutManagement = ({ role }) => {
               }
             })
           );
-          showNotification(`Stock out transaction created successfully with ${salesArray.length} entries!`);
+          setNotification({
+            type: 'success',
+            message: `Stock out transaction created successfully with ${salesArray.length} entries!`
+          });
           updateSearchParam('transactionId', response.transactionId);
           setTransactionId(response.transactionId);
           setIsInvoiceNoteOpen(true);
         } catch (error) {
           console.warn('Error posting to server, keeping offline:', error);
-          showNotification('Stock out saved offline (will sync when online)', 'warning');
+          setNotification({
+            type: 'warning',
+            message: 'Stock out saved offline (will sync when online)'
+          });
         }
       } else {
         updateSearchParam('transactionId', localTransactionId);
         setTransactionId(localTransactionId);
         setIsInvoiceNoteOpen(true);
-        showNotification('Stock out saved offline (will sync when online)', 'warning');
+        setNotification({
+          type: 'warning',
+          message: 'Stock out saved offline (will sync when online)'
+        });
       }
 
       await loadStockOuts();
       setIsAddModalOpen(false);
     } catch (error) {
       console.error('Error adding stock out:', error);
-      showNotification(`Failed to add stock out: ${error.message}`, 'error');
+      setNotification({
+        type: 'error',
+        message: `Failed to add stock out: ${error.message}`
+      });
     } finally {
       setIsLoading(false);
     }
@@ -482,14 +558,23 @@ const StockOutManagement = ({ role }) => {
             updatedAt: response.updatedAt || new Date()
           });
           await db.stockouts_offline_update.delete(selectedStockOut.id);
-          showNotification('Stock out updated successfully!');
+          setNotification({
+            type: 'success',
+            message: 'Stock out updated successfully!'
+          });
         } catch (error) {
           await db.stockouts_offline_update.put(updatedData);
-          showNotification('Stock out updated offline (will sync when online)', 'warning');
+          setNotification({
+            type: 'warning',
+            message: 'Stock out updated offline (will sync when online)'
+          });
         }
       } else {
         await db.stockouts_offline_update.put(updatedData);
-        showNotification('Stock out updated offline (will sync when online)', 'warning');
+        setNotification({
+          type: 'warning',
+          message: 'Stock out updated offline (will sync when online)'
+        });
       }
       if (selectedStockOut.stockinId) {
         const stockin = await db.stockins_all.get(selectedStockOut.stockinId);
@@ -506,7 +591,10 @@ const StockOutManagement = ({ role }) => {
       setSelectedStockOut(null);
     } catch (error) {
       console.error('Error updating stock out:', error);
-      showNotification(`Failed to update stock out: ${error.message}`, 'error');
+      setNotification({
+        type: 'error',
+        message: `Failed to update stock out: ${error.message}`
+      });
     } finally {
       setIsLoading(false);
     }
@@ -535,17 +623,26 @@ const StockOutManagement = ({ role }) => {
       if (isOnline && selectedStockOut.id) {
         await stockOutService.deleteStockOut(selectedStockOut.id, userData);
         await db.stockouts_all.delete(selectedStockOut.id);
-        showNotification('Stock out deleted successfully!');
+        setNotification({
+          type: 'success',
+          message: 'Stock out deleted successfully!'
+        });
       } else if (selectedStockOut.id) {
         await db.stockouts_offline_delete.add({
           id: selectedStockOut.id,
           deletedAt: now,
           ...userData
         });
-        showNotification('Stock out deletion queued (will sync when online)', 'warning');
+        setNotification({
+          type: 'warning',
+          message: 'Stock out deletion queued (will sync when online)'
+        });
       } else {
         await db.stockouts_offline_add.delete(selectedStockOut.localId);
-        showNotification('Stock out deleted!');
+        setNotification({
+          type: 'success',
+          message: 'Stock out deleted!'
+        });
       }
 
       await loadStockOuts();
@@ -553,16 +650,19 @@ const StockOutManagement = ({ role }) => {
       setSelectedStockOut(null);
     } catch (error) {
       console.error('Error deleting stock out:', error);
-      showNotification(`Failed to delete stock out: ${error.message}`, 'error');
+      setNotification({
+        type: 'error',
+        message: `Failed to delete stock out: ${error.message}`
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const confirmDeleteLocal = async ()=>{
+  const confirmDeleteLocal = async () => {
     setIsLoading(true);
     try {
-       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
+      const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
 
       if (selectedStockOut.stockinId) {
@@ -579,33 +679,47 @@ const StockOutManagement = ({ role }) => {
         }
       }
 
-      
-        await db.stockouts_offline_add.delete(selectedStockOut.localId);
-        showNotification('Stock out deleted!');
-  
+      await db.stockouts_offline_add.delete(selectedStockOut.localId);
+      setNotification({
+        type: 'success',
+        message: 'Stock out deleted!'
+      });
+
       await loadStockOuts();
       setIsDeleteModalOpen(false);
       setSelectedStockOut(null);
     } catch (error) {
       console.error('Error deleting stock out:', error);
-      showNotification(`Failed to delete stock out: ${error.message}`, 'error');
+      setNotification({
+        type: 'error',
+        message: `Failed to delete stock out: ${error.message}`
+      });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   const handleManualSync = async () => {
     if (!isOnline) {
-      showNotification('No internet connection', 'error');
+      setNotification({
+        type: 'error',
+        message: 'No internet connection'
+      });
       return;
     }
     setIsLoading(true);
     try {
       await triggerSync();
       await loadStockOuts();
-      showNotification('Sync completed successfully!');
+      setNotification({
+        type: 'success',
+        message: 'Sync completed successfully!'
+      });
     } catch (error) {
-      showNotification('Sync failed. Will retry automatically.', 'error');
+      setNotification({
+        type: 'error',
+        message: 'Sync failed. Will retry automatically.'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -623,12 +737,24 @@ const StockOutManagement = ({ role }) => {
   }
 
   const handleCopyTransactionId = async (transactionId) => {
-    if (!transactionId) return showNotification('Please select the transaction ID', 'error');
+    if (!transactionId) {
+      setNotification({
+        type: 'error',
+        message: 'Please select the transaction ID'
+      });
+      return;
+    }
     try {
       await navigator.clipboard.writeText(transactionId);
-      showNotification('Successfully copied the transaction ID');
+      setNotification({
+        type: 'success',
+        message: 'Successfully copied the transaction ID'
+      });
     } catch (error) {
-      showNotification('Failed to copy the transaction ID', 'error');
+      setNotification({
+        type: 'error',
+        message: 'Failed to copy the transaction ID'
+      });
     }
   };
 
@@ -644,16 +770,15 @@ const StockOutManagement = ({ role }) => {
     updateSearchParam("transactionId");
   };
 
-  const openEditModal = (stockOut) => {
-    setSelectedStockOut(stockOut);
-    setIsEditModalOpen(true);
+    const openAddModal = () => {
+    navigate(role === 'admin' ? '/admin/dashboard/stockout/create' : '/employee/dashboard/stockout/create');
   };
 
-  const openDeleteModal = (stockOut) => {
-    setSelectedStockOut(stockOut);
-    setIsDeleteModalOpen(true);
+  const openEditModal = (stockOut) => {
+    if (!stockOut.id) return setNotification({message:'Cannot edit unsynced stock entry', type:'error'});
+    navigate(role === 'admin' ? `/admin/dashboard/stockout/update/${stockOut.id}` : `/employee/dashboard/stockout/update/${stockOut.id}`);
   };
-  const openDeleteLocalModal = (stockOut) => {
+  const openDeleteModal = (stockOut) => {
     setSelectedStockOut(stockOut);
     setIsDeleteModalOpen(true);
   };
@@ -714,9 +839,69 @@ const StockOutManagement = ({ role }) => {
     return pages;
   };
 
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setFilteredStockOuts(stockOuts);
+    setCurrentPage(1);
+  };
+
+  const StatisticsCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Stock Outs</p>
+            <p className="text-sm font-bold text-gray-900">{statistics?.totalStockOuts || 0}</p>
+          </div>
+          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Package className="w-4 h-4 text-blue-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Quantity</p>
+            <p className="text-sm font-bold text-gray-900">{statistics?.totalQuantity || 0}</p>
+          </div>
+          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-green-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Sales Value</p>
+            <p className="text-sm font-bold text-gray-900">{formatPrice(statistics?.totalSalesValue || 0)}</p>
+          </div>
+          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-4 h-4 text-orange-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Avg Quantity/Stock Out</p>
+            <p className="text-sm font-bold text-gray-900">{statistics?.averageQuantityPerStockOut || 0}</p>
+          </div>
+          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+            <Hash className="w-4 h-4 text-purple-600" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const PaginationComponent = () => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50 text-xs">
+      <div className="flex items-center gap-3">
         <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredStockOuts.length)} of {filteredStockOuts.length} entries
         </p>
@@ -726,21 +911,21 @@ const StockOutManagement = ({ role }) => {
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1 text-xs border rounded-md transition-colors ${
               currentPage === 1
                 ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <ChevronLeft size={14} />
+            <ChevronLeft size={12} />
             Previous
           </button>
-          <div className="flex items-center gap-1 mx-2">
+          <div className="flex items-center gap-1 mx-1">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-xs rounded-md transition-colors ${
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${
                   currentPage === page
                     ? 'bg-primary-600 text-white'
                     : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
@@ -753,14 +938,14 @@ const StockOutManagement = ({ role }) => {
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1 text-xs border rounded-md transition-colors ${
               currentPage === totalPages
                 ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
           >
             Next
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </button>
         </div>
       )}
@@ -769,27 +954,27 @@ const StockOutManagement = ({ role }) => {
 
   const CardView = () => (
     <div className="md:hidden">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         {currentItems.map((stockOut) => (
           <div
             key={stockOut.localId || stockOut.id}
-            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${
+            className={`bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${
               stockOut.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'
             }`}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                    <Package size={20} />
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    <Package size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate" title={stockOut.stockin?.product?.productName || stockOut?.backorder?.productName}>
+                    <h3 className="font-semibold text-sm text-gray-900 truncate" title={stockOut.stockin?.product?.productName || stockOut?.backorder?.productName}>
                       {stockOut.stockin?.product?.productName || stockOut?.backorder?.productName || 'Sale Transaction'}
                     </h3>
                     <div className="flex items-center gap-1 mt-1">
-                      <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                      <span className="text-xs text-gray-500">{stockOut.synced ? 'synced' : 'Syncing...'}</span>
+                      <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                      <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Syncing...'}</span>
                       {stockOut.transactionId && (
                         <span
                           className="text-xs text-gray-500 font-mono underline cursor-pointer hover:text-gray-700"
@@ -804,62 +989,67 @@ const StockOutManagement = ({ role }) => {
                 <div className="flex gap-1">
                   <button
                     onClick={() => openViewModal(stockOut)}
-                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                     title="View stock out"
                   >
-                    <Eye size={14} />
+                    <Eye size={12} />
                   </button>
                   {stockOut.synced && (
                     <button
                       onClick={() => openEditModal(stockOut)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                       title="Edit stock out"
                     >
-                      <Edit3 size={14} />
+                      <Edit3 size={12} />
                     </button>
                   )}
                   {stockOut.transactionId && (
                     <button
                       onClick={() => handleShowInvoiceComponent(stockOut.transactionId)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                       title="View Invoice"
                     >
-                      <Receipt size={14} />
+                      <Receipt size={12} />
                     </button>
                   )}
+                  <button
+                    onClick={() => openDeleteModal(stockOut)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete stock out"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </div>
-              <div className="space-y-2 mb-4">
-              
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <Hash size={14} className="mt-0.5" />
-                    <span>Qty: {stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
-                  </div>
-                
+              <div className="space-y-1.5 mb-3">
+                <div className="flex items-start gap-2 text-xs text-gray-600">
+                  <Hash size={12} className="mt-0.5" />
+                  <span>Qty: {stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
+                </div>
                 {stockOut.soldPrice && (
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <DollarSign size={14} className="mt-0.5" />
-                    <span>Unit Price: {formatPrice(  stockOut.soldPrice )}</span>
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <DollarSign size={12} className="mt-0.5" />
+                    <span>Unit Price: {formatPrice(stockOut.soldPrice)}</span>
                   </div>
                 )}
                 {stockOut.soldPrice && (
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <DollarSign size={14} className="mt-0.5" />
-                    <span>Total Price: {formatPrice( ((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice )}</span>
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <DollarSign size={12} className="mt-0.5" />
+                    <span>Total Price: {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}</span>
                   </div>
                 )}
                 {(stockOut.clientName || stockOut.clientEmail || stockOut.clientPhone) && (
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <User size={14} className="mt-0.5" />
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <User size={12} className="mt-0.5" />
                     <span className="line-clamp-2">
                       {stockOut.clientName || stockOut.clientEmail || stockOut.clientPhone || 'No client info'}
                     </span>
                   </div>
                 )}
               </div>
-              <div className="pt-4 border-t border-gray-100">
+              <div className="pt-3 border-t border-gray-100">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar size={12} />
+                  <Calendar size={10} />
                   <span>Created {formatDate(stockOut.createdAt || stockOut.lastModified)}</span>
                 </div>
               </div>
@@ -867,49 +1057,49 @@ const StockOutManagement = ({ role }) => {
           </div>
         ))}
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <PaginationComponent />
       </div>
     </div>
   );
 
   const TableView = () => (
-    <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200">
+    <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product/Transaction</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product/Transaction</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+              <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {currentItems.map((stockOut, index) => (
               <tr key={stockOut.localId || stockOut.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <span className="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
                     {startIndex + index + 1}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white">
-                      <Package size={16} />
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white">
+                      <Package size={12} />
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900 text-sm">
+                      <div className="font-medium text-sm text-gray-900">
                         {stockOut.stockin?.product?.productName || stockOut?.backorder?.productName || 'Sale Transaction'}
                       </div>
                       <div className="flex items-center gap-1 mt-1">
-                        <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                        <span className="text-xs text-gray-500">{stockOut.synced ? 'synced' : 'Syncing...'}</span>
+                        <div className={`w-1 h-1 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                        <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Syncing...'}</span>
                         {stockOut.transactionId && (
                           <span
                             className="text-xs text-gray-500 font-mono underline cursor-pointer hover:text-gray-700"
@@ -922,96 +1112,83 @@ const StockOutManagement = ({ role }) => {
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2">
                   <div className="text-xs text-gray-900 max-w-xs">
                     <div className="line-clamp-2">
                       {stockOut.clientName || stockOut.clientEmail || stockOut.clientPhone || 'No client info'}
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <Hash size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-900">{ stockOut.offlineQuantity ?? stockOut.quantity ?? '0'}</span>
+                    <Hash size={12} className="text-gray-400" />
+                    <span className="text-sm text-gray-900">{stockOut.offlineQuantity ?? stockOut.quantity ?? '0'}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <DollarSign size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-900">{formatPrice(  stockOut.soldPrice)}</span>
+                    <DollarSign size={12} className="text-gray-400" />
+                    <span className="text-sm text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <DollarSign size={14} className="text-gray-400" />
+                    <DollarSign size={12} className="text-gray-400" />
                     <span className="text-sm text-gray-900">{formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2 whitespace-nowrap">
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${
                       stockOut?.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                     }`}
                   >
-                    <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    {stockOut?.synced ? 'synced' : 'Syncing...'}
+                    <div className={`w-1 h-1 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    {stockOut?.synced ? 'Synced' : 'Syncing...'}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <Calendar size={12} className="text-gray-400" />
+                    <Calendar size={10} className="text-gray-400" />
                     <span className="text-xs text-gray-600">
                       {formatDate(stockOut.createdAt || stockOut.lastModified)}
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => openViewModal(stockOut)}
-                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                       title="View Details"
                     >
-                      <Eye size={14} />
+                      <Eye size={12} />
                     </button>
-                   
+                    {stockOut.synced && (
                       <button
                         onClick={() => openEditModal(stockOut)}
-                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                         title="Edit"
                       >
-                        <Edit3 size={14} />
+                        <Edit3 size={12} />
                       </button>
-                  
-                   
-                   {
-                    !stockOut.synced && stockOut.localId  &&
-                       <button
-                        onClick={() => openDeleteModal(stockOut)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-primary-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                   }
-                  
+                    )}
                     {stockOut.transactionId && (
                       <button
                         onClick={() => handleShowInvoiceComponent(stockOut.transactionId)}
-                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                         title="View Invoice"
                       >
-                        <Receipt size={14} />
+                        <Receipt size={12} />
                       </button>
                     )}
-                      <button
-                        onClick={() => openDeleteModal(stockOut)}
-                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                        title="Trash"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                  
+                    <button
+                      onClick={() => openDeleteModal(stockOut)}
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -1024,102 +1201,137 @@ const StockOutManagement = ({ role }) => {
   );
 
   return (
-    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
+    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8 text-xs">
       {notification && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-xs ${
             notification.type === 'success' ? 'bg-green-500 text-white' :
-            notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
+            notification.type === 'warning' ? 'bg-yellow-500 text-white' :
+            'bg-red-500 text-white'
           } animate-in slide-in-from-top-2 duration-300`}
         >
-          {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
+          {notification.type === 'success' ? <Check size={14} /> : <AlertTriangle size={14} />}
           {notification.message}
         </div>
       )}
       <InvoiceComponent isOpen={isInvoiceNoteOpen} onClose={handleCloseInvoiceModal} transactionId={transactionId} />
       <div className="h-full overflow-y-auto mx-auto">
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary-600 rounded-lg">
-                <Package className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-primary-600 rounded-lg">
+                <Package className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Stock Out Management</h1>
+              <h1 className="text-base font-bold text-gray-900">Stock Out Management</h1>
             </div>
+
           </div>
-          <p className="text-sm text-gray-600">Manage your sales transactions and track outgoing stock - works offline and syncs when online</p>
+          <p className="text-xs text-gray-600">Manage your sales transactions and track outgoing stock - works offline and syncs when online</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-4">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-            <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search by product, client, phone, or transaction..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
-              />
+        {statistics && <StatisticsCards />}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 p-3">
+          <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="relative flex-grow max-w-md">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search by product, client, phone, or transaction..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                />
+              </div>
+              <div className="relative">
+                <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full sm:w-36 pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                  placeholder="Start Date"
+                />
+              </div>
+              <div className="relative">
+                <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full sm:w-36 pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                  placeholder="End Date"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
+              {(searchTerm || startDate || endDate) && (
+                <button
+                  onClick={handleClearFilters}
+                  className="flex items-center justify-center px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm text-xs"
+                  title="Clear Filters"
+                >
+                  <X size={14} />
+                  Clear Filters
+                </button>
+              )}
               <div
-                className={`flex items-center justify-center w-10 h-10 rounded-lg ${
+                className={`flex items-center justify-center w-8 h-8 rounded-lg ${
                   isOnline ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
                 }`}
                 title={isOnline ? 'Online' : 'Offline'}
               >
-                {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+                {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
               </div>
               {isOnline && (
                 <button
                   onClick={handleManualSync}
                   disabled={isLoading}
-                  className="flex items-center justify-center w-10 h-10 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center justify-center w-8 h-8 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
                   title="Sync now"
                 >
-                  <RotateCcw size={16} className={isLoading ? 'animate-spin' : ''} />
+                  <RotateCcw size={14} className={isLoading ? 'animate-spin' : ''} />
                 </button>
               )}
               {isOnline && (
                 <button
                   onClick={() => loadStockOuts(true)}
                   disabled={isRefreshing}
-                  className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center justify-center w-8 h-8 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
                   title="Refresh"
                 >
-                  <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                  <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
                 </button>
               )}
               <button
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={openAddModal}
                 disabled={isLoading}
-                className="flex items-center justify-center px-3 h-10 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm"
+                className="flex items-center justify-center px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm text-xs"
                 title="Add Sale Transaction"
               >
-                <Plus size={16} />
+                <Plus size={14} />
                 Add Sale
               </button>
             </div>
           </div>
         </div>
         {isLoading && !isRefreshing ? (
-          <div className="text-center py-12">
-            <div className="inline-flex items-center gap-3">
-              <RefreshCw className="w-5 h-5 animate-spin text-primary-600" />
-              <p className="text-gray-600">Loading stock-outs...</p>
+          <div className="text-center py-10">
+            <div className="inline-flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin text-primary-600" />
+              <p className="text-xs text-gray-600">Loading stock-outs...</p>
             </div>
           </div>
         ) : filteredStockOuts.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No stock-outs found</h3>
-            <p className="text-gray-600 mb-4">{searchTerm ? 'Try adjusting your search terms.' : 'Get started by adding your first sale transaction.'}</p>
-            {!searchTerm && (
+          <div className="text-center py-10">
+            <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-sm font-medium text-gray-900 mb-2">No stock-outs found</h3>
+            <p className="text-xs text-gray-600 mb-3">{searchTerm || startDate || endDate ? 'Try adjusting your filters.' : 'Get started by adding your first sale transaction.'}</p>
+            {!searchTerm && !startDate && !endDate && (
               <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                onClick={openAddModal}
+                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors text-xs"
               >
-                <Plus size={20} />
+                <Plus size={14} />
                 Add Sale Transaction
               </button>
             )}
@@ -1130,7 +1342,7 @@ const StockOutManagement = ({ role }) => {
             <TableView />
           </>
         )}
-        <UpsertStockOutModal
+        {/* <UpsertStockOutModal
           isOpen={isAddModalOpen || isEditModalOpen}
           onClose={() => {
             setIsAddModalOpen(false);
@@ -1142,7 +1354,7 @@ const StockOutManagement = ({ role }) => {
           stockIns={stockIns}
           isLoading={isLoading}
           title={isEditModalOpen ? 'Edit Sale Transaction' : 'Add New Sale Transaction'}
-        />
+        /> */}
         <ViewStockOutModal
           isOpen={isViewModalOpen}
           onClose={() => {

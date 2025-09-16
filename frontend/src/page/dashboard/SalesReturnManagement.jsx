@@ -13,6 +13,7 @@ import stockOutService from '../../services/stockoutService';
 import stockInService from '../../services/stockinService';
 import backOrderService from '../../services/backOrderService';
 import productService from '../../services/productService';
+import { useNavigate } from 'react-router-dom';
 
 const SalesReturnManagement = ({ role }) => {
   const [salesReturns, setSalesReturns] = useState([]);
@@ -32,6 +33,7 @@ const SalesReturnManagement = ({ role }) => {
     endDate: ''
   });
 
+    
   const [isCreditNoteOpen, setIsCreditNoteOpen] = useState(false);
   const [salesReturnId, setSalesReturnId] = useState(null);
 
@@ -43,6 +45,7 @@ const SalesReturnManagement = ({ role }) => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
+  const navigate =  useNavigate();
 
   useEffect(() => {
     loadSalesReturns();
@@ -99,7 +102,7 @@ const SalesReturnManagement = ({ role }) => {
       const combinedReturnItems = allReturnItems
         .concat(offlineItemAdds.map(a => ({ ...a, synced: false })))
         .reduce((acc, item) => {
-          const key = item.salesReturnId || item.salesReturnLocalId;
+          const key = item.salesReturnId || item.salesReturnId;
           if (!acc[key]) acc[key] = [];
           acc[key].push({
             ...item,
@@ -545,7 +548,7 @@ const SalesReturnManagement = ({ role }) => {
 
           await db.sales_returns_offline_add.delete(localId);
           await db.sales_return_items_offline_add
-            .where('salesReturnLocalId')
+            .where('salesReturnId')
             .equals(localId)
             .delete();
 
@@ -732,6 +735,12 @@ const restoreStockQuantity = async (stockoutId, returnQuantity) => {
   const handleRefresh = () => {
     loadSalesReturns();
   };
+
+
+  const  handleProcessReturns  = ()=>{
+    const url = role == 'admin' ? '/admin/dashboard/sales-return/create' : '/employee/dashboard/sales-return/create';
+    navigate(url);
+  }
 
   const safeFilteredReturns = Array.isArray(filteredSalesReturns) ? filteredSalesReturns : [];
 
@@ -1177,7 +1186,7 @@ const restoreStockQuantity = async (stockoutId, returnQuantity) => {
                 Refresh
               </button>
               <button
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={handleProcessReturns}
                 className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm"
               >
                 <Plus size={16} />
@@ -1208,7 +1217,7 @@ const restoreStockQuantity = async (stockoutId, returnQuantity) => {
               </p>
               {!searchTerm && !showFilters && (
                 <button
-                  onClick={() => setIsAddModalOpen(true)}
+                  onClick={() => handleProcessReturns()}
                   className="inline-flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
                 >
                   <Plus size={16} />

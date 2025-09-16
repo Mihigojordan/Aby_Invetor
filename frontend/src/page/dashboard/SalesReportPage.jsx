@@ -490,7 +490,7 @@ const SalesReportPage = ({role}) => {
   const totalPages = Math.ceil(filteredSalesData.length / itemsPerPage);
 
   const PaginationComponent = () => (
-    <div className="px-6 py-4 border-t border-gray-200 bg-white rounded-b-xl">
+    <div className="px-6 py-1 border-t border-gray-200 bg-white rounded-b-xl">
       <div className="flex items-center justify-between">
         <div className="text-xs text-gray-700">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredSalesData.length)} of {filteredSalesData.length} results
@@ -602,7 +602,7 @@ const SalesReportPage = ({role}) => {
                 </div>
               </div>
 
-              <div className="px-6 py-4 bg-gray-50 rounded-b-xl">
+              <div className="px-6 py-1 bg-gray-50 rounded-b-xl">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
@@ -677,12 +677,12 @@ const SalesReportPage = ({role}) => {
 
               return (
                 <tr key={stockOut.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
                       {startIndex + index + 1}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
                         <ShoppingCart size={14} />
@@ -709,7 +709,7 @@ const SalesReportPage = ({role}) => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     {stockOut.clientName ? (
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">
@@ -723,7 +723,7 @@ const SalesReportPage = ({role}) => {
                       <span className="text-xs text-gray-400">Walk-in customer</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     {stockOut.quantity ? (
                       <div className="flex items-center gap-1">
                         <Hash size={12} className="text-gray-400" />
@@ -733,7 +733,7 @@ const SalesReportPage = ({role}) => {
                       <span className="text-xs text-gray-400">N/A</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     {stockOut.soldPrice ? (
                       <span className="font-medium text-sm text-gray-900">
                         {formatPrice(stockOut.soldPrice)}
@@ -742,7 +742,7 @@ const SalesReportPage = ({role}) => {
                       <span className="text-xs text-gray-400">N/A</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     {stockOut.soldPrice && stockOut.quantity ? (
                       <span className="font-medium text-sm text-gray-900">
                         {formatPrice(stockOut.soldPrice * stockOut.quantity)}
@@ -751,7 +751,7 @@ const SalesReportPage = ({role}) => {
                       <span className="text-xs text-gray-400">N/A</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     <span className={`font-medium text-sm ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                       {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
                       {profit !== 0 && (
@@ -763,7 +763,7 @@ const SalesReportPage = ({role}) => {
                      
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <Calendar size={12} className="text-gray-400" />
                       <span className="text-xs text-gray-600">
@@ -771,7 +771,7 @@ const SalesReportPage = ({role}) => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-1 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <button
                         className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -875,7 +875,7 @@ const SalesReportPage = ({role}) => {
         <div className={`grid ${getStatsGridCols()} gap-4 mb-10`}>
           {stats.map((stat, index) => (
             <div key={index}
-              className="bg-white rounded-xl cursor-pointer shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow"
+              className="bg-white rounded-xl cursor-pointer shadow-sm p-3 border border-gray-200 hover:shadow-md transition-shadow"
               onClick={() => stat.path && navigate(stat.path)}
             >
               <div className="flex items-center justify-between">

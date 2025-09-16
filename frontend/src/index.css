@@ -53,3 +53,11 @@
 Body{
   overflow-x:hidden;
 }
+
+
+.swal-text-xs .swal2-title {
+  font-size: 14px; /* Matches text-sm for headings */
+}
+.swal-text-xs .swal2-content {
+  font-size: 12px; /* Matches text-xs for message text */
+}

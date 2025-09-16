@@ -139,10 +139,30 @@ export class SalesReturnService {
       employeeId,
     });
 
+    const newsalesReturn = await this.prisma.salesReturn.findUnique({
+      where: { id: salesReturn.id },
+      include: {  
+        items: {
+          include: {
+            stockout: {
+              include: {
+                backorder:true,
+                stockin: {
+                  include: {
+                    product: true
+                  }
+                }
+              }
+            } 
+          }
+        } 
+      }
+    });
+
     return {
       message: 'Sales return processed',
       transactionId: transactionId,
-      salesReturn,
+      salesReturn:newsalesReturn,
       success,
       errors,
     };

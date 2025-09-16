@@ -764,6 +764,7 @@ const UpsertStockInModal = ({ isOpen, onClose, onSubmit, stockIn, products, isLo
                   )}
                 </div>
               ))}
+              
             </div>
           )}
 

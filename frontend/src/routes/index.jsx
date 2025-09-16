@@ -43,6 +43,9 @@ import AboutPage from "../page/landing/AboutUs";
 import FeaturesPage from "../page/landing/Feature";
 import ContactPage from "../page/landing/ContactUs";
 import LandingLayout from "../layout/LandingLayout";
+import UpsertStockOutPage from "../components/dashboard/stockout/UpsertStockOutPage";
+import UpsertSalesReturnPage from "../components/dashboard/salesReturn/UpsertSalesReturnPage";
+import UpsertStockInPage from "../components/dashboard/stockin/UpsertStockinPage";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -151,6 +154,24 @@ const routes = createBrowserRouter([
 
                             },
                             {
+                                path: "stockin/create",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertStockInPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "stockin/update/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertStockInPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
                                 path: "stockout",
                                 element: (
                                     <SuspenseWrapper>
@@ -160,10 +181,37 @@ const routes = createBrowserRouter([
 
                             },
                             {
+                                path: "stockout/create",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertStockOutPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "stockout/update/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertStockOutPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
                                 path: "sales-return",
                                 element: (
                                     <SuspenseWrapper>
                                         <SalesReturnManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                                  {
+                                path: "sales-return/create",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertSalesReturnPage role={'admin'} />
                                     </SuspenseWrapper>
                                 )
 
@@ -298,6 +346,25 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+
+                             {
+                                path: "stockin/create",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertStockInPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "stockin/update/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertStockInPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                                   {
                                 path:"sales-report",
                                  element: (
@@ -392,7 +459,34 @@ const routes = createBrowserRouter([
 
                             },
                              {
+                                path: "stockout/create",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertStockOutPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "stockout/update/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpsertStockOutPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
                                 path: "sales-return",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <SalesReturnManagement role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "sales-return/create",
                                 element: (
                                     <SuspenseWrapper>
                                         <SalesReturnManagement role={'employee'} />

@@ -1,245 +1,26 @@
+
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff, RotateCcw } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff, RotateCcw, TrendingUp } from 'lucide-react';
 import productService from '../../services/productService';
 import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockInModel';
 import DeleteStockInModal from '../../components/dashboard/stockin/DeleteStockInModel';
 import ViewStockInModal from '../../components/dashboard/stockin/ViewStockInModal';
-import { API_URL } from '../../api/api';
-import useEmployeeAuth from '../../context/EmployeeAuthContext';
-import useAdminAuth from '../../context/AdminAuthContext';
+import  useEmployeeAuth  from '../../context/EmployeeAuthContext';
+import  useAdminAuth  from '../../context/AdminAuthContext';
 import stockOutService from '../../services/stockoutService';
 import stockInService from '../../services/stockinService';
 import { db } from '../../db/database';
 import { useStockInOfflineSync } from '../../hooks/useStockInOfflineSync';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
-
-// Barcode Service Class (unchanged)
-class BarcodeService {
-  constructor() {
-    this.API_URL = API_URL || 'http://localhost:3000';
-  }
-
-  generateBarcodeHTML(stockItem) {
-    return `
-      <div style="
-        width: 4in; 
-        height: 2in; 
-        padding: 0.25in; 
-        margin: 0; 
-        page-break-after: always;
-        border: 1px solid #000;
-        font-family: Arial, sans-serif;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-      ">
-        <div style="text-align: center; margin-bottom: 0.1in;">
-          <h3 style="margin: 0 0 0.05in 0; font-size: 12px; font-weight: bold;">
-            ${stockItem.product?.productName || 'Product'}
-          </h3>
-          <p style="margin: 0; font-size: 10px; color: #666;">
-            SKU: ${stockItem.sku}
-          </p>
-        </div>
-        
-        <div style="margin: 0.1in 0;">
-          <img 
-            src="${this.API_URL}${stockItem.barcodeUrl}" 
-            alt="Barcode" 
-            style="height: 0.8in; max-width: 3in; object-fit: contain;"
-            onload="this.style.display='block'"
-            onerror="this.style.display='none'"
-          />
-        </div>
-        
-        <div style="text-align: center; font-size: 10px;">
-          <p style="margin: 0 0 0.02in 0;">Price: $${stockItem.sellingPrice?.toFixed(2)}</p>
-          <p style="margin: 0; font-weight: bold;">${stockItem.sku}</p>
-        </div>
-      </div>
-    `;
-  }
-
-  generateMultipleBarcodeHTML(stockItems) {
-    const barcodeHTMLs = stockItems.map(item => this.generateBarcodeHTML(item));
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Barcode Print</title>
-          <style>
-            @page {
-              size: 4in 2in;
-              margin: 0;
-            }
-            
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-            
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: Arial, sans-serif;
-            }
-            
-            .print-container {
-              width: 100%;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-container">
-            ${barcodeHTMLs.join('')}
-          </div>
-          
-          <script>
-            window.onload = function() {
-              const images = document.querySelectorAll('img');
-              let loadedImages = 0;
-              
-              if (images.length === 0) {
-                setTimeout(() => window.print(), 500);
-                return;
-              }
-              
-              images.forEach(img => {
-                if (img.complete) {
-                  loadedImages++;
-                } else {
-                  img.onload = () => {
-                    loadedImages++;
-                    if (loadedImages === images.length) {
-                      setTimeout(() => window.print(), 500);
-                    }
-                  };
-                  img.onerror = () => {
-                    loadedImages++;
-                    if (loadedImages === images.length) {
-                      setTimeout(() => window.print(), 500);
-                    }
-                  };
-                }
-              });
-              
-              if (loadedImages === images.length) {
-                setTimeout(() => window.print(), 500);
-              }
-              
-              setTimeout(() => window.print(), 3000);
-            };
-          </script>
-        </body>
-      </html>
-    `;
-  }
-
-  async printBarcodes(stockItems) {
-    if (!Array.isArray(stockItems)) {
-      stockItems = [stockItems];
-    }
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const printHTML = this.generateMultipleBarcodeHTML(stockItems);
-      const printWindow = window.open('', '_blank', 'width=800,height=600');
-      if (!printWindow) {
-        throw new Error('Popup blocked. Please allow popups for barcode printing.');
-      }
-      printWindow.document.write(printHTML);
-      printWindow.document.close();
-      return true;
-    } catch (error) {
-      console.error('Error printing barcodes:', error);
-      throw error;
-    }
-  }
-
-  async printBarcodesViaIframe(stockItems) {
-    if (!Array.isArray(stockItems)) {
-      stockItems = [stockItems];
-    }
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const printHTML = this.generateMultipleBarcodeHTML(stockItems);
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.top = '-1000px';
-      iframe.style.left = '-1000px';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      document.body.appendChild(iframe);
-      const doc = iframe.contentWindow.document;
-      doc.open();
-      doc.write(printHTML);
-      doc.close();
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        }, 500);
-      };
-      return true;
-    } catch (error) {
-      console.error('Error printing barcodes via iframe:', error);
-      throw error;
-    }
-  }
-
-  async printSingleBarcode(stockItem) {
-    return this.printBarcodes([stockItem]);
-  }
-}
-
-const barcodeService = new BarcodeService();
-
-// Print Barcode Button Component (updated styling)
-const PrintBarcodeButton = ({ stockItems, onPrint, showNotification }) => {
-  const [isPrinting, setIsPrinting] = useState(false);
-
-  const handlePrint = async () => {
-    if (!stockItems || stockItems.length === 0) {
-      showNotification('No items to print', 'warning');
-      return;
-    }
-    setIsPrinting(true);
-    try {
-      await barcodeService.printBarcodes(stockItems);
-      showNotification(`Printing ${stockItems.length} barcode(s)...`, 'success');
-      if (onPrint) onPrint();
-    } catch (error) {
-      console.error('Print failed:', error);
-      showNotification(`Print failed: ${error.message}`, 'error');
-    } finally {
-      setIsPrinting(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={handlePrint}
-      disabled={isPrinting || !stockItems || stockItems.length === 0}
-      className="flex items-center justify-center px-3 h-10 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg transition-colors shadow-sm text-sm"
-      title="Print Barcodes"
-    >
-      {isPrinting ? (
-        <RefreshCw size={16} className="animate-spin" />
-      ) : (
-        <Printer size={16} />
-      )}
-      {isPrinting ? 'Printing...' : 'Print Barcodes'}
-    </button>
-  );
-};
+import { useNavigate } from 'react-router-dom';
 
 const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
   const [products, setProducts] = useState([]);
   const [filteredStockIns, setFilteredStockIns] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -254,12 +35,47 @@ const StockInManagement = ({ role }) => {
   const { triggerSync, syncError } = useStockInOfflineSync();
   const [itemsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
-  const [recentlyAddedItems, setRecentlyAddedItems] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
     if (isOnline) handleManualSync();
   }, [isOnline]);
+
+  useEffect(() => {
+    if (syncError) {
+      showNotification(`Sync status error: ${syncError}`, 'error');
+    }
+  }, [syncError]);
+
+  useEffect(() => {
+    let filtered = stockIns || [];
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(stockIn =>
+        stockIn.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stockIn.supplier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stockIn.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    // Apply date filter
+    if (startDate || endDate) {
+      filtered = filtered.filter(stockIn => {
+        const stockDate = new Date(stockIn.createdAt || stockIn.lastModified);
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
+        if (start && end && start > end) return true; // Invalid range, show all
+        if (start && stockDate < start) return false;
+        if (end) {
+          end.setHours(23, 59, 59, 999); // Include entire end date
+          if (stockDate > end) return false;
+        }
+        return true;
+      });
+    }
+    setFilteredStockIns(filtered);
+    setCurrentPage(1);
+  }, [searchTerm, startDate, endDate, stockIns]);
 
   const fetchProducts = async () => {
     try {
@@ -287,36 +103,26 @@ const StockInManagement = ({ role }) => {
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
       const combinedProducts = allProducts
         .filter(c => !deleteIds.has(c.id))
-        .map(c => ({
-          ...c,
-          ...updateMap.get(c.id),
-          synced: true
-        }))
+        .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
       return combinedProducts;
     } catch (error) {
       console.error('Error fetching products:', error);
-      if (!error?.response) {
-        const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-          db.products_all.toArray(),
-          db.products_offline_add.toArray(),
-          db.products_offline_update.toArray(),
-          db.products_offline_delete.toArray()
-        ]);
-        const deleteIds = new Set(offlineDeletes.map(d => d.id));
-        const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-        const combinedProducts = allProducts
-          .filter(c => !deleteIds.has(c.id))
-          .map(c => ({
-            ...c,
-            ...updateMap.get(c.id),
-            synced: true
-          }))
-          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-          .sort((a, b) => a.synced - b.synced);
-        return combinedProducts;
-      }
+      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+        db.products_all.toArray(),
+        db.products_offline_add.toArray(),
+        db.products_offline_update.toArray(),
+        db.products_offline_delete.toArray()
+      ]);
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      const combinedProducts = allProducts
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
+        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+        .sort((a, b) => a.synced - b.synced);
+      return combinedProducts;
     }
   };
 
@@ -367,27 +173,6 @@ const StockInManagement = ({ role }) => {
       setIsRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    if (syncError) {
-      showNotification(`Sync status error: ${syncError}`, 'error');
-    }
-  }, [syncError]);
-
-  useEffect(() => {
-    const filtered = (stockIns || []).filter(stockIn =>
-      stockIn.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stockIn.supplier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stockIn.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredStockIns(filtered);
-    setCurrentPage(1);
-  }, [searchTerm, stockIns]);
-
-  const totalPages = Math.ceil((filteredStockIns || []).length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = (filteredStockIns || []).slice(startIndex, endIndex);
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -460,7 +245,6 @@ const StockInManagement = ({ role }) => {
           throw new Error('Missing required fields');
         }
         const localId = await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity });
-        const savedStockIn = { ...newStockIn, localId, synced: false };
         if (isOnline) {
           try {
             const response = await stockInService.createStockIn(newStockIn);
@@ -495,6 +279,7 @@ const StockInManagement = ({ role }) => {
       }
       await loadData();
       setIsAddModalOpen(false);
+      navigate(role === 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin', { replace: true });
     } catch (error) {
       console.error('Error adding stock-in:', error);
       let errorMessage = 'Failed to add stock entry';
@@ -516,9 +301,8 @@ const StockInManagement = ({ role }) => {
     try {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
-      
       if (!isOnline && stockInData && stockInData.localId && !stockInData.synced) {
-        const localId = await db.stockins_offline_add.update(stockInData.localId, {
+        await db.stockins_offline_add.update(stockInData.localId, {
           ...stockInData,
           ...userData,
           lastModified: now,
@@ -527,9 +311,9 @@ const StockInManagement = ({ role }) => {
         await loadData();
         setIsEditModalOpen(false);
         setSelectedStockIn(null);
+        navigate(role === 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin', { replace: true });
         return;
       }
-
       const updatedData = {
         id: selectedStockIn.id,
         quantity: stockInData.quantity,
@@ -540,7 +324,6 @@ const StockInManagement = ({ role }) => {
         lastModified: now,
         updatedAt: now
       };
-
       if (isOnline) {
         try {
           await stockInService.updateStockIn(selectedStockIn.id, updatedData);
@@ -568,10 +351,10 @@ const StockInManagement = ({ role }) => {
         await db.stockins_offline_update.put(updatedData);
         showNotification('Stock entry updated offline (will sync when online)', 'warning');
       }
-
       await loadData();
       setIsEditModalOpen(false);
       setSelectedStockIn(null);
+      navigate(role === 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin', { replace: true });
     } catch (error) {
       console.error('Error updating stock-in:', error);
       showNotification(`Failed to update stock entry: ${error.message}`, 'error');
@@ -688,22 +471,38 @@ const StockInManagement = ({ role }) => {
     });
   };
 
-  const handlePrintSingleBarcode = async (stockIn) => {
-    try {
-      const stockWithProduct = {
-        ...stockIn,
-        product: stockIn.product || { productName: 'Unknown Product' }
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF' }).format(price || 0);
+  };
+
+  const calculateStats = () => {
+    if (!Array.isArray(filteredStockIns) || filteredStockIns.length === 0) {
+      return {
+        totalEntries: 0,
+        totalQuantity: 0,
+        totalValue: 0,
+        avgPricePerUnit: 0
       };
-      await barcodeService.printSingleBarcode(stockWithProduct);
-      showNotification('Printing barcode...', 'success');
-    } catch (error) {
-      showNotification(`Print failed: ${error.message}`, 'error');
     }
+    const totalEntries = filteredStockIns.length;
+    const totalQuantity = filteredStockIns.reduce((sum, stockIn) => sum + (stockIn.offlineQuantity ?? stockIn.quantity ?? 0), 0);
+    const totalValue = filteredStockIns.reduce((sum, stockIn) => sum + ((stockIn.offlineQuantity ?? stockIn.quantity ?? 0) * (stockIn.price || 0)), 0);
+    const avgPricePerUnit = totalQuantity ? (totalValue / totalQuantity).toFixed(1) : 0;
+    return { totalEntries, totalQuantity, totalValue, avgPricePerUnit };
+  };
+
+  const openAddModal = () => {
+    navigate(role === 'admin' ? '/admin/dashboard/stockin/create' : '/employee/dashboard/stockin/create');
   };
 
   const openEditModal = (stockIn) => {
-    setSelectedStockIn(stockIn);
-    setIsEditModalOpen(true);
+    if (!stockIn.id) return showNotification('Cannot edit unsynced stock entry', 'error');
+    navigate(role === 'admin' ? `/admin/dashboard/stockin/update/${stockIn.id}` : `/employee/dashboard/stockin/update/${stockIn.id}`);
   };
 
   const openViewModal = (stockIn) => {
@@ -714,15 +513,6 @@ const StockInManagement = ({ role }) => {
   const openDeleteModal = (stockIn) => {
     setSelectedStockIn(stockIn);
     setIsDeleteModalOpen(true);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  };
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF' }).format(price);
   };
 
   const getPageNumbers = () => {
@@ -745,11 +535,66 @@ const StockInManagement = ({ role }) => {
     setIsDeleteModalOpen(false);
     setIsViewModalOpen(false);
     setSelectedStockIn(null);
+    navigate(role === 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin', { replace: true });
   };
 
-  // Pagination Component
+  const totalPages = Math.ceil((filteredStockIns || []).length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = (filteredStockIns || []).slice(startIndex, endIndex);
+  const stats = calculateStats();
+
+  const StatisticsCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Stock Ins</p>
+            <p className="text-sm font-bold text-gray-900">{stats.totalEntries}</p>
+          </div>
+          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Package className="w-4 h-4 text-blue-600" />
+          </div>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Quantity</p>
+            <p className="text-sm font-bold text-gray-900">{stats.totalQuantity}</p>
+          </div>
+          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-green-600" />
+          </div>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Value</p>
+            <p className="text-sm font-bold text-gray-900">{formatPrice(stats.totalValue)}</p>
+          </div>
+          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-4 h-4 text-orange-600" />
+          </div>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Avg Price/Unit</p>
+            <p className="text-sm font-bold text-gray-900">{formatPrice(stats.avgPricePerUnit)}</p>
+          </div>
+          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+            <Hash className="w-4 h-4 text-purple-600" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const PaginationComponent = () => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
         <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, (filteredStockIns || []).length)} of {(filteredStockIns || []).length} entries
@@ -760,9 +605,9 @@ const StockInManagement = ({ role }) => {
           <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${currentPage === 1 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs border rounded-md transition-colors ${currentPage === 1 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
           >
-            <ChevronLeft size={14} />
+            <ChevronLeft size={12} />
             Previous
           </button>
           <div className="flex items-center gap-1 mx-2">
@@ -770,7 +615,7 @@ const StockInManagement = ({ role }) => {
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`px-3 py-2 text-xs rounded-md transition-colors ${currentPage === page ? 'bg-primary-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+                className={`px-3 py-1.5 text-xs rounded-md transition-colors ${currentPage === page ? 'bg-primary-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-100'}`}
               >
                 {page}
               </button>
@@ -779,37 +624,36 @@ const StockInManagement = ({ role }) => {
           <button
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${currentPage === totalPages ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs border rounded-md transition-colors ${currentPage === totalPages ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
           >
             Next
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </button>
         </div>
       )}
     </div>
   );
 
-  // Card View Component (Mobile/Tablet)
   const CardView = () => (
     <div className="md:hidden">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {(currentItems || []).map((stockIn, index) => (
           <div
             key={stockIn.localId || stockIn.id}
-            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${stockIn.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'}`}
+            className={`bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${stockIn.synced ? 'border-gray-200' : 'border-yellow-200 bg-yellow-50'}`}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                    <Package size={20} />
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white">
+                    <Package size={12} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate" title={stockIn.product?.productName || 'Unknown Product'}>
+                    <h3 className="font-semibold text-sm text-gray-900 truncate" title={stockIn.product?.productName || 'Unknown Product'}>
                       {stockIn.product?.productName || 'Unknown Product'}
                     </h3>
                     <div className="flex items-center gap-1 mt-1">
-                      <div className={`w-2 h-2 rounded-full ${stockIn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                      <div className={`w-1.5 h-1.5 rounded-full ${stockIn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                       <span className="text-xs text-gray-500">{stockIn.synced ? 'In Stock' : 'Syncing...'}</span>
                     </div>
                   </div>
@@ -818,70 +662,70 @@ const StockInManagement = ({ role }) => {
                   <button
                     onClick={() => openViewModal(stockIn)}
                     disabled={isLoading}
-                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="View Details"
                   >
-                    <Eye size={16} />
+                    <Eye size={12} />
                   </button>
                   <button
                     onClick={() => handlePrint(stockIn)}
                     disabled={isLoading}
-                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="Print Barcode"
                   >
-                    <Printer size={16} />
+                    <Printer size={12} />
                   </button>
                   <button
                     onClick={() => openEditModal(stockIn)}
                     disabled={isLoading}
-                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="Edit"
                   >
-                    <Edit3 size={16} />
+                    <Edit3 size={12} />
                   </button>
                   <button
                     onClick={() => openDeleteModal(stockIn)}
                     disabled={isLoading}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="Delete"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={12} />
                   </button>
                 </div>
               </div>
-              <div className="space-y-2 mb-4">
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <Hash size={14} className="mt-0.5" />
-                  <span>Qty: {stockIn.quantity}</span>
+              <div className="space-y-2 mb-3">
+                <div className="flex items-start gap-2 text-xs text-gray-600">
+                  <Hash size={10} className="mt-0.5" />
+                  <span>Qty: {stockIn.offlineQuantity ?? stockIn.quantity}</span>
                 </div>
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <DollarSign size={14} className="mt-0.5" />
+                <div className="flex items-start gap-2 text-xs text-gray-600">
+                  <DollarSign size={10} className="mt-0.5" />
                   <span>Unit Price: {formatPrice(stockIn.price)}</span>
                 </div>
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <DollarSign size={14} className="mt-0.5" />
-                  <span className="font-medium">Total: {formatPrice(stockIn.price * stockIn.quantity)}</span>
+                <div className="flex items-start gap-2 text-xs text-gray-600">
+                  <DollarSign size={10} className="mt-0.5" />
+                  <span className="font-medium">Total: {formatPrice(stockIn.price * (stockIn.offlineQuantity ?? stockIn.quantity))}</span>
                 </div>
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <DollarSign size={14} className="mt-0.5" />
+                <div className="flex items-start gap-2 text-xs text-gray-600">
+                  <DollarSign size={10} className="mt-0.5" />
                   <span className="font-medium">Sell Price: {formatPrice(stockIn.sellingPrice)}</span>
                 </div>
                 {stockIn.supplier && (
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <User size={14} className="mt-0.5" />
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <User size={10} className="mt-0.5" />
                     <span className="truncate">{stockIn.supplier}</span>
                   </div>
                 )}
                 {stockIn.sku && (
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <Barcode size={14} className="mt-0.5" />
-                    <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">{stockIn.sku}</span>
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <Barcode size={10} className="mt-0.5" />
+                    <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded">{stockIn.sku}</span>
                   </div>
                 )}
               </div>
-              <div className="pt-4 border-t border-gray-100">
+              <div className="pt-3 border-t border-gray-100">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar size={12} />
+                  <Calendar size={10} />
                   <span>Added {formatDate(stockIn.createdAt || stockIn.lastModified)}</span>
                 </div>
               </div>
@@ -889,15 +733,14 @@ const StockInManagement = ({ role }) => {
           </div>
         ))}
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <PaginationComponent />
       </div>
     </div>
   );
 
-  // Table View Component (Desktop)
   const TableView = () => (
-    <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200">
+    <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -916,82 +759,82 @@ const StockInManagement = ({ role }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {(currentItems || []).map((stockIn, index) => (
               <tr key={stockIn.localId || stockIn.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">{startIndex + index + 1}</span>
+                <td className="px-4 py-2 whitespace-nowrap">
+                  <span className="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">{startIndex + index + 1}</span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      <Package size={14} />
+                <td className="px-4 py-2 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white">
+                      <Package size={10} />
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900 text-sm">{stockIn.product?.productName || 'Unknown Product'}</div>
+                      <div className="font-medium text-sm text-gray-900">{stockIn.product?.productName || 'Unknown Product'}</div>
                       {stockIn.sku && <div className="text-xs text-gray-500">{stockIn.sku}</div>}
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-2 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <Hash size={12} className="text-gray-400" />
-                    <span className="text-xs text-gray-900">{!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity ?? 0) : (stockIn.quantity ?? 0)}</span>
+                    <Hash size={10} className="text-gray-400" />
+                    <span className="text-xs text-gray-900">{stockIn.offlineQuantity ?? stockIn.quantity ?? 0}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-2 whitespace-nowrap">
                   <span className="text-xs text-gray-900">{formatPrice(stockIn.price || 0)}</span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-2 whitespace-nowrap">
                   <span className="text-xs font-semibold text-primary-600">
-                    {formatPrice(stockIn.price * (!stockIn.synced ? (stockIn.offlineQuantity ?? stockIn.quantity) : stockIn.quantity))}
+                    {formatPrice(stockIn.price * (stockIn.offlineQuantity ?? stockIn.quantity))}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-2 whitespace-nowrap">
                   <span className="text-xs font-semibold text-primary-600">{formatPrice(stockIn.sellingPrice || 0)}</span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stockIn.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                <td className="px-4 py-2 whitespace-nowrap">
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${stockIn.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${stockIn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                     {stockIn.synced ? 'Synced' : 'Syncing...'}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-2 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <Calendar size={12} className="text-gray-400" />
+                    <Calendar size={10} className="text-gray-400" />
                     <span className="text-xs text-gray-600">{formatDate(stockIn.createdAt || stockIn.lastModified)}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
+                <td className="px-4 py-2 whitespace-nowrap">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => openViewModal(stockIn)}
                       disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                      className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="View Details"
                     >
-                      <Eye size={14} />
+                      <Eye size={12} />
                     </button>
                     <button
                       onClick={() => handlePrint(stockIn)}
                       disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                      className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="Print Barcode"
                     >
-                      <Printer size={14} />
+                      <Printer size={12} />
                     </button>
                     <button
                       onClick={() => openEditModal(stockIn)}
                       disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                      className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="Edit"
                     >
-                      <Edit3 size={14} />
+                      <Edit3 size={12} />
                     </button>
                     <button
                       onClick={() => openDeleteModal(stockIn)}
                       disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="Delete"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 </td>
@@ -1005,84 +848,100 @@ const StockInManagement = ({ role }) => {
   );
 
   return (
-    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
+    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8 text-xs">
       {notification && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-xs ${
             notification.type === 'success' ? 'bg-green-500 text-white' :
             notification.type === 'warning' ? 'bg-yellow-500 text-white' :
             'bg-red-500 text-white'
           } animate-in slide-in-from-top-2 duration-300`}
         >
-          {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
+          {notification.type === 'success' ? <Check size={12} /> : <AlertTriangle size={12} />}
           {notification.message}
         </div>
       )}
       <div className="h-full overflow-y-auto mx-auto">
         <div className="mb-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-primary-600 rounded-lg">
-                <Package className="w-6 h-6 text-white" />
+                <Package className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Stock In Management</h1>
+              <h1 className="text-base font-bold text-gray-900">Stock In Management</h1>
             </div>
           </div>
-          <p className="text-sm text-gray-600">Manage your inventory stock entries and track incoming stock - works offline and syncs when online</p>
+          <p className="text-xs text-gray-600">Manage your inventory stock entries and track incoming stock - works offline and syncs when online</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-4">
+        <StatisticsCards />
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-4">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-            <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search by product, supplier, or SKU..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
-              />
+             <div className="relative flex-grow max-w-md">
+                             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                             <input
+                               type="text"
+                               placeholder="Search by product, client, phone, or transaction..."
+                               value={searchTerm}
+                               onChange={(e) => setSearchTerm(e.target.value)}
+                               className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                             />
+                           </div>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <div className="flex gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                  />
+                </div>
+              </div>
             </div>
             <div className="flex gap-2">
               <div
-                className={`flex items-center justify-center w-10 h-10 rounded-lg ${isOnline ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
+                className={`flex items-center justify-center w-8 h-8 rounded-lg ${isOnline ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
                 title={isOnline ? 'Online' : 'Offline'}
               >
-                {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+                {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
               </div>
               {isOnline && (
                 <button
                   onClick={handleManualSync}
                   disabled={isLoading}
-                  className="flex items-center justify-center w-10 h-10 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center justify-center w-8 h-8 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
                   title="Sync now"
                 >
-                  <RotateCcw size={16} className={isLoading ? 'animate-spin' : ''} />
+                  <RotateCcw size={12} className={isLoading ? 'animate-spin' : ''} />
                 </button>
               )}
               {isOnline && (
                 <button
                   onClick={() => loadData(true)}
                   disabled={isRefreshing}
-                  className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center justify-center w-8 h-8 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
                   title="Refresh"
                 >
-                  <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                  <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
                 </button>
               )}
-              {recentlyAddedItems.length > 0 && (
-                <PrintBarcodeButton
-                  stockItems={recentlyAddedItems}
-                  onPrint={() => setRecentlyAddedItems([])}
-                  showNotification={showNotification}
-                />
-              )}
               <button
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={openAddModal}
                 disabled={isLoading}
-                className="flex items-center justify-center px-3 h-10 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm"
+                className="flex items-center justify-center px-3 h-8 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm text-xs"
                 title="Add Stock Entry"
               >
-                <Plus size={16} />
+                <Plus size={12} />
                 Add Stock Entry
               </button>
             </div>
@@ -1090,22 +949,22 @@ const StockInManagement = ({ role }) => {
         </div>
         {isLoading && !isRefreshing ? (
           <div className="text-center py-12">
-            <div className="inline-flex items-center gap-3">
-              <RefreshCw className="w-5 h-5 animate-spin text-primary-600" />
-              <p className="text-gray-600">Loading stock entries...</p>
+            <div className="inline-flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin text-primary-600" />
+              <p className="text-xs text-gray-600">Loading stock entries...</p>
             </div>
           </div>
         ) : (filteredStockIns || []).length === 0 ? (
           <div className="text-center py-12">
-            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No stock entries found</h3>
-            <p className="text-gray-600 mb-4">{searchTerm ? 'Try adjusting your search terms.' : 'Get started by adding your first stock entry.'}</p>
-            {!searchTerm && (
+            <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-sm font-medium text-gray-900 mb-2">No stock entries found</h3>
+            <p className="text-xs text-gray-600 mb-4">{searchTerm || startDate || endDate ? 'Try adjusting your search or date filters.' : 'Get started by adding your first stock entry.'}</p>
+            {!(searchTerm || startDate || endDate) && (
               <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                onClick={openAddModal}
+                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors text-xs"
               >
-                <Plus size={20} />
+                <Plus size={12} />
                 Add Stock Entry
               </button>
             )}
@@ -1116,15 +975,6 @@ const StockInManagement = ({ role }) => {
             <TableView />
           </>
         )}
-        <UpsertStockInModal
-          isOpen={isAddModalOpen || isEditModalOpen}
-          onClose={closeAllModals}
-          onSubmit={isEditModalOpen ? handleEditStockIn : handleAddStockIn}
-          stockIn={selectedStockIn}
-          products={products}
-          isLoading={isLoading}
-          title={isEditModalOpen ? 'Edit Stock Entry' : 'Add New Stock Entry'}
-        />
         <ViewStockInModal
           isOpen={isViewModalOpen}
           onClose={closeAllModals}

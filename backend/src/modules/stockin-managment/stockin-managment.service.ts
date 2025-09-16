@@ -133,6 +133,7 @@ export class StockinManagmentService {
     
     const updatedStock = await this.prisma.stockIn.update({
       where: { id },
+      
       data: {
         ...data,
         quantity:
@@ -140,7 +141,9 @@ export class StockinManagmentService {
         price: data.price !== undefined ? Number(data.price) : stock.price,
         sellingPrice: Number(data.sellingPrice),
         totalPrice,
+        
       },
+
     });
 
     // Activity tracking
