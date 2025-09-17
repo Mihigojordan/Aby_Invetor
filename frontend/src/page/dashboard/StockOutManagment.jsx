@@ -1222,7 +1222,7 @@ const StockOutManagement = ({ role }) => {
               <div className="p-1.5 bg-primary-600 rounded-lg">
                 <Package className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-base font-bold text-gray-900">Stock Out Management</h1>
+              <h1 className="text-lg lg:text-xl font-bold text-gray-900">Stock Out Management</h1>
             </div>
 
           </div>

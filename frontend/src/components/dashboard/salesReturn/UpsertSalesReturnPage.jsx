@@ -15,6 +15,7 @@ const UpsertSalesReturnPage = ({ role }) => {
   const [soldProducts, setSoldProducts] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
   const { user: adminData } = useAdminAuth();
   const { user: employeeData } = useEmployeeAuth();
   const [isSearching, setIsSearching] = useState(false);
@@ -588,6 +589,8 @@ const UpsertSalesReturnPage = ({ role }) => {
   const getSelectedItem = (stockoutId) => {
     return selectedItems.find(item => item.stockoutId === stockoutId);
   };
+
+ 
 
   return (
     <div className="flex bg-white items-center justify-center">

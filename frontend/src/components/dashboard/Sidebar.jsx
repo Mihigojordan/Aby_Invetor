@@ -282,14 +282,14 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       <item.icon
         className={`w-4 h-4 ${isActive ? "text-primary-600" : "text-gray-400"}`}
       />
-      <span className="font-medium text-[0.75rem]">{item.label}</span>
+      <span className="font-medium text-[0.8rem]">{item.label}</span>
     </button>
   );
 
   const DropdownItem = ({ item, isActive }) => (
     <Link
       to={item.path}
-      className={`flex items-center space-x-2 px-6 py-1.5 text-[0.6rem] rounded-lg transition-all duration-200 ${
+      className={`flex items-center space-x-2 px-6 py-1.5 text-[0.7rem] rounded-lg transition-all duration-200 ${
         isActive
           ? "bg-primary-50 text-primary-700"
           : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
@@ -318,7 +318,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           <item.icon
             className={`w-4 h-4 ${hasActiveChild ? "text-primary-600" : "text-gray-400"}`}
           />
-          <span className="font-medium text-[0.75rem]">{item.label}</span>
+          <span className="font-medium text-[0.8rem]">{item.label}</span>
         </div>
         <div className="transition-transform duration-200">
           {isOpen ? (
@@ -399,7 +399,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
               <h1 className="text-lg font-semibold text-gray-900">
                 ABY Inventory
               </h1>
-              <p className="text-[0.6rem] text-gray-500 capitalize">
+              <p className="text-[0.7rem] text-gray-500 capitalize">
                 {role} Dashboard
               </p>
             </div>
@@ -419,11 +419,11 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
               currentMenuItems.map(renderMenuItem)
             ) : (
               <div className="text-center py-2">
-                <p className="text-gray-500 text-[0.75rem] font-light">
+                <p className="text-gray-500 text-[0.8rem] font-light">
                   No additional menu items available
                 </p>
                 {role === "employee" && (
-                  <p className="text-gray-400 text-[0.6rem] mt-1">
+                  <p className="text-gray-400 text-[0.7rem] mt-1">
                     Contact admin to assign tasks for more options
                   </p>
                 )}

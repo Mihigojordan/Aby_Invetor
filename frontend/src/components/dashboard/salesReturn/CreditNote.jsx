@@ -32,6 +32,8 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
     try {
       setLoading(true);
       const response = await salesReturnService.getSalesReturnById(salesReturnId)
+      console.warn('data of dla:',response.data);
+      
       setCreditNoteData(response.data);
     } catch (error) {
       console.log(error.message);
@@ -103,6 +105,7 @@ const CreditNoteComponent = ({ isOpen, onClose, salesReturnId }) => {
         .find(s=> s.id== salesReturnId || s.localId == salesReturnId);
 
       console.warn(combinedSalesReturns);
+      console.warn('data of dla:',combinedSalesReturns);
 
       setCreditNoteData(combinedSalesReturns)
     } catch (error) {

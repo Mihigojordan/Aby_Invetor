@@ -1128,7 +1128,7 @@ const restoreStockQuantity = async (stockoutId, returnQuantity) => {
               <div className="p-1.5 bg-primary-600 rounded-lg">
                 <RotateCcw className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Sales Return Management</h1>
+              <h1 className="text-lg lg:text-xl font-bold text-gray-900">Sales Return Management</h1>
             </div>
             <div className="flex items-center gap-1.5">
               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'

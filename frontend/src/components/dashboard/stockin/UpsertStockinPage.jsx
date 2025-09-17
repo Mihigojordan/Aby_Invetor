@@ -153,7 +153,8 @@ const UpsertStockInPage = ({ role }) => {
     const [products, setProducts] = useState([]);
     const { user: employeeData } = useEmployeeAuth();
     const { user: adminData } = useAdminAuth();
-    const [isLoading, setIsLoading] = useState(true); // Start with loading true
+    const [isLoading, setIsLoading] = useState(false); // Start with loading true
+    const [loading, setLoading] = useState(true); // Start with loading true
     const [title, setTitle] = useState('');
     const [isPageLoading, setIsPageLoading] = useState(true); // New state for page loading
 
@@ -211,7 +212,7 @@ const UpsertStockInPage = ({ role }) => {
                 console.error('Error fetching data:', error);
             } finally {
                 setIsPageLoading(false); // Set page loading to false
-                setIsLoading(false);
+                setLoading(false);
             }
         };
 
@@ -783,6 +784,15 @@ const UpsertStockInPage = ({ role }) => {
             return allPurchasesValid;
         }
     };
+
+    if(loading){
+        return (
+            <div className="flex flex-col items-center justify-center h-[90vh]">
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
+                    <p className="mt-4 text-gray-600">Loading...</p>
+                </div>
+        )
+    }
 
     return (
         <div className="flex items-center justify-center bg-white max-h-[90vh] overflow-y-auto">

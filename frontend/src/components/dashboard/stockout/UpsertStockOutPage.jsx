@@ -193,6 +193,7 @@ const UpsertStockOutPage = ({ role }) => {
     const [stockIns, setStockIns] = useState([]);
     const [title, setTitle] = useState(stockOut ? "Update Stock-Out Entry" : "Create Stock-Out Entries");
     const [isLoading, setIsLoading] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [closeForm, setCloseForm] = useState(false);
     const { isOnline } = useNetworkStatusContext();
     const [validationErrors, setValidationErrors] = useState({
@@ -213,6 +214,7 @@ const UpsertStockOutPage = ({ role }) => {
                 const data = await loadStockOuts();
                 const existingStockOut = data.combinedStockOuts.find(so => (so.id || so.localId) === id);
                 setStockOut(existingStockOut || null);
+                setStockIns(data.convertedStockIns);
                 setIsUpdateMode(!!existingStockOut)
                 setTitle("Update Stock-Out Entry")
             } else {
@@ -265,7 +267,7 @@ const UpsertStockOutPage = ({ role }) => {
     }, [stockOut, id]);
 
     const loadStockOuts = async (showRefreshLoader = false) => {
-        setIsLoading(true);
+        setLoading(true);
         try {
             const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
                 db.stockouts_all.toArray(),
@@ -308,7 +310,7 @@ const UpsertStockOutPage = ({ role }) => {
         } catch (error) {
             console.error('Error loading stock-outs:', error);
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -515,6 +517,27 @@ const UpsertStockOutPage = ({ role }) => {
         return '';
     };
 
+
+
+const handleBackOrderChange = (index, field, value) => {
+    const updatedEntries = [...formData.salesEntries];
+    updatedEntries[index] = {
+        ...updatedEntries[index],
+        backOrder: {
+            ...updatedEntries[index].backOrder,
+            [field]: value
+        }
+    };
+    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+
+    const updatedErrors = [...validationErrors.salesEntries];
+    if (updatedErrors[index]) {
+        const backOrderError = validateBackOrder(updatedEntries[index].backOrder);
+        updatedErrors[index] = { ...updatedErrors[index], backOrder: backOrderError };
+        setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
+    }
+};
+
     const onClose = (closeForm) => {
         if (closeForm) {
             Swal.fire({
@@ -651,68 +674,55 @@ const UpsertStockOutPage = ({ role }) => {
     };
 
     // Handle Non-Stock Sale field changes
-    const handleBackOrderChange = (index, field, value) => {
-        const updatedEntries = [...formData.salesEntries];
-        updatedEntries[index] = {
-            ...updatedEntries[index],
-            backOrder: {
-                ...updatedEntries[index].backOrder,
-                [field]: value
-            }
+ 
+ const handleSalesEntryChange = (index, field, value) => {
+    const updatedEntries = [...formData.salesEntries];
+    updatedEntries[index] = { ...updatedEntries[index], [field]: value };
+
+    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+
+    const updatedErrors = [...validationErrors.salesEntries];
+    if (field === 'stockinId') {
+        const error = validateStockInId(value);
+        const quantityError = updatedEntries[index].quantity
+            ? validateQuantity(updatedEntries[index].quantity, value)
+            : '';
+        updatedErrors[index] = {
+            ...updatedErrors[index],
+            stockinId: error,
+            quantity: quantityError
         };
-        setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+        setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
 
-        // Clear validation errors when user starts typing
-        const updatedErrors = [...validationErrors.salesEntries];
-        if (updatedErrors[index]) {
-            updatedErrors[index] = { ...updatedErrors[index], backOrder: '' };
-            setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
+        if (value && stockIns) {
+            const selectedStock = stockIns.find(stock => stock.id === value || stock.localId === value);
+            if (selectedStock) {
+                const suggestedQuantity = calculateSuggestedQuantity(selectedStock.offlineQuantity ?? selectedStock.quantity);
+                updatedEntries[index].quantity = suggestedQuantity.toString();
+                updatedEntries[index].soldPrice = selectedStock.sellingPrice.toString();
+                setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+            }
         }
-    };
-
-    const handleSalesEntryChange = (index, field, value) => {
-        const updatedEntries = [...formData.salesEntries];
-        updatedEntries[index] = { ...updatedEntries[index], [field]: value };
-
-        setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
-
-        // Validate the changed field
+    } else if (field === 'quantity') {
         let error = '';
-        if (field === 'stockinId') {
-            error = validateStockInId(value);
-
-            // Also re-validate quantity if it exists
-            const quantityError = updatedEntries[index].quantity
-                ? validateQuantity(updatedEntries[index].quantity, value)
-                : '';
-
-            const updatedErrors = [...validationErrors.salesEntries];
-            updatedErrors[index] = {
-                ...updatedErrors[index],
-                stockinId: error,
-                quantity: quantityError
-            };
-            setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
-
-            // Auto-fill quantity and sold price when stock is selected
-            if (value && stockIns) {
-                const selectedStock = stockIns.find(stock => stock.id === value || stock.localId === value);
-                if (selectedStock) {
-                    const suggestedQuantity = calculateSuggestedQuantity(selectedStock.offlineQuantity ?? selectedStock.quantity);
-                    updatedEntries[index].quantity = suggestedQuantity.toString();
-                    updatedEntries[index].soldPrice = selectedStock.sellingPrice.toString();
-                    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+        if (updatedEntries[index].isBackOrder) {
+            if (!value) {
+                error = 'Quantity is required';
+            } else {
+                const numQuantity = Number(value);
+                if (isNaN(numQuantity) || numQuantity <= 0) {
+                    error = 'Quantity must be a positive number';
+                } else if (!Number.isInteger(numQuantity)) {
+                    error = 'Quantity must be a whole number';
                 }
             }
-        } else if (field === 'quantity') {
+        } else {
             error = validateQuantity(value, updatedEntries[index].stockinId);
-
-            const updatedErrors = [...validationErrors.salesEntries];
-            updatedErrors[index] = { ...updatedErrors[index], quantity: error };
-            setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
         }
-    };
-
+        updatedErrors[index] = { ...updatedErrors[index], quantity: error };
+        setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
+    }
+};
     // Helper function to set suggested quantity for a specific entry
     const setSuggestedQuantity = (index) => {
         const entry = formData.salesEntries[index];
@@ -1028,10 +1038,12 @@ const UpsertStockOutPage = ({ role }) => {
          onClose(true)
         } catch (error) {
           console.error('Error updating stock out:', error);
-          setNotification({
-            type: 'error',
-            message: `Failed to update stock out: ${error.message}`
-          });
+            setCloseForm(false);
+
+        //   setNotification({
+        //     type: 'error',
+        //     message: `Failed to update stock out: ${error.message}`
+        //   });
         } finally {
           setIsLoading(false);
         }
@@ -1182,37 +1194,44 @@ const UpsertStockOutPage = ({ role }) => {
     };
 
     const isFormValid = () => {
-        if (isUpdateMode) {
-            // For update mode, check if it's a Non-Stock Sale or stock-in
-            if (stockOut.backorderId) {
-                // Non-Stock Sale: only quantity is required
-                return formData.quantity && !validationErrors.quantity && !validationErrors.clientEmail;
-            } else {
-                // Stock-in: stockinId and quantity required
-                return formData.stockinId &&
-                    formData.quantity &&
-                    !validationErrors.stockinId &&
-                    !validationErrors.quantity &&
-                    !validationErrors.clientEmail;
-            }
+    if (isUpdateMode) {
+        if (stockOut.backorderId) {
+            const quantityValid = formData.quantity && !isNaN(Number(formData.quantity)) && Number(formData.quantity) > 0 && Number.isInteger(Number(formData.quantity));
+            return quantityValid && !validationErrors.clientEmail;
         } else {
-            // Create mode: validate all entries
-            const allEntriesValid = formData.salesEntries.every(entry => {
-                if (entry.isBackOrder) {
-                    return entry.quantity && entry.backOrder?.productName && entry.backOrder?.sellingPrice;
-                } else {
-                    return entry.stockinId && entry.quantity;
-                }
-            });
-
-            const noValidationErrors = validationErrors.salesEntries.every(error =>
-                !error.stockinId && !error.quantity && !error.backOrder
-            );
-
-            return allEntriesValid && !validationErrors.clientEmail && noValidationErrors;
+            return formData.stockinId &&
+                formData.quantity &&
+                !validationErrors.stockinId &&
+                !validationErrors.quantity &&
+                !validationErrors.clientEmail;
         }
-    };
+    } else {
+        const allEntriesValid = formData.salesEntries.every((entry, index) => {
+            if (entry.isBackOrder) {
+                const quantityValid = entry.quantity && !isNaN(Number(entry.quantity)) && Number(entry.quantity) > 0 && Number.isInteger(Number(entry.quantity));
+                return quantityValid && entry.backOrder?.productName?.trim() && entry.backOrder?.sellingPrice && !isNaN(Number(entry.backOrder.sellingPrice));
+            } else {
+                return entry.stockinId && entry.quantity && !isNaN(Number(entry.quantity)) && Number(entry.quantity) > 0;
+            }
+        });
 
+        const noValidationErrors = validationErrors.salesEntries.every(error =>
+            !error.stockinId && !error.quantity && !error.backOrder
+        );
+
+        return allEntriesValid && !validationErrors.clientEmail && noValidationErrors;
+    }
+};
+
+
+ if(loading){
+        return (
+            <div className="flex flex-col items-center justify-center h-[90vh]">
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
+                    <p className="mt-4 text-gray-600">Loading...</p>
+                </div>
+        )
+    }
     
     return (
         <div className="flex items-center justify-center bg-white text-sm">
@@ -1649,25 +1668,6 @@ const UpsertStockOutPage = ({ role }) => {
                                 />
                             </div>
 
-                            {/* Client Email */}
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                    Client Email
-                                </label>
-                                <input
-                                    type="email"
-                                    value={formData.clientEmail}
-                                    onChange={handleEmailChange}
-                                    className={`w-full px-2 py-1.5 border rounded-lg focus:ring-2 ${validationErrors.clientEmail
-                                        ? 'border-red-300 focus:ring-red-500'
-                                        : 'border-gray-300 focus:ring-blue-500'
-                                        } text-sm`}
-                                    placeholder="Enter client email"
-                                />
-                                {validationErrors.clientEmail && (
-                                    <p className="text-red-500 text-xs mt-0.5">{validationErrors.clientEmail}</p>
-                                )}
-                            </div>
 
                             {/* Client Phone */}
                             <div>
@@ -1702,23 +1702,24 @@ const UpsertStockOutPage = ({ role }) => {
                         </div>
                     </div>
 
-                    {/* Form Buttons */}
-                    <div className="flex gap-2 pt-3">
-                        <button
-                            type="button"
-                            onClick={() => onClose()}
-                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={closeForm || isLoading || !isFormValid()}
-                            className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-                        >
-                            {isLoading ? 'Processing...' : stockOut ? 'Update' : 'Create Transaction'}
-                        </button>
-                    </div>
+<div className="flex gap-2 pt-3">
+    <button
+        type="button"
+        onClick={() => onClose()}
+        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+    >
+        Cancel
+    </button>
+    <button
+        type="submit"
+        disabled={closeForm || isLoading || !isFormValid()}
+        className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+        title={!isFormValid() ? 'Please fill all required fields correctly' : ''}
+    >
+        {isLoading ? 'Processing...' : stockOut ? 'Update' : 'Create Transaction'}
+    </button>
+</div>
+
                 </form>
 
                 {/* Help Text */}

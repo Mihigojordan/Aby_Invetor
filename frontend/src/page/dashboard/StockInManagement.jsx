@@ -868,7 +868,7 @@ const StockInManagement = ({ role }) => {
               <div className="p-2 bg-primary-600 rounded-lg">
                 <Package className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-base font-bold text-gray-900">Stock In Management</h1>
+              <h1 className="text-lg lg:text-xl font-bold text-gray-900">Stock In Management</h1>
             </div>
           </div>
           <p className="text-xs text-gray-600">Manage your inventory stock entries and track incoming stock - works offline and syncs when online</p>
