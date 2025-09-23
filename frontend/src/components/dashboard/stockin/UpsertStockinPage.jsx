@@ -191,7 +191,8 @@ const UpsertStockInPage = ({ role }) => {
     const isUpdateMode = !!stockIn;
 
     const onClose = () => {
-        navigate('/admin/dashboard/stockin', { replace: true });
+        const url =  role == 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin'
+        navigate(url, { replace: true });
     };
 
     useEffect(() => {

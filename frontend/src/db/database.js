@@ -5,7 +5,8 @@ export class AppDatabase extends Dexie {
   constructor() {
     super('AppDatabase');
 
-    this.version(14).stores({
+    // Define schema version
+    this.version(15).stores({
       // product
       products_all: 'id, productName, brand, categoryId, lastModified, updatedAt',
       products_offline_add: '++localId, productName, brand, categoryId, description, adminId, employeeId, lastModified, createdAt, updatedAt',
@@ -55,62 +56,34 @@ export class AppDatabase extends Dexie {
 
       // employee
       employees_all: "id, firstname, lastname, email, phoneNumber, address, status, profileImg, cv, identityCard, password, encryptedPassword, isLocked, createdAt, updatedAt",
+      
       // admin
       admins_all: "id, adminName, adminEmail, password, encryptedPassword, isLocked, createdAt, updatedAt",
-    }).upgrade(trans => {
-      // migrate existing data logic (optional for new tables)
-      trans.products_offline_add?.toCollection().modify(record => {
-        if (record.id) {
-          trans.products_offline_update.put(record);
-          trans.products_offline_add.delete(record.localId);
+    })
+    .upgrade(trans => {
+      // simple migration - move records if needed
+      const safeMove = async (from, to) => {
+        try {
+          await from.toCollection().modify(async record => {
+            if (record.id) {
+              await to.put(record);
+              await from.delete(record.localId);
+            }
+          });
+        } catch (e) {
+          console.warn("Migration skipped:", e);
         }
-      });
+      };
 
-      trans.categories_offline_add?.toCollection().modify(record => {
-        if (record.id) {
-          trans.categories_offline_update.put(record);
-          trans.categories_offline_add.delete(record.localId);
-        }
-      });
-
-      trans.stockins_offline_add?.toCollection().modify(record => {
-        if (record.id) {
-          trans.stockins_offline_update.put(record);
-          trans.stockins_offline_add.delete(record.localId);
-        }
-      });
-
-      trans.stockouts_offline_add?.toCollection().modify(record => {
-        if (record.id) {
-          trans.stockouts_offline_update.put(record);
-          trans.stockouts_offline_add.delete(record.localId);
-        }
-      });
-
-      trans.backorders_offline_add?.toCollection().modify(record => {
-        if (record.id) {
-          // if you have a backorders_offline_update table, move here
-          // trans.backorders_offline_update.put(record);
-          // else just leave it
-        }
-      });
-
-      trans.sales_returns_offline_add?.toCollection().modify(ret => {
-        if (ret.id) {
-          trans.sales_returns_offline_update.put(ret);
-          trans.sales_returns_offline_add.delete(ret.localId);
-        }
-      });
-
-      trans.sales_return_items_offline_add?.toCollection().modify(item => {
-        if (item.id) {
-          trans.sales_return_items_offline_update.put(item);
-          trans.sales_return_items_offline_add.delete(item.localId);
-        }
-      });
+      safeMove(trans.products_offline_add, trans.products_offline_update);
+      safeMove(trans.categories_offline_add, trans.categories_offline_update);
+      safeMove(trans.stockins_offline_add, trans.stockins_offline_update);
+      safeMove(trans.stockouts_offline_add, trans.stockouts_offline_update);
+      safeMove(trans.sales_returns_offline_add, trans.sales_returns_offline_update);
+      safeMove(trans.sales_return_items_offline_add, trans.sales_return_items_offline_update);
     });
 
-    // product
+    // Assign tables
     this.products_all = this.table('products_all');
     this.products_offline_add = this.table('products_offline_add');
     this.products_offline_update = this.table('products_offline_update');
@@ -118,51 +91,54 @@ export class AppDatabase extends Dexie {
     this.product_images = this.table('product_images');
     this.synced_product_ids = this.table('synced_product_ids');
 
-    // category
     this.categories_all = this.table('categories_all');
     this.categories_offline_add = this.table('categories_offline_add');
     this.categories_offline_update = this.table('categories_offline_update');
     this.categories_offline_delete = this.table('categories_offline_delete');
     this.synced_category_ids = this.table('synced_category_ids');
 
-    // stockin
     this.stockins_all = this.table('stockins_all');
     this.stockins_offline_add = this.table('stockins_offline_add');
     this.stockins_offline_update = this.table('stockins_offline_update');
     this.stockins_offline_delete = this.table('stockins_offline_delete');
     this.synced_stockin_ids = this.table('synced_stockin_ids');
 
-    // stockout
     this.stockouts_all = this.table('stockouts_all');
     this.stockouts_offline_add = this.table('stockouts_offline_add');
     this.stockouts_offline_update = this.table('stockouts_offline_update');
     this.stockouts_offline_delete = this.table('stockouts_offline_delete');
     this.synced_stockout_ids = this.table('synced_stockout_ids');
 
-    // backorder
     this.backorders_all = this.table('backorders_all');
     this.backorders_offline_add = this.table('backorders_offline_add');
 
-    // sales return
     this.sales_returns_all = this.table('sales_returns_all');
     this.sales_returns_offline_add = this.table('sales_returns_offline_add');
     this.sales_returns_offline_update = this.table('sales_returns_offline_update');
     this.sales_returns_offline_delete = this.table('sales_returns_offline_delete');
     this.synced_sales_return_ids = this.table('synced_sales_return_ids');
 
-    // sales return items
     this.sales_return_items_all = this.table('sales_return_items_all');
     this.sales_return_items_offline_add = this.table('sales_return_items_offline_add');
     this.sales_return_items_offline_update = this.table('sales_return_items_offline_update');
     this.sales_return_items_offline_delete = this.table('sales_return_items_offline_delete');
     this.synced_sales_return_item_ids = this.table('synced_sales_return_item_ids');
 
-    // admins
     this.admins_all = this.table('admins_all');
-
-    // employees
     this.employees_all = this.table('employees_all');
   }
 }
 
+// Create DB safely
 export const db = new AppDatabase();
+
+// Try to open it safely
+db.open().catch(async err => {
+  console.error("Failed to open DB:", err);
+
+  if (err.name === 'DatabaseClosedError' || err.name === 'VersionError' || err.name === 'UnknownError') {
+    console.warn("Clearing corrupted DB...");
+    await Dexie.delete('AppDatabase');
+    window.location.reload();
+  }
+});

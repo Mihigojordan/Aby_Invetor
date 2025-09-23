@@ -546,7 +546,9 @@ const handleBackOrderChange = (index, field, value) => {
                 showConfirmButton: false,
                 timer: 1500,
             }).then(() => {
-                navigate("/admin/dashboard/stockout");
+                const url =  role == 'admin' ? "/admin/dashboard/stockout" : "/employee/dashboard/stockout"
+                
+                navigate(url);
             });
             return;
         }
@@ -561,7 +563,7 @@ const handleBackOrderChange = (index, field, value) => {
             confirmButtonText: "Yes, close it!",
         }).then((result) => {
             if (result.isConfirmed) {
-                navigate("/admin/dashboard/stockout");
+                navigate(   role == 'admin' ? "/admin/dashboard/stockout" :"/employee/dashboard/stockout");
             }
         });
     };
@@ -883,7 +885,10 @@ const handleBackOrderChange = (index, field, value) => {
                             }
                         })
                     );
-                    navigate(`/admin/dashboard/stockout?transactionId=${response.transactionId}`);
+                    const url  =  role == 'admin' ? 
+                     `/admin/dashboard/stockout?transactionId=${response.transactionId}` :
+                     `/employee/dashboard/stockout?transactionId=${response.transactionId}`
+                    navigate(url);
                     Swal.fire({
                         icon: 'success',
                         title: 'Success',
@@ -920,7 +925,9 @@ const handleBackOrderChange = (index, field, value) => {
                     showConfirmButton: false,
                     timer: 1500,
                 });
-                navigate(`/admin/dashboard/stockout?transactionId=${localTransactionId}`);
+                 const url =  role == 'admin' ? `/admin/dashboard/stockout?transactionId=${localTransactionId}` :
+                 `/employee/dashboard/stockout?transactionId=${localTransactionId}`
+                navigate(url);
             }
 
 
@@ -1366,7 +1373,7 @@ const handleBackOrderChange = (index, field, value) => {
                                 <p className="text-xs text-gray-600">Add stock-in items or Non-Stock Sales for this transaction</p>
                             </div>
 
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1  gap-3">
                                 {formData.salesEntries.map((entry, index) => {
                                     const stockInfo = getStockInfo(entry.stockinId);
 
