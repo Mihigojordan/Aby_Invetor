@@ -64,7 +64,8 @@ export class EmployeeOfflineAuthService {
     try {
       const response = await api.get("/employee/all");
       const employees = response.data;
-
+      
+      await db.employees_all.clear()
       // Bulk put into IndexedDB
       await db.employees_all.bulkPut(employees);
 

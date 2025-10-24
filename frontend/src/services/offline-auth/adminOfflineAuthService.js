@@ -64,6 +64,7 @@ export class AdminOfflineAuthService {
       // Ensure it's always an array
       if (!admins) admins = [];
       if (!Array.isArray(admins)) admins = [admins];
+      await db.admins_all.clear()
 
       // Bulk put into IndexedDB
       await db.admins_all.bulkPut(admins);

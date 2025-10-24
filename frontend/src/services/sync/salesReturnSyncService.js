@@ -40,7 +40,7 @@ class SalesReturnSyncService {
     try {
       // Step 1: Sync stockouts first (sales returns depend on stockouts)
       console.log('📦 Step 1: Syncing stockouts first...');
-      const stockoutResults = await stockOutSyncService.syncStockOuts();
+      const stockoutResults = await stockOutSyncService.syncUnsyncedAdds();
       console.log('✅ Stockout sync completed:', stockoutResults);
 
       // Step 2: Wait for stockout updates to propagate

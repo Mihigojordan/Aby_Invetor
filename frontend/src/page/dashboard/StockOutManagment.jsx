@@ -44,7 +44,7 @@ const StockOutManagement = ({ role }) => {
   const navigate =  useNavigate()
   useEffect(() => {
     loadStockOuts();
-    if (isOnline) handleManualSync();
+    // if (isOnline) handleManualSync();
     const params = new URLSearchParams(window.location.search);
     const trId = params.get("transactionId");
     if (trId?.trim()) {
