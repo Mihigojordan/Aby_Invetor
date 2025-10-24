@@ -76,7 +76,7 @@ const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, 
 
       const combinedStockOuts = allStockOuts
         .filter(so => !deleteIds.has(so.id))
-        .filter(so=> so.transactionId == transactionId )
+     
         .map(so => ({
           ...so,
           ...updateMap.get(so.id),
@@ -90,9 +90,11 @@ const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, 
           backorder: backOrderMap.get(a.backorderLocalId),
           stockin: stockinMap.get(a.stockinId)
         })))
+           .filter(so=> so.transactionId == transactionId )
         .sort((a, b) => a.synced - b.synced)
         ;
-
+        console.warn('SHKSKKD: :D__D  ',combinedStockOuts);
+        
         return combinedStockOuts;
 
     } catch (error) {
