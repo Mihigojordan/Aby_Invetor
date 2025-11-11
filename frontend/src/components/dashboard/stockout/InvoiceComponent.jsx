@@ -542,7 +542,7 @@ const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, 
               )}
             </div>
 
-            <div className="print-divider"></div>
+            {/* <div className="print-divider"></div> */}
 
             {/* Items */}
             <div className="mb-4">
