@@ -59,6 +59,6 @@ app.enableCors({
     }),
   );
 
-  await app.listen(process.env.PORT ?? 6000);
+  await app.listen(process.env.PORT ?? 4000);
 }
 bootstrap();

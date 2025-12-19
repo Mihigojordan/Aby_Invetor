@@ -14,6 +14,9 @@ import { SummaryModule } from './modules/Summary/summary.module';
 import { ReportModule } from './modules/report-management/report.module';
 import { BackOrderManagementModule } from './modules/backorder-management/backorder-management.module';
 import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.module';
+import { PartnerModule } from './modules/partner-management/partner.module';
+import { NotificationModule } from './modules/notifications/notification.module';
+import { PushNotificationsModule } from './modules/push-notification/push-notification.module';
 
 
 
@@ -32,7 +35,10 @@ import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.
     ActivityManagmentModule,
     SummaryModule,
     BackOrderManagementModule,
-    SalesReturnModule
+    SalesReturnModule,
+    PartnerModule,
+    PushNotificationsModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [],
