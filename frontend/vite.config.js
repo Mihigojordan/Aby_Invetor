@@ -7,6 +7,12 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
+                 strategies: 'injectManifest',
+
+      // 👇 THIS enables ./src/sw.js
+      srcDir: 'src',
+      filename: 'sw.js',
+
             includeAssets: [
                 'favicon.ico',
                 'favicon-16x16.png',
@@ -115,65 +121,10 @@ export default defineConfig({
                     }
                 ]
             },
-            workbox: {
-                cleanupOutdatedCaches: true,
-                skipWaiting: true,
-                maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
-                clientsClaim: true,
-                globPatterns: [
-                    '**/*.{js,css,html,ico,png,svg,webp,woff,woff2,ttf,eot}'
-                ],
-                runtimeCaching: [
-                    // // Cache Google Fonts
-                    // {
-                    //     urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
-                    //     handler: 'StaleWhileRevalidate',
-                    //     options: {
-                    //         cacheName: 'google-fonts-stylesheets',
-                    //         expiration: {
-                    //             maxEntries: 10,
-                    //             maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-                    //         }
-                    //     }
-                    // },
-                    // {
-                    //     urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
-                    //     handler: 'CacheFirst',
-                    //     options: {
-                    //         cacheName: 'google-fonts-webfonts',
-                    //         expiration: {
-                    //             maxEntries: 30,
-                    //             maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-                    //         }
-                    //     }
-                    // },
-                    // // Cache images
-                    // {
-                    //     urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
-                    //     handler: 'CacheFirst',
-                    //     options: {
-                    //         cacheName: 'images-cache',
-                    //         expiration: {
-                    //             maxEntries: 100,
-                    //             maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-                    //         }
-                    //     }
-                    // },
-                    // Cache API calls
-                    // {
-                    //     urlPattern: /^https:\/\/api\./,
-                    //     handler: 'NetworkFirst',
-                    //     options: {
-                    //         cacheName: 'api-cache',
-                    //         expiration: {
-                    //             maxEntries: 50,
-                    //             maxAgeSeconds: 60 * 60 * 24 // 24 hours
-                    //         },
-                    //         networkTimeoutSeconds: 10
-                    //     }
-                    // }
-                ]
-            },
+                   injectManifest: {
+    globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2,ttf,eot}'],
+    maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB
+},
             devOptions: {
                 enabled: true,
                 type: 'module',

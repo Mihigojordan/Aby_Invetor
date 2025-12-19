@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { AdminAuthContextProvider } from './context/AdminAuthContext.jsx'
 import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
 import { NetworkStatusProvider } from './context/useNetworkContext.jsx'
+import { PartnerAuthProvider } from './context/PartnerAuthContext.jsx'
 
 
 // // PWA Auto-Update Registration
@@ -110,7 +111,11 @@ createRoot(document.getElementById('root')).render(
 
     <AdminAuthContextProvider>
       <EmployeeAuthContextProvider>
+        <PartnerAuthProvider>
+
+        
         <App />
+        </PartnerAuthProvider>
       </EmployeeAuthContextProvider>
     </AdminAuthContextProvider>
 
