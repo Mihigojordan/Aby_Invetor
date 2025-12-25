@@ -57,7 +57,10 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       "/employee/dashboard/stockout",
       "/admin/dashboard/sales-return",
       "/employee/dashboard/sales-return",
-      "/admin/dashboard/sales-report"
+      "/admin/dashboard/sales-report",
+      "/employee/dashboard/requisition",
+      "/admin/dashboard/requisition",
+
     ];
     
     if (employeePages.includes(currentPath)) {
@@ -106,6 +109,13 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       ],
     },
     {
+      key:"partners",
+      label: "Partner Management",
+      icon: Briefcase,
+      path: "/admin/dashboard/partner",
+    },
+    
+    {
       key: "products",
       label: "Product Management",
       icon: Package,
@@ -150,6 +160,11 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           label: "Sales Report",
           path: "/admin/dashboard/sales-report",
         },
+        {
+          key: "requisition-management",
+          label: "Requisition Management",
+          path: "/admin/dashboard/requisition",
+        },
       ],
     },
   ];
@@ -190,6 +205,13 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       icon: ArrowDown,
       path: "/employee/dashboard/stockin",
     },
+        {
+      key:"partners",
+      label: "Partner Management",
+      icon: Briefcase,
+      path: "/employee/dashboard/partner",
+    },
+    
     {
       key: "stockout",
       label: "Stock Adjustment",
@@ -213,6 +235,12 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           key: "sales-report",
           label: "Sales Report",
           path: "/employee/dashboard/sales-report",
+          taskname: ["saling", "selling", "sales", "stockout"],
+        },
+        {
+          key: "requisition-management",
+          label: "Requisition Management",
+          path: "/employee/dashboard/requisition",
           taskname: ["saling", "selling", "sales", "stockout"],
         },
       ],

@@ -51,6 +51,9 @@ model Employee {
   activity  Activity[]
   report    Report[]
   backorder BackOrder[]
+    // Requisition relations
+  approvedItems         RequisitionItem[]           @relation("ItemApprover")
+  deliveriesCreated     RequisitionItemDelivery[]   @relation("DeliveryCreator")
 }
 
 enum Status {
@@ -108,6 +111,8 @@ model StockIn {
   admin        Admin?     @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee     Employee?  @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   stockout     StockOut[]
+   requisitionItems RequisitionItem[]   // Link to requisitions
+
 }
 
 model StockOut {
@@ -241,6 +246,8 @@ model Partner {
   password  String
   phone     String?
   address   String?
+    requisitions      Requisition[]
+  deliveryConfirmations RequisitionItemDelivery[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -248,7 +255,7 @@ model Partner {
 
 model Notification {
   id          String   @id @default(cuid())
-  recipients  Json     // [{id: string, type: "COMPANY" | "EMPLOYEE", read: false}]
+  recipients  Json     // [{id: string, type: "PARTNER" | "ADMIN" | "EMPLOYEE", read: false}]
   senderId    String?
   senderType  SenderType?
   title       String
@@ -286,4 +293,135 @@ enum UserType {
   EMPLOYEE
   PARTNER
   ADMIN
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum RequisitionStatus {
+  PENDING              // Just created, awaiting review
+  APPROVED             // All reviewed, at least one approved
+  REJECTED             // All items rejected
+  PARTIALLY_FULFILLED  // Some approved items delivered
+  COMPLETED            // All approved items fully delivered
+  CANCELLED            // Cancelled by partner or admin
+}
+
+enum ItemStatus {
+  PENDING              // Awaiting employee review
+  APPROVED             // Approved by employee
+  REJECTED             // Rejected by employee
+  PARTIALLY_FULFILLED  // Some quantity delivered
+  FULFILLED            // Fully delivered
+}
+
+// ============================================================================
+// MAIN MODELS
+// ============================================================================
+
+model Requisition {
+  id                String              @id @default(uuid())
+  requisitionNumber String              @unique @default(cuid()) // Human-readable ID
+  partnerId         String
+  status            RequisitionStatus   @default(PENDING)
+  
+  // Notes
+  partnerNote       String?             // Partner's overall request note
+  approvalSummary   String?             // Employee's summary of decisions
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  reviewedAt        DateTime?           // When first item was reviewed
+  completedAt       DateTime?           // When all items fulfilled
+  
+  // Relations
+  partner           Partner             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  items             RequisitionItem[]
+  
+  // Indexes
+  @@index([partnerId, status])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model RequisitionItem {
+  id                    String                      @id @default(uuid())
+  requisitionId         String
+  status                ItemStatus                  @default(PENDING)
+  
+  // ==========================================
+  // PARTNER INPUT (Immutable after creation)
+  // ==========================================
+  itemName              String                      // Partner's description
+  note                  String?                     // Partner's note for this item
+  qtyRequested          Int                         // Requested quantity
+  
+  // ==========================================
+  // EMPLOYEE APPROVAL
+  // ==========================================
+  qtyApproved           Int?                        // Approved quantity (0 = rejected)
+  approvalNote          String?                     // Employee's approval/rejection note
+  stockInId             String?                     // Assigned stock item
+  approvedById          String?                     // Who approved/rejected
+  approvedAt            DateTime?                   // When approved/rejected
+  
+  // ==========================================
+  // PRICING (Captured at approval)
+  // ==========================================
+  unitPriceAtApproval   Decimal?  @db.Decimal(10,2) // Price snapshot from inventory
+  priceOverride         Decimal?  @db.Decimal(10,2) // Admin can override
+  priceOverriddenAt     DateTime?                   // When price was overridden
+  
+  // ==========================================
+  // DELIVERY TRACKING
+  // ==========================================
+  qtyDelivered          Int                         @default(0) // Total delivered so far
+  
+  // Timestamps
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  
+  // Relations
+  requisition           Requisition                 @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  stockIn               StockIn?                    @relation(fields: [stockInId], references: [id])
+  approver              Employee?                   @relation("ItemApprover", fields: [approvedById], references: [id])
+  deliveries            RequisitionItemDelivery[]
+  
+  // Indexes
+  @@index([requisitionId])
+  @@index([stockInId])
+  @@index([status])
+  @@index([approvedById])
+}
+
+// ============================================================================
+// DELIVERY TRACKING (Supports partial/multiple deliveries)
+// ============================================================================
+
+model RequisitionItemDelivery {
+  id                  String            @id @default(uuid())
+  requisitionItemId   String
+  
+  qtyDelivered        Int               // Quantity in this delivery
+  deliveryNote        String?           // Delivery notes
+  
+  // Confirmation
+  confirmedByPartnerId String?          // Partner who confirmed receipt
+  confirmedAt          DateTime?        // When partner confirmed
+  partnerNote          String?          // Partner's note on receipt
+  
+  // Tracking
+  createdAt           DateTime          @default(now())
+  createdById         String            // Who recorded the delivery
+  
+  // Relations
+  requisitionItem     RequisitionItem   @relation(fields: [requisitionItemId], references: [id], onDelete: Cascade)
+  createdBy           Employee          @relation("DeliveryCreator", fields: [createdById], references: [id])
+  confirmedBy         Partner?          @relation(fields: [confirmedByPartnerId], references: [id])
+  
+  // Indexes
+  @@index([requisitionItemId])
+  @@index([createdAt])
 }

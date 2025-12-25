@@ -18,7 +18,7 @@ export class PartnerAuthGuard implements CanActivate {
 
     try {
       const decoded = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'secretkey',
+        secret: process.env.Jwt_SECRET_KEY || 'secretkey',
       });
 
       req.partner = decoded;

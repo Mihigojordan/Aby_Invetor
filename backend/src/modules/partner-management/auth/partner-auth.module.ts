@@ -8,7 +8,7 @@ import { PartnerAuthGuard } from 'src/guards/partner-auth.guard';
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'secretkey',
+      secret: process.env.Jwt_SECRET_KEY || 'secretkey',
       signOptions: { expiresIn: '7d' },
     }),
   ],
