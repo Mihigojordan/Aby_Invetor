@@ -101,6 +101,21 @@ CREATE TABLE `StockOut` (
     `clientEmail` VARCHAR(191) NULL,
     `clientPhone` VARCHAR(191) NULL,
     `paymentMethod` ENUM('MOMO', 'CARD', 'CASH') NULL,
+    `backorderId` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `BackOrder` (
+    `id` VARCHAR(191) NOT NULL,
+    `productName` VARCHAR(191) NULL,
+    `quantity` INTEGER NULL,
+    `soldPrice` INTEGER NULL,
+    `adminId` VARCHAR(191) NULL,
+    `employeeId` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -120,10 +135,30 @@ CREATE TABLE `Activity` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `SalesReturn` (
+    `id` VARCHAR(191) NOT NULL,
+    `transactionId` VARCHAR(191) NULL,
+    `creditnoteId` VARCHAR(191) NULL,
+    `reason` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `SalesReturnItem` (
+    `id` VARCHAR(191) NOT NULL,
+    `salesReturnId` VARCHAR(191) NOT NULL,
+    `stockoutId` VARCHAR(191) NOT NULL,
+    `quantity` INTEGER NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `Report` (
     `id` VARCHAR(191) NOT NULL,
     `employeeId` VARCHAR(191) NOT NULL,
-    `productsSold` JSON NULL,
     `cashAtHand` DOUBLE NOT NULL DEFAULT 0.0,
     `moneyOnPhone` DOUBLE NOT NULL DEFAULT 0.0,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -181,6 +216,9 @@ ALTER TABLE `StockIn` ADD CONSTRAINT `StockIn_adminId_fkey` FOREIGN KEY (`adminI
 ALTER TABLE `StockIn` ADD CONSTRAINT `StockIn_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `Employee`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `StockOut` ADD CONSTRAINT `StockOut_backorderId_fkey` FOREIGN KEY (`backorderId`) REFERENCES `BackOrder`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `StockOut` ADD CONSTRAINT `StockOut_stockinId_fkey` FOREIGN KEY (`stockinId`) REFERENCES `StockIn`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -190,10 +228,22 @@ ALTER TABLE `StockOut` ADD CONSTRAINT `StockOut_adminId_fkey` FOREIGN KEY (`admi
 ALTER TABLE `StockOut` ADD CONSTRAINT `StockOut_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `Employee`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `BackOrder` ADD CONSTRAINT `BackOrder_adminId_fkey` FOREIGN KEY (`adminId`) REFERENCES `Admin`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `BackOrder` ADD CONSTRAINT `BackOrder_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `Employee`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `Activity` ADD CONSTRAINT `Activity_adminId_fkey` FOREIGN KEY (`adminId`) REFERENCES `Admin`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Activity` ADD CONSTRAINT `Activity_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `Employee`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `SalesReturnItem` ADD CONSTRAINT `SalesReturnItem_stockoutId_fkey` FOREIGN KEY (`stockoutId`) REFERENCES `StockOut`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `SalesReturnItem` ADD CONSTRAINT `SalesReturnItem_salesReturnId_fkey` FOREIGN KEY (`salesReturnId`) REFERENCES `SalesReturn`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Report` ADD CONSTRAINT `Report_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `Employee`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

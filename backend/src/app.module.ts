@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
+import * as redisStore from 'cache-manager-redis-store';
+
 import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -15,10 +18,17 @@ import { ReportModule } from './modules/report-management/report.module';
 import { BackOrderManagementModule } from './modules/backorder-management/backorder-management.module';
 import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.module';
 
-
-
 @Module({
   imports: [
+    // 🔥 Redis Cache (GLOBAL)
+    CacheModule.register({
+      store: redisStore,
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: Number(process.env.REDIS_PORT) || 6379,
+      ttl: 60, // default cache time (seconds)
+      isGlobal: true,
+    }),
+
     PrismaModule,
     AdminModule,
     EmployeeManagmentModule,
@@ -32,7 +42,7 @@ import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.
     ActivityManagmentModule,
     SummaryModule,
     BackOrderManagementModule,
-    SalesReturnModule
+    SalesReturnModule,
   ],
   controllers: [AppController],
   providers: [],

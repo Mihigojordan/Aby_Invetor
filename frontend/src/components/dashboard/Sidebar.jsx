@@ -15,6 +15,12 @@ import {
   X,
   ReceiptPoundSterling,
   FileText,
+  UserCheck,
+  Shield,
+  BoxIcon,
+  FolderTree,
+  TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -23,57 +29,10 @@ import useEmployeeAuth from "../../context/EmployeeAuthContext";
 import InstallButton from "./InstallButton";
 
 const Sidebar = ({ isOpen = true, onToggle, role }) => {
-  const [openDropdown, setOpenDropdown] = useState(null);
   const { user: adminData } = useAdminAuth();
   const { user: employeeData } = useEmployeeAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Auto-open dropdowns if current path matches any child item
-  useEffect(() => {
-    const currentPath = location.pathname;
-    
-    // Check if current path is within employee management section
-    const employeePages = [
-      "/admin/dashboard/employee",
-      "/employee/dashboard/employee",
-      "/admin/dashboard/employee-report",
-      "/employee/dashboard/report",
-      "/admin/dashboard/position",
-      "/employee/dashboard/position"
-    ];
-    
-    // Check if current path is within product management section
-    const productPages = [
-      "/admin/dashboard/product",
-      "/employee/dashboard/product",
-      "/admin/dashboard/category",
-      "/employee/dashboard/category"
-    ];
-    
-    // Check if current path is within stockout management section
-    const stockoutPages = [
-      "/admin/dashboard/stockout",
-      "/employee/dashboard/stockout",
-      "/admin/dashboard/sales-return",
-      "/employee/dashboard/sales-return",
-      "/admin/dashboard/sales-report"
-    ];
-    
-    if (employeePages.includes(currentPath)) {
-      setOpenDropdown('employees');
-    } else if (productPages.includes(currentPath)) {
-      setOpenDropdown('products');
-    } else if (stockoutPages.includes(currentPath)) {
-      setOpenDropdown('stockout');
-    } else {
-      setOpenDropdown(null);
-    }
-  }, [location.pathname]);
-
-  const toggleDropdown = (dropdownId) => {
-    setOpenDropdown(openDropdown === dropdownId ? null : dropdownId);
-  };
 
   const adminItems = [
     {
@@ -83,45 +42,34 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: "/admin/dashboard",
     },
     {
-      key: "employees",
-      label: "Employee Management",
+      key: "employee-list",
+      label: "Employee List",
       icon: Users,
-      isDropdown: true,
-      children: [
-        {
-          key: "employee-list",
-          label: "Employee List",
-          path: "/admin/dashboard/employee",
-        },
-        {
-          key: "employee-report",
-          label: "Employee Report",
-          path: "/admin/dashboard/employee-report",
-        },
-        {
-          key: "permissions",
-          label: "Permission Management",
-          path: "/admin/dashboard/position",
-        },
-      ],
+      path: "/admin/dashboard/employee",
     },
     {
-      key: "products",
-      label: "Product Management",
+      key: "employee-report",
+      label: "Employee Report",
+      icon: FileText,
+      path: "/admin/dashboard/employee-report",
+    },
+    {
+      key: "permissions",
+      label: "Permission Management",
+      icon: Shield,
+      path: "/admin/dashboard/position",
+    },
+    {
+      key: "product-list",
+      label: "Product List",
       icon: Package,
-      isDropdown: true,
-      children: [
-        {
-          key: "product-list",
-          label: "Product List",
-          path: "/admin/dashboard/product",
-        },
-        {
-          key: "category-management",
-          label: "Category List",
-          path: "/admin/dashboard/category",
-        },
-      ],
+      path: "/admin/dashboard/product",
+    },
+    {
+      key: "category-management",
+      label: "Category List",
+      icon: FolderTree,
+      path: "/admin/dashboard/category",
     },
     {
       key: "stockin",
@@ -130,27 +78,22 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: "/admin/dashboard/stockin",
     },
     {
-      key: "stockout",
-      label: "Stock Adjustment",
+      key: "stockout-movement",
+      label: "Stock Out List",
       icon: ArrowUp,
-      isDropdown: true,
-      children: [
-        {
-          key: "stockout-movement",
-          label: "Stock Out List",
-          path: "/admin/dashboard/stockout",
-        },
-        {
-          key: "sales-returns",
-          label: "Sales Returns",
-          path: "/admin/dashboard/sales-return",
-        },
-        {
-          key: "sales-report",
-          label: "Sales Report",
-          path: "/admin/dashboard/sales-report",
-        },
-      ],
+      path: "/admin/dashboard/stockout",
+    },
+    {
+      key: "sales-returns",
+      label: "Sales Returns",
+      icon: RotateCcw,
+      path: "/admin/dashboard/sales-return",
+    },
+    {
+      key: "sales-report",
+      label: "Sales Report",
+      icon: BarChart3,
+      path: "/admin/dashboard/sales-report",
     },
   ];
 
@@ -162,60 +105,48 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: "/employee/dashboard",
       alwaysShow: true,
     },
-    {
-      key: "products",
-      label: "Product Management",
-      icon: Package,
-      isDropdown: true,
+       {
+      key: "category-management",
+      label: "Category Management",
+      icon: FolderTree,
+      path: "/employee/dashboard/category",
       taskname: ["receiving", "returning", "return", "stockin"],
-      children: [
-        {
-          key: "product-list",
-          label: "Product List",
-          path: "/employee/dashboard/product",
-          taskname: ["receiving", "returning", "return", "stockin"],
-        },
-        {
-          key: "category-management",
-          label: "Category List",
-          path: "/employee/dashboard/category",
-          taskname: ["receiving", "returning", "return", "stockin"],
-        },
-      ],
     },
     {
+      key: "product-list",
+      label: "Product Management",
+      icon: Package,
+      path: "/employee/dashboard/product",
+      taskname: ["receiving", "returning", "return", "stockin"],
+    },
+ 
+    {
       key: "stockin_receiving",
-      label: "Manage Stock",
+      label: "Stock  In Management",
       taskname: ["receiving", "stockin"],
       icon: ArrowDown,
       path: "/employee/dashboard/stockin",
     },
     {
-      key: "stockout",
-      label: "Stock Adjustment",
-      icon: ShoppingCart,
-      isDropdown: true,
-      taskname: ["saling", "selling", "sales", "stockout", "returning", "return"],
-      children: [
-        {
-          key: "stockout-movement",
-          label: "Stock Out List",
-          path: "/employee/dashboard/stockout",
-          taskname: ["saling", "selling", "sales", "stockout"],
-        },
-        {
-          key: "sales-returns",
-          label: "Sales Returns",
-          path: "/employee/dashboard/sales-return",
-          taskname: ["returning", "return"],
-        },
-        {
-          key: "sales-report",
-          label: "Sales Report",
-          path: "/employee/dashboard/sales-report",
-          taskname: ["saling", "selling", "sales", "stockout"],
-        },
-      ],
+      key: "stockout-movement",
+      label: "Sales  Out Management",
+      icon: ArrowUp,
+      path: "/employee/dashboard/stockout",
+      taskname: ["saling", "selling", "sales", "stockout"],
+    },
+    {
+      key: "sales-returns",
+      label: "Sales Returns Management",
+      icon: RotateCcw,
+      path: "/employee/dashboard/sales-return",
+      taskname: ["returning", "return"],
+    },
+    {
+      key: "sales-report",
+      label: "Sales Report Management",
+      icon: BarChart3,
+      path: "/employee/dashboard/sales-report",
+      taskname: ["saling", "selling", "sales", "stockout"],
     },
     {
       key: "employee_reports",
@@ -246,16 +177,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       if (item.alwaysShow) return true;
       
       if (item.taskname) {
-        const hasRequiredTask = item.taskname.some((task) => employeeTaskNames.includes(task));
-        if (hasRequiredTask && item.isDropdown) {
-          // Filter submenu items based on employee tasks
-          item.children = item.children.filter((child) => {
-            if (!child.taskname) return true;
-            return child.taskname.some((task) => employeeTaskNames.includes(task));
-          });
-          return item.children.length > 0; // Only show if has accessible submenu items
-        }
-        return hasRequiredTask;
+        return item.taskname.some((task) => employeeTaskNames.includes(task));
       }
       
       return false;
@@ -270,110 +192,24 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
 
   const currentMenuItems = getCurrentMenuItems();
 
-  const SidebarItem = ({ item, isActive, onClick }) => (
-    <button
-      onClick={() => onClick(item.key)}
-      className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+  const SidebarItem = ({ item, isActive }) => (
+    <Link
+      to={item.path}
+      onClick={() => {
+        if (window.innerWidth < 1024) onToggle();
+      }}
+      className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
         isActive
           ? "bg-primary-100 text-primary-700 border-r-2 border-primary-600"
           : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
       }`}
     >
       <item.icon
-        className={`w-4 h-4 ${isActive ? "text-primary-600" : "text-gray-400"}`}
+        className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-primary-600" : "text-gray-400"}`}
       />
-      <span className="font-medium text-[0.8rem]">{item.label}</span>
-    </button>
-  );
-
-  const DropdownItem = ({ item, isActive }) => (
-    <Link
-      to={item.path}
-      className={`flex items-center space-x-2 px-6 py-1.5 text-[0.7rem] rounded-lg transition-all duration-200 ${
-        isActive
-          ? "bg-primary-50 text-primary-700"
-          : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-      }`}
-      onClick={() => {
-        if (window.innerWidth < 1024) onToggle();
-      }}
-    >
-      <span className="font-normal">{item.label}</span>
+      <span className="font-medium text-sm">{item.label}</span>
     </Link>
   );
-
-  const DropdownHeader = ({ item, isOpen, onToggle }) => {
-    const hasActiveChild = item.children?.some(child => location.pathname === child.path);
-    
-    return (
-      <button
-        onClick={onToggle}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 ${
-          hasActiveChild
-            ? "bg-primary-50 text-primary-700"
-            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-        }`}
-      >
-        <div className="flex items-center space-x-2">
-          <item.icon
-            className={`w-4 h-4 ${hasActiveChild ? "text-primary-600" : "text-gray-400"}`}
-          />
-          <span className="font-medium text-[0.8rem]">{item.label}</span>
-        </div>
-        <div className="transition-transform duration-200">
-          {isOpen ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )}
-        </div>
-      </button>
-    );
-  };
-
-  const renderMenuItem = (item) => {
-    if (item.isDropdown) {
-      const isOpen = openDropdown === item.key;
-      
-      return (
-        <div key={item.key} className="mb-0.5">
-          <DropdownHeader
-            item={item}
-            isOpen={isOpen}
-            onToggle={() => toggleDropdown(item.key)}
-          />
-          {isOpen && (
-            <div className="space-y-0.5 ml-2 mt-1">
-              {item.children.map((child) => (
-                <DropdownItem
-                  key={child.key}
-                  item={child}
-                  isActive={location.pathname === child.path}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
-    
-    return (
-      <Link
-        key={item.key}
-        to={item.path}
-        className="block"
-        onClick={() => {
-          if (window.innerWidth < 1024) onToggle();
-        }}
-      >
-        <SidebarItem
-          item={item}
-          isActive={location.pathname === item.path}
-          onClick={() => {}}
-        />
-      </Link>
-    );
-  };
 
   return (
     <>
@@ -385,12 +221,12 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       )}
 
       <div
-        className={`fixed left-0 top-0 min-h-screen bg-white flex flex-col shadow-lg transform transition-transform duration-300 z-50 lg:relative lg:translate-x-0 ${
+        className={`fixed left-0 top-0 min-h-screen bg-white flex flex-col border-r border-primary-200 transform transition-transform duration-300 z-50 lg:relative lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:w-3/12 xl:w-2/12`}
+        } lg:w-3/12 xl:w-[21%]`}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-200">
+        <div className="flex items-center justify-between p-2.5 border-b border-primary-200">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center">
               <Package className="w-5 h-5 text-white" />
@@ -414,16 +250,22 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
 
         {/* Navigation Menu */}
         <div className="flex-1 overflow-y-auto p-2">
-          <nav className="space-y-0.5">
+          <nav className="space-y-1">
             {currentMenuItems.length > 0 ? (
-              currentMenuItems.map(renderMenuItem)
+              currentMenuItems.map((item) => (
+                <SidebarItem
+                  key={item.key}
+                  item={item}
+                  isActive={location.pathname === item.path}
+                />
+              ))
             ) : (
               <div className="text-center py-2">
-                <p className="text-gray-500 text-[0.8rem] font-light">
+                <p className="text-gray-500 text-sm font-light">
                   No additional menu items available
                 </p>
                 {role === "employee" && (
-                  <p className="text-gray-400 text-[0.7rem] mt-1">
+                  <p className="text-gray-400 text-xs mt-1">
                     Contact admin to assign tasks for more options
                   </p>
                 )}
