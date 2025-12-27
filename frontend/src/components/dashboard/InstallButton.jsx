@@ -5,6 +5,7 @@ const InstallButton = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showButton, setShowButton] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
     // Check if already installed
@@ -14,14 +15,8 @@ const InstallButton = () => {
       
       // Method 2: Check iOS standalone
       const isInWebAppMode = window.navigator.standalone === true;
-      
-      // Method 3: Check if previously dismissed
-      const wasDismissed = localStorage.getItem('pwa-install-dismissed') === 'true';
-      
-      // Method 4: Check if manually installed (custom flag)
-      const wasManuallyInstalled = localStorage.getItem('pwa-manually-installed') === 'true';
 
-      return isStandalone || isInWebAppMode || wasManuallyInstalled;
+      return isStandalone || isInWebAppMode;
     };
 
     if (checkIfInstalled()) {
@@ -42,7 +37,6 @@ const InstallButton = () => {
       setShowButton(false);
       setIsInstalled(true);
       setDeferredPrompt(null);
-      localStorage.setItem('pwa-manually-installed', 'true');
     };
 
     // Add event listeners
@@ -51,7 +45,7 @@ const InstallButton = () => {
 
     // Fallback timer for browsers that don't fire beforeinstallprompt
     const timer = setTimeout(() => {
-      if (!isInstalled && !deferredPrompt && !localStorage.getItem('pwa-install-dismissed')) {
+      if (!isInstalled && !deferredPrompt && !isDismissed) {
         console.log('⏰ Fallback timer: showing install button');
         setShowButton(true);
       }
@@ -63,7 +57,7 @@ const InstallButton = () => {
       window.removeEventListener('appinstalled', handleAppInstalled);
       clearTimeout(timer);
     };
-  }, [isInstalled]);
+  }, [isInstalled, isDismissed, deferredPrompt]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
@@ -95,7 +89,6 @@ const InstallButton = () => {
         console.log('✅ User accepted the install prompt');
         setShowButton(false);
         setIsInstalled(true);
-        localStorage.setItem('pwa-manually-installed', 'true');
       } else {
         console.log('❌ User dismissed the install prompt');
       }
@@ -107,21 +100,21 @@ const InstallButton = () => {
   };
 
   const handleDismiss = (e) => {
-    e.stopPropagation(); // Prevent triggering install when clicking dismiss
+    e.stopPropagation();
     setShowButton(false);
-    localStorage.setItem('pwa-install-dismissed', 'true');
+    setIsDismissed(true);
   };
 
   // Don't show if already installed or dismissed
-  if (isInstalled || localStorage.getItem('pwa-install-dismissed') === 'true') {
+  if (isInstalled || isDismissed) {
     return null;
   }
 
   if (!showButton) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-80">
-      <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative">
+    <div className="fixed bottom-4 left-4 right-4 z-50 max-w-sm mx-auto">
+      <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative animate-fade-in">
         <button
           onClick={handleDismiss}
           className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"

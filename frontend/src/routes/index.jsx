@@ -46,6 +46,12 @@ import LandingLayout from "../layout/LandingLayout";
 import UpsertStockOutPage from "../components/dashboard/stockout/UpsertStockOutPage";
 import UpsertSalesReturnPage from "../components/dashboard/salesReturn/UpsertSalesReturnPage";
 import UpsertStockInPage from "../components/dashboard/stockin/UpsertStockinPage";
+import PartnerManagement from "../page/dashboard/PartnerManagement";
+import PartnerLogin from "../page/auth/partner/PartnerLogin";
+import ProtectPrivatePartner from "../components/protectors/partner/ProtectPrivatePartner";
+import PartnerDashboardHome from "../page/dashboard/partner/PartnerDashboardHome";
+import PartnerProfilePage from "../page/dashboard/partner/PartnerProfilePage";
+import PartnerDashboardLayout from "../layout/PartnerLayout";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -58,28 +64,28 @@ const routes = createBrowserRouter([
         element: <MainLayout />,
         children: [
             {
-                path:"/",
+                path: "/",
                 element: <LandingLayout />,
-                children:[
+                children: [
                     {
-                       path:"/",
-                       element:<LandingPage />
+                        path: "/",
+                        element: <LandingPage />
                     },
-                      {
-                path:'about',
-                element:<AboutPage />
-            },
-            {
-                path:'features',
-                element:<FeaturesPage />
-            },
-            {
-                path:'contact',
-                element:<ContactPage />
-            },
+                    {
+                        path: 'about',
+                        element: <AboutPage />
+                    },
+                    {
+                        path: 'features',
+                        element: <FeaturesPage />
+                    },
+                    {
+                        path: 'contact',
+                        element: <ContactPage />
+                    },
                 ]
             },
-          
+
             {
                 path: "admin",
                 element: <ProtectPrivateAdmin> <MainLayout /> </ProtectPrivateAdmin>,
@@ -207,7 +213,7 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                                  {
+                            {
                                 path: "sales-return/create",
                                 element: (
                                     <SuspenseWrapper>
@@ -217,85 +223,94 @@ const routes = createBrowserRouter([
 
                             },
                             {
-                                path:"profile",
-                                 element: (
+                                path: "profile",
+                                element: (
                                     <SuspenseWrapper>
                                         <AdminProfile role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report",
-                                 element: (
+                                path: "sales-report",
+                                element: (
                                     <SuspenseWrapper>
                                         <SalesReportPage role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/stockout/:id",
-                                 element: (
+                                path: "sales-report/stockout/:id",
+                                element: (
                                     <SuspenseWrapper>
                                         <ViewStockoutReport role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/stockout-analysis",
-                                 element: (
+                                path: "sales-report/stockout-analysis",
+                                element: (
                                     <SuspenseWrapper>
                                         <StockOutAnalysisPage role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/non-stock-analysis",
-                                 element: (
+                                path: "sales-report/non-stock-analysis",
+                                element: (
                                     <SuspenseWrapper>
                                         <BackOrderDashboard role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/transaction-analysis",
-                                 element: (
+                                path: "sales-report/transaction-analysis",
+                                element: (
                                     <SuspenseWrapper>
                                         <TransactionAnalysis role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/transaction-analysis/:id",
-                                 element: (
+                                path: "sales-report/transaction-analysis/:id",
+                                element: (
                                     <SuspenseWrapper>
                                         <TransactionAnalysisDetails role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"employee-report",
-                                 element: (
+                                path: "employee-report",
+                                element: (
                                     <SuspenseWrapper>
                                         <EmployeeReportManagement role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"employee/:id",
-                                 element: (
+                                path: "employee/:id",
+                                element: (
                                     <SuspenseWrapper>
                                         <ViewEmployeePage role={'admin'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"employee-report/:id",
-                                 element: (
+                                path: "employee-report/:id",
+                                element: (
                                     <SuspenseWrapper>
                                         <EmployeeReportViewMore role={'admin'} />
                                     </SuspenseWrapper>
                                 )
-                            }
+                            },
+                            {
+                                path: "partner",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <PartnerManagement role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     }
                 ]
@@ -321,13 +336,13 @@ const routes = createBrowserRouter([
                                     </SuspenseWrapper>
                                 )
                             },
-                            
+
                             {
-                                path:'profile',
+                                path: 'profile',
                                 element: <SuspenseWrapper> <EmployeeProfile /> </SuspenseWrapper>
                             },
 
-                             {
+                            {
                                 path: "sales-return",
                                 element: (
                                     <SuspenseWrapper>
@@ -337,7 +352,7 @@ const routes = createBrowserRouter([
 
                             },
 
-                              {
+                            {
                                 path: "sales-return",
                                 element: (
                                     <SuspenseWrapper>
@@ -346,7 +361,7 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                                  {
+                            {
                                 path: "sales-return/create",
                                 element: (
                                     <SuspenseWrapper>
@@ -355,7 +370,7 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-          
+
                             {
                                 path: "stockin",
                                 element: (
@@ -366,7 +381,7 @@ const routes = createBrowserRouter([
 
                             },
 
-                             {
+                            {
                                 path: "stockin/create",
                                 element: (
                                     <SuspenseWrapper>
@@ -384,55 +399,55 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                                  {
-                                path:"sales-report",
-                                 element: (
+                            {
+                                path: "sales-report",
+                                element: (
                                     <SuspenseWrapper>
                                         <SalesReportPage role={'employee'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/stockout/:id",
-                                 element: (
+                                path: "sales-report/stockout/:id",
+                                element: (
                                     <SuspenseWrapper>
                                         <ViewStockoutReport role={'employee'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/stockout-analysis",
-                                 element: (
+                                path: "sales-report/stockout-analysis",
+                                element: (
                                     <SuspenseWrapper>
                                         <StockOutAnalysisPage role={'employee'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/non-stock-analysis",
-                                 element: (
+                                path: "sales-report/non-stock-analysis",
+                                element: (
                                     <SuspenseWrapper>
                                         <BackOrderDashboard role={'employee'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/transaction-analysis",
-                                 element: (
+                                path: "sales-report/transaction-analysis",
+                                element: (
                                     <SuspenseWrapper>
                                         <TransactionAnalysis role={'employee'} />
                                     </SuspenseWrapper>
                                 )
                             },
                             {
-                                path:"sales-report/transaction-analysis/:id",
-                                 element: (
+                                path: "sales-report/transaction-analysis/:id",
+                                element: (
                                     <SuspenseWrapper>
                                         <TransactionAnalysisDetails role={'employee'} />
                                     </SuspenseWrapper>
                                 )
                             },
-                             {
+                            {
                                 path: "category",
                                 element: (
                                     <SuspenseWrapper>
@@ -477,7 +492,7 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                             {
+                            {
                                 path: "stockout/create",
                                 element: (
                                     <SuspenseWrapper>
@@ -495,7 +510,7 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                             {
+                            {
                                 path: "sales-return",
                                 element: (
                                     <SuspenseWrapper>
@@ -504,7 +519,7 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                             {
+                            {
                                 path: "sales-return/create",
                                 element: (
                                     <SuspenseWrapper>
@@ -522,23 +537,78 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                            
-                          
+                            {
+                                path: "partner",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <PartnerManagement role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+
+
                         ]
                     }
-                ]
+                ],
+
 
             },
+            {
+                path: 'partner',
+                element: <ProtectPrivatePartner><Outlet context={{ role: 'partner' }} /></ProtectPrivatePartner>,
+                children: [
+                    {
+                        index: true,
+                        element: <Navigate to={'/partner/dashboard'} replace />
+                    },
+                    {
+                        path: "dashboard",
+                        element: <PartnerDashboardLayout role={'partner'} />,
+                        children: [
+                            {
+                                index: true,
+                                element: (
+                                    <SuspenseWrapper>
+                                        <PartnerDashboardHome role={'partner'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "profile",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <PartnerProfilePage role={'partner'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            }
+                        ]
+                    },
+
+                ]
+            }
         ]
     },
+
     {
         path: '/auth',
         element: <AuthLayout />,
         children: [
             {
-                index:true,
+                index: true,
                 element: <SuspenseWrapper><AuthSelectionPage /> </SuspenseWrapper>
             },
+            {
+                path: 'partner',
+                element: <Navigate to={'/auth/partner/login'} replace />
+            },
+            {
+                path: 'partner/login',
+                element: <PartnerLogin />
+            },
+
             {
                 path: 'admin',
                 element: <AdminAuthLayout />,
