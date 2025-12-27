@@ -52,6 +52,13 @@ import ProtectPrivatePartner from "../components/protectors/partner/ProtectPriva
 import PartnerDashboardHome from "../page/dashboard/partner/PartnerDashboardHome";
 import PartnerProfilePage from "../page/dashboard/partner/PartnerProfilePage";
 import PartnerDashboardLayout from "../layout/PartnerLayout";
+import RequisitionDashboard from "../page/dashboard/RequisitionDashboard";
+import { CreateRequisitionPage, UpdateRequisitionPage } from "../components/dashboard/requisition/UpsertRequisitionPages";
+import RequisitionApprovalPage from "../components/dashboard/requisition/RequisitionApprovalPage";
+import RequisitionDeliverPage from "../components/dashboard/requisition/RequisitionDeliverPage";
+import RequisitionPricingPage from "../components/dashboard/requisition/RequisitionPricingPage";
+import RequisitionDetailsPage from "../components/dashboard/requisition/RequisitionDetailsPage";
+import PartnerConfirmReceiptPage from "../components/dashboard/requisition/PartnerConfirmReceiptPage";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -311,6 +318,42 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                                  {
+                                path: "requisition",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionDashboard role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "requisition/approve/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionApprovalPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "requisition/view/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionDetailsPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "requisition/override-price/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionPricingPage  role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     }
                 ]
@@ -546,6 +589,42 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                                  {
+                                path: "requisition",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionDashboard role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "requisition/approve/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionApprovalPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                                 {
+                                path: "requisition/view/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionDetailsPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "requisition/deliver/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionDeliverPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
 
 
                         ]
@@ -583,7 +662,52 @@ const routes = createBrowserRouter([
                                     </SuspenseWrapper>
                                 )
 
-                            }
+                            },
+                            {
+                                path: "requisition",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionDashboard role={'partner'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                                 {
+                                path: "requisition/view/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <RequisitionDetailsPage role={'partner'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "requisition/create",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <CreateRequisitionPage role={'partner'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "requisition/update/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpdateRequisitionPage role={'partner'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "requisition/confirm/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <PartnerConfirmReceiptPage role={'partner'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     },
 

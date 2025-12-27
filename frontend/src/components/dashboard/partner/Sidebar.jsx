@@ -59,51 +59,14 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
       icon: Home,
       path: '/partner/dashboard',
     },
-    {
-      key: 'inventory',
-      label: 'Inventory Management',
-      icon: Package,
-      isDropdown: true,
-      children: [
-        { key: 'products', label: 'My Products', path: '/partner/dashboard/inventory/products' },
-        { key: 'categories', label: 'Categories', path: '/partner/dashboard/inventory/categories' },
-        { key: 'stock-levels', label: 'Stock Overview', path: '/partner/dashboard/inventory/stock' },
-      ],
-    },
+    
     {
       key: 'orders',
-      label: 'Orders & Sales',
+      label: "Requisitions",
       icon: ShoppingCart,
-      isDropdown: true,
-      children: [
-        { key: 'active-orders', label: 'Active Orders', path: '/partner/dashboard/orders/active' },
-        { key: 'order-history', label: 'Order History', path: '/partner/dashboard/orders/history' },
-        { key: 'returns', label: 'Returns', path: '/partner/dashboard/orders/returns' },
-      ],
+     path: '/partner/dashboard/requisition',
     },
-    {
-      key: 'reports',
-      label: 'Reports & Analytics',
-      icon: BarChart3,
-      isDropdown: true,
-      children: [
-        { key: 'sales-report', label: 'Sales Report', path: '/partner/dashboard/reports/sales' },
-        { key: 'stock-report', label: 'Stock Movement', path: '/partner/dashboard/reports/stock' },
-        { key: 'performance', label: 'Performance', path: '/partner/dashboard/reports/performance' },
-      ],
-    },
-    {
-      key: 'profile',
-      label: 'My Profile',
-      icon: User,
-      path: '/partner/dashboard/profile',
-    },
-    {
-      key: 'settings',
-      label: 'Settings',
-      icon: Settings,
-      path: '/partner/dashboard/settings',
-    },
+   
   ];
 
   const DropdownHeader = ({ item, isOpen }) => {

@@ -20,6 +20,7 @@ import { SalesReturnModule } from './modules/salesReturn-management/salesReturn.
 import { PartnerModule } from './modules/partner-management/partner.module';
 import { NotificationModule } from './modules/notifications/notification.module';
 import { PushNotificationsModule } from './modules/push-notification/push-notification.module';
+import { RequisitionModule } from './modules/requisition-management/requisition.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { PushNotificationsModule } from './modules/push-notification/push-notifi
     PartnerModule,
     PushNotificationsModule,
     NotificationModule,
+    RequisitionModule,
   ],
   controllers: [AppController],
   providers: [],
