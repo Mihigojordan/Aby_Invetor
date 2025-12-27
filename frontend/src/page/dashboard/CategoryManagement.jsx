@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // components/dashboard/category/CategoryManagement.js
 import React, { useState, useEffect } from "react";
 import {
@@ -17,6 +18,10 @@ import {
   FileText,
   Eye,
   RotateCcw,
+  FileDown,        // For export
+  Table,           // For table view icon
+  Grid,            // New: for grid view icon (assuming lucide has Grid, else use another)
+  List,            // New: for list view icon
 } from "lucide-react";
 import UpsertCategoryModal from "../../components/dashboard/category/UpsertCategoryModal";
 import DeleteCategoryModal from "../../components/dashboard/category/DeleteCategoryModal";
@@ -31,6 +36,8 @@ const CategoryManagement = ({ role }) => {
   const [categories, setCategories] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState(""); // New: for date range filter
+  const [endDate, setEndDate] = useState("");     // New: for date range filter
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -38,6 +45,7 @@ const CategoryManagement = ({ role }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [viewMode, setViewMode] = useState('table'); // New: 'table', 'grid', 'list'
 
   // Pagination state - Changed to 5 items per page
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,16 +72,27 @@ const CategoryManagement = ({ role }) => {
   }, [syncError]);
 
   useEffect(() => {
-    const filtered = categories.filter(
+    let filtered = categories.filter(
       (category) =>
         category.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (category.description || "")
           .toLowerCase()
           .includes(searchTerm.toLowerCase())
     );
+
+    // Apply date range filter
+    if (startDate) {
+      const start = new Date(startDate);
+      filtered = filtered.filter(cat => new Date(cat.updatedAt || cat.createdAt) >= start);
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      filtered = filtered.filter(cat => new Date(cat.updatedAt || cat.createdAt) <= end);
+    }
+
     setFilteredCategories(filtered);
     setCurrentPage(1); // Reset to first page when filtering
-  }, [searchTerm, categories]);
+  }, [searchTerm, startDate, endDate, categories]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
@@ -84,7 +103,7 @@ const CategoryManagement = ({ role }) => {
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 5;
+    const maxVisiblePages = 4;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
@@ -379,10 +398,15 @@ const CategoryManagement = ({ role }) => {
     }
   };
 
+  // Placeholder export handler for PDF
+  const handleExportPDF = () => {
+    showNotification("Export to PDF feature coming soon", "warning");
+  };
+
   // Pagination Component
   const PaginationComponent = () => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col sm:flex-row items-center justify-between  p-2  border-gray-200 bg-gray-50 ">
+      <div className="flex items-center gap-2">
         <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to{" "}
           {Math.min(endIndex, filteredCategories.length)} of{" "}
@@ -438,214 +462,274 @@ const CategoryManagement = ({ role }) => {
     </div>
   );
 
-  // Card View Component (Mobile/Tablet)
+  // Card View Component (Grid/Mobile)
   const CardView = () => (
-    <div className="md:hidden">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-        {currentItems.map((category, index) => (
-          <div
-            key={category.localId || category.id}
-            className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow ${
-              category.synced
-                ? "border-gray-200"
-                : "border-yellow-200 bg-yellow-50"
-            }`}
-          >
-            <div className="p-6">
-              {/* Category Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                    {category.name?.[0] || "C"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3
-                      className="font-semibold text-gray-900 truncate"
-                      title={category.name}
-                    >
-                      {category.name}
-                    </h3>
-                    <div className="flex items-center gap-1 mt-1">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          category.synced ? "bg-green-500" : "bg-yellow-500"
-                        }`}
-                      ></div>
-                      <span className="text-xs text-gray-500">
-                        {category.synced ? "Active" : "Syncing..."}
-                      </span>
-                    </div>
-                  </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 ">
+      {currentItems.map((category, index) => (
+        <div
+          key={category.localId || category.id}
+          className={`bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${
+            category.synced
+              ? "border-gray-200"
+              : "border-yellow-200 bg-yellow-50"
+          }`}
+        >
+          <div className="p-2">
+            {/* Category Header */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-md">
+                  {category.name?.[0] || "C"}
                 </div>
-                {/* Action Buttons */}
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => openEditModal(category)}
-                    disabled={isLoading}
-                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
-                    title="Edit category"
+                <div className="flex-1 min-w-0">
+                  <h3
+                    className="font-semibold text-gray-900 truncate text-sm"
+                    title={category.name}
                   >
-                    <Edit3 size={16} />
-                  </button>
-                  <button
-                    onClick={() => openDeleteModal(category)}
-                    disabled={isLoading}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
-                    title="Delete category"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Category Details */}
-              <div className="space-y-2 mb-4">
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <FileText size={14} className="mt-0.5" />
-                  <span className="line-clamp-2">
-                    {category.description || "No description provided"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar size={12} />
-                  <span>Created {formatDate(category.createdAt)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Pagination for Cards */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <PaginationComponent />
-      </div>
-    </div>
-  );
-
-  // Table View Component (Desktop) - Updated with smaller fonts
-  const TableView = () => (
-    <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                #
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Category
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Description
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Created
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {currentItems.map((category, index) => (
-              <tr
-                key={category.localId || category.id}
-                className="hover:bg-gray-50 transition-colors"
-              >
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                    {startIndex + index + 1}
-                  </span>
-                </td>
-
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      {category.name?.[0] || "C"}
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900 text-sm">
-                        {category.name}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-
-                <td className="px-4 py-3">
-                  <div className="text-xs text-gray-900 max-w-xs">
-                    <div className="line-clamp-2">
-                      {category.description || "No description provided"}
-                    </div>
-                  </div>
-                </td>
-
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                      category.synced
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
+                    {category.name}
+                  </h3>
+                  <div className="flex items-center gap-1 mt-1">
                     <div
                       className={`w-1.5 h-1.5 rounded-full ${
                         category.synced ? "bg-green-500" : "bg-yellow-500"
                       }`}
                     ></div>
-                    {category.synced ? "Active" : "Syncing..."}
-                  </span>
-                </td>
-
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={12} className="text-gray-400" />
-                    <span className="text-xs text-gray-600">
-                      {formatDate(category.updatedAt)}
+                    <span className="text-xs text-gray-500">
+                      {category.synced ? "Active" : "Syncing..."}
                     </span>
                   </div>
-                </td>
+                </div>
+              </div>
+              {/* Action Buttons */}
+              <div className="flex gap-1">
+                <button
+                  onClick={() => openEditModal(category)}
+                  disabled={isLoading}
+                  className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-md transition-colors"
+                  title="Edit category"
+                >
+                  <Edit3 size={14} />
+                </button>
+                <button
+                  onClick={() => openDeleteModal(category)}
+                  disabled={isLoading}
+                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-md transition-colors"
+                  title="Delete category"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
 
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEditModal(category)}
-                      disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                    <button
-                      onClick={() => openDeleteModal(category)}
-                      disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            {/* Category Details */}
+            <div className="space-y-1 mb-3">
+              <div className="flex items-start gap-2 text-xs text-gray-600">
+                <FileText size={12} className="mt-0.5" />
+                <span className="line-clamp-2">
+                  {category.description || "No description provided"}
+                </span>
+              </div>
+            </div>
 
-      {/* Table Pagination */}
-      <PaginationComponent />
+            {/* Footer */}
+            <div className="pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Calendar size={10} />
+                <span>Created {formatDate(category.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 
+  // List View Component (New: Simple list)
+  const ListView = () => (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+      <ul className="divide-y divide-gray-200">
+        {currentItems.map((category, index) => (
+          <li
+            key={category.localId || category.id}
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3 flex-1">
+              <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                {startIndex + index + 1}
+              </span>
+              <div className="w-6 h-6 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                {category.name?.[0] || "C"}
+              </div>
+              <div className="flex-1">
+                <div className="font-medium text-gray-900 text-sm">
+                  {category.name}
+                </div>
+                <div className="text-xs text-gray-600 line-clamp-1">
+                  {category.description || "No description"}
+                </div>
+              </div>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                  category.synced
+                    ? "bg-green-100 text-green-800"
+                    : "bg-yellow-100 text-yellow-800"
+                }`}
+              >
+                <div
+                  className={`w-1 h-1 rounded-full ${
+                    category.synced ? "bg-green-500" : "bg-yellow-500"
+                  }`}
+                ></div>
+                {category.synced ? "Active" : "Syncing"}
+              </span>
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Calendar size={12} />
+                {formatDate(category.updatedAt)}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => openEditModal(category)}
+                disabled={isLoading}
+                className="p-1 text-gray-400 hover:text-primary-600"
+                title="Edit"
+              >
+                <Edit3 size={14} />
+              </button>
+              <button
+                onClick={() => openDeleteModal(category)}
+                disabled={isLoading}
+                className="p-1 text-gray-400 hover:text-red-600"
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  // Table View Component (Desktop)
+  const TableView = () => (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto mb-6">
+      <table className="w-full min-w-max">
+        <thead className="bg-gray-50">
+          <tr className="border-b ">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider  ">
+              #
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Category
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Description
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Created
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {currentItems.map((category, index) => (
+            <tr
+              key={category.localId || category.id}
+              className="hover:bg-gray-50 transition-colors"
+            >
+              <td className="px-4 py-3 whitespace-nowrap">
+                <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                  {startIndex + index + 1}
+                </span>
+              </td>
+
+              <td className="px-4 py-3 whitespace-nowrap">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                    {category.name?.[0] || "C"}
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900 text-sm">
+                      {category.name}
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              <td className="px-4 py-3">
+                <div className="text-xs text-gray-900 max-w-md">
+                  <div className="line-clamp-2">
+                    {category.description || "No description provided"}
+                  </div>
+                </div>
+              </td>
+
+              <td className="px-4 py-3 whitespace-nowrap">
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    category.synced
+                      ? "bg-green-100 text-green-800"
+                      : "bg-yellow-100 text-yellow-800"
+                  }`}
+                >
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      category.synced ? "bg-green-500" : "bg-yellow-500"
+                    }`}
+                  ></div>
+                  {category.synced ? "Active" : "Syncing..."}
+                </span>
+              </td>
+
+              <td className="px-4 py-3 whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <Calendar size={12} className="text-gray-400" />
+                  <span className="text-xs text-gray-600">
+                    {formatDate(category.updatedAt)}
+                  </span>
+                </div>
+              </td>
+
+              <td className="px-4 py-3 whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => openEditModal(category)}
+                    disabled={isLoading}
+                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                  <button
+                    onClick={() => openDeleteModal(category)}
+                    disabled={isLoading}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // Compute summary stats
+  const totalCategories = categories.length;
+  const syncedCount = categories.filter(c => c.synced).length;
+  const pendingSyncCount = categories.filter(c => !c.synced).length;
+
   return (
-    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8">
+    <div className=" border w-[99%]  bg-gray-50 h-[90vh]"> {/* Reduced padding */}
       {/* Notification Toast */}
       {notification && (
         <div
@@ -666,41 +750,20 @@ const CategoryManagement = ({ role }) => {
         </div>
       )}
 
-      <div className="h-full overflow-y-auto mx-auto">
-        {/* Header Section */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary-600 rounded-lg">
-                <Folder className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">
+      <div className="h-full">
+        {/* Header Section with bottom shadow */}
+        <div className="mb-4 shadow-md bg-white  p-2"> {/* Bottom shadow */}
+          <div className="flex items-center  justify-between">
+            <div className="flex items-center justify-between gap-3">
+           
+              <h1 className="text-xl font-bold text-gray-900"> {/* Smaller text */}
                 Category Management
               </h1>
             </div>
-          </div>
-          <p className="text-sm text-gray-600">
-            Manage your categories - works offline and syncs when online
-          </p>
-        </div>
-
-        {/* Search and Actions Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-4">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-            <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search categories..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
-              />
-            </div>
-            <div className="flex gap-2">
-              {/* Online Status Icon */}
+            <div className="flex items-center gap-4">
+              {/* Online/Offline Icon */}
               <div
-                className={`flex items-center justify-center w-10 h-10 rounded-lg ${
+                className={`p-2 rounded-lg ${
                   isOnline
                     ? "bg-green-100 text-green-600"
                     : "bg-red-100 text-red-600"
@@ -709,46 +772,153 @@ const CategoryManagement = ({ role }) => {
               >
                 {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
               </div>
-
-              {/* Sync Button - Using RotateCcw icon */}
+              {/* Sync Icon */}
               {isOnline && (
                 <button
                   onClick={handleManualSync}
                   disabled={isLoading}
-                  className="flex items-center justify-center w-10 h-10 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors disabled:opacity-50"
                   title="Sync now"
                 >
-                  <RefreshCw
-                    size={16}
-                    className={ isLoading ? "animate-spin" : ""}
-                  />
+                  <span></span>
+                  <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
                 </button>
               )}
-
-              {/* Refresh Button - Using RefreshCw icon */}
+              {/* Refresh Icon */}
               {isOnline && (
                 <button
                   onClick={() => loadCategories(true)}
                   disabled={isRefreshing}
-                  className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
                   title="Refresh"
                 >
-                  <RotateCcw
-                    size={16}
-                    className={ isRefreshing  ? "animate-spin" : ""}
-                  />
+                  <RotateCcw size={16} className={isRefreshing ? "animate-spin" : ""} />
                 </button>
+                
               )}
+                <button
+              onClick={() => setIsAddModalOpen(true)}
+              disabled={isLoading}
+              className="flex items-center gap-1 px-3 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-md text-sm font-medium transition-colors shadow-sm"
+            >
+              <Plus size={14} />
+              Add Category
+            </button>
 
-              {/* Add Category Button */}
+            </div>
+            
+
+
+
+          </div>
+          <p className="text-xs text-gray-600 mt-1">
+            Manage your categories - works offline and syncs when online
+          </p>
+        </div>
+
+        {/* Summary Stats Cards - Enhanced with hover effects and transitions */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 pl-3 pr-3">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
+            <div className="p-2 bg-orange-100 rounded-md">
+              <Folder className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-600">Total</p>
+              <p className="text-xl font-bold text-gray-900">{totalCategories}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
+            <div className="p-2 bg-green-100 rounded-md">
+              <Check className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-600">Synced</p>
+              <p className="text-xl font-bold text-gray-900">{syncedCount}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
+            <div className="p-2 bg-yellow-100 rounded-md">
+              <RefreshCw className="w-5 h-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-600">Pending Sync</p>
+              <p className="text-xl font-bold text-gray-900">{pendingSyncCount}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
+            <div className="p-2 bg-blue-100 rounded-md">
+              <Wifi className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-600">Connection</p>
+              <p className="text-md font-semibold text-gray-900">
+                {isOnline ? "Online" : "Offline"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter and Actions Bar - Enhanced with date range and view switchers */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 ml-3 mr-3 p-2 flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center ">
+          {/* Search and Date Range */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto ">
+            <div className="relative flex-grow">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search categories..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
+              />
+            </div>
+            <div className="flex gap-3">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder="Start Date"
+                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
+              />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder="End Date"
+                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Actions: Export PDF, Add Category, View Switchers */}
+          <div className="flex gap-2 w-full lg:w-auto justify-end">
+         
+          
+            {/* View Switchers */}
+            <div className="flex gap-1">
               <button
-                onClick={() => setIsAddModalOpen(true)}
-                disabled={isLoading}
-                className="flex items-center justify-center px-3 h-10 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm"
-                title="Add Category"
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                title="Grid View"
               >
-                <Plus size={16} />
-                Add Category
+                <Grid size={16} />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                title="Table View"
+              >
+                <Table size={16} />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                title="List View"
+              >
+                <List size={16} />
               </button>
             </div>
           </div>
@@ -756,7 +926,7 @@ const CategoryManagement = ({ role }) => {
 
         {/* Loading State */}
         {isLoading && !isRefreshing ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 p-3">
             <div className="inline-flex items-center gap-3">
               <RefreshCw className="w-5 h-5 animate-spin text-primary-600" />
               <p className="text-gray-600">Loading categories...</p>
@@ -785,13 +955,36 @@ const CategoryManagement = ({ role }) => {
             )}
           </div>
         ) : (
-          <>
-            <CardView />
-            <TableView />
-          </>
+          < div className="pl-3 pr-3">
+            {/* Conditional View Rendering */}
+            {viewMode === 'grid' && (
+              <>
+                <CardView />
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <PaginationComponent />
+                </div>
+              </>
+            )}
+            {viewMode === 'list' && (
+              <>
+                <ListView />
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <PaginationComponent />
+                </div>
+              </>
+            )}
+            {viewMode === 'table' && (
+              <>
+                <TableView />
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                  <PaginationComponent />
+                </div>
+              </>
+            )}
+          </div>
         )}
 
-        {/* Modal Components */}
+        {/* Modal Components - Reduced padding for professional look */}
         <UpsertCategoryModal
           isOpen={isAddModalOpen || isEditModalOpen}
           onClose={closeAllModals}

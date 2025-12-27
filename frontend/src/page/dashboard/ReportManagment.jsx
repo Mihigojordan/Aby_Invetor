@@ -15,8 +15,27 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Wifi,
+  WifiOff,
+  RotateCcw,
+  RefreshCw,
+  Grid3x3,
+  Table2,
+  Filter,
+  Check,
+  AlertTriangle,
+  Package,
+  Hash,
+  User,
+  Phone,
+  Mail,
+  ShoppingBag,
 } from "lucide-react";
 import reportService from "../../services/reportService";
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import useAdminAuth from '../../context/AdminAuthContext';
+import { useNetworkStatusContext } from '../../context/useNetworkContext';
+import { useNavigate } from 'react-router-dom';
 
 // Enhanced Upsert Report Modal Component with Live Totals
 const UpsertReportModal = ({
@@ -723,117 +742,117 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Total Expenses
-                  </label>
-                  <p className="text-lg font-bold text-red-600">
-                    {formatCurrency(totalExpenses)}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {(report.expenses || []).length} expense entries
-                  </p>
+                    </label>
+                    <p className="text-lg font-bold text-red-600">
+                      {formatCurrency(totalExpenses)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {(report.expenses || []).length} expense entries
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-            {/* Right Column - Details */}
-            <div className="space-y-6">
-              {/* Expense Details */}
-              {report.expenses && report.expenses.length > 0 && (
+              {/* Right Column - Details */}
+              <div className="space-y-6">
+                {/* Expense Details */}
+                {report.expenses && report.expenses.length > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 text-base">
+                      Expense Breakdown
+                    </h3>
+                    <div className="space-y-2">
+                      {report.expenses.map((expense, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0"
+                        >
+                          <span className="text-gray-700 text-xs">
+                            {expense.description || 'No description'}
+                          </span>
+                          <span className="font-medium text-red-600 text-sm">
+                            {formatCurrency(expense.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Credit Transactions */}
+                {creditTransactions.length > 0 && (
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-base">
+                      <span className="w-3 h-3 bg-green-600 rounded-full"></span>
+                      Credit Transactions ({creditTransactions.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {creditTransactions.map((transaction, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center py-2 border-b border-green-200 last:border-b-0"
+                        >
+                          <span className="text-gray-700 text-xs">
+                            {transaction.description || 'No description'}
+                          </span>
+                          <span className="font-medium text-green-600 text-sm">
+                            +{formatCurrency(transaction.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Debit Transactions */}
+                {debitTransactions.length > 0 && (
+                  <div className="bg-red-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-base">
+                      <span className="w-3 h-3 bg-red-600 rounded-full"></span>
+                      Debit Transactions ({debitTransactions.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {debitTransactions.map((transaction, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center py-2 border-b border-red-200 last:border-b-0"
+                        >
+                          <span className="text-gray-700 text-xs">
+                            {transaction.description || 'No description'}
+                          </span>
+                          <span className="font-medium text-red-600 text-sm">
+                            -{formatCurrency(transaction.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Timeline */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 text-base">
-                    Expense Breakdown
-                  </h3>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Clock className="w-4 h-4 text-gray-600" />
+                    <h3 className="font-semibold text-gray-900 text-base">Timeline</h3>
+                  </div>
                   <div className="space-y-2">
-                    {report.expenses.map((expense, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0"
-                      >
-                        <span className="text-gray-700 text-xs">
-                          {expense.description || 'No description'}
-                        </span>
-                        <span className="font-medium text-red-600 text-sm">
-                          {formatCurrency(expense.amount)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* Credit Transactions */}
-              {creditTransactions.length > 0 && (
-                <div className="bg-green-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-base">
-                    <span className="w-3 h-3 bg-green-600 rounded-full"></span>
-                    Credit Transactions ({creditTransactions.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {creditTransactions.map((transaction, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center py-2 border-b border-green-200 last:border-b-0"
-                      >
-                        <span className="text-gray-700 text-xs">
-                          {transaction.description || 'No description'}
-                        </span>
-                        <span className="font-medium text-green-600 text-sm">
-                          +{formatCurrency(transaction.amount)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* Debit Transactions */}
-              {debitTransactions.length > 0 && (
-                <div className="bg-red-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-base">
-                    <span className="w-3 h-3 bg-red-600 rounded-full"></span>
-                    Debit Transactions ({debitTransactions.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {debitTransactions.map((transaction, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center py-2 border-b border-red-200 last:border-b-0"
-                      >
-                        <span className="text-gray-700 text-xs">
-                          {transaction.description || 'No description'}
-                        </span>
-                        <span className="font-medium text-red-600 text-sm">
-                          -{formatCurrency(transaction.amount)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* Timeline */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-gray-600" />
-                  <h3 className="font-semibold text-gray-900 text-base">Timeline</h3>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Created
-                    </label>
-                    <span className="text-gray-900 text-sm">
-                      {formatDate(report.createdAt)}
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Last Updated
-                    </label>
-                    <span className="text-gray-900 text-sm">
-                      {formatDate(report.updatedAt)}
-                    </span>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Created
+                      </label>
+                      <span className="text-gray-900 text-sm">
+                        {formatDate(report.createdAt)}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Last Updated
+                      </label>
+                      <span className="text-gray-900 text-sm">
+                        {formatDate(report.updatedAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         {/* Footer */}
         <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
@@ -893,122 +912,214 @@ const ReportManagement = ({ role }) => {
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
-  // Pagination state
+  const [statistics, setStatistics] = useState(null);
+  const { isOnline } = useNetworkStatusContext();
+  const { user: employeeData } = useEmployeeAuth();
+  const { user: adminData } = useAdminAuth();
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(8);
+  const [viewMode, setViewMode] = useState('table');
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchReports();
+    loadReports();
   }, []);
 
   useEffect(() => {
-    const filtered = reports.filter((report) => {
-      const searchLower = searchTerm.toLowerCase();
-      const reportDate = new Date(report.createdAt)
-        .toLocaleDateString("en-US", {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  useEffect(() => {
+    const filtered = reports.filter(report => {
+      const matchesSearch = 
+        new Date(report.createdAt).toLocaleDateString("en-US", {
           year: "numeric",
           month: "short",
           day: "numeric",
-        })
-        .toLowerCase();
-      // Check if any transaction description matches the search term
-      const transactionMatch = (report.transactions || []).some((transaction) =>
-        (transaction.description || "").toLowerCase().includes(searchLower)
-      );
-      return reportDate.includes(searchLower) || transactionMatch;
+        }).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (report.transactions || []).some(transaction => 
+          (transaction.description || "").toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+      const reportDate = new Date(report.createdAt);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+
+      if (start) start.setHours(0, 0, 0, 0);
+      if (end) end.setHours(23, 59, 59, 999);
+
+      const matchesDate =
+        (!start || reportDate >= start) &&
+        (!end || reportDate <= end);
+
+      return matchesSearch && matchesDate;
     });
     setFilteredReports(filtered);
     setCurrentPage(1);
-  }, [searchTerm, reports]);
+  }, [searchTerm, startDate, endDate, reports]);
 
-  const fetchReports = async () => {
-    setIsLoading(true);
+  useEffect(() => {
+    const stats = calculateReportStatistics(filteredReports);
+    setStatistics(stats);
+  }, [filteredReports]);
+
+  const calculateReportStatistics = (reports) => {
+    if (!Array.isArray(reports) || reports.length === 0) {
+      return {
+        totalReports: 0,
+        totalCash: 0,
+        totalExpenses: 0,
+        totalCredit: 0,
+        totalDebit: 0,
+        recentReports: 0
+      };
+    }
+
+    const totalCash = reports.reduce((sum, report) => 
+      sum + (report.cashAtHand || 0) + (report.moneyOnPhone || 0), 0);
+    
+    const totalExpenses = reports.reduce((sum, report) =>
+      sum + (report.expenses?.reduce((expSum, exp) => expSum + (exp.amount || 0), 0) || 0), 0);
+    
+    const totalCredit = reports.reduce((sum, report) =>
+      sum + (report.transactions?.filter(t => t.type === 'CREDIT')
+        .reduce((creditSum, t) => creditSum + (t.amount || 0), 0) || 0), 0);
+    
+    const totalDebit = reports.reduce((sum, report) =>
+      sum + (report.transactions?.filter(t => t.type === 'DEBIT')
+        .reduce((debitSum, t) => debitSum + (t.amount || 0), 0) || 0), 0);
+    
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentReports = reports.filter(report => 
+      new Date(report.createdAt) > thirtyDaysAgo
+    ).length;
+
+    return {
+      totalReports: reports.length,
+      totalCash: totalCash.toFixed(2),
+      totalExpenses: totalExpenses.toFixed(2),
+      totalCredit: totalCredit.toFixed(2),
+      totalDebit: totalDebit.toFixed(2),
+      recentReports
+    };
+  };
+
+  const loadReports = async (showRefreshLoader = false) => {
+    if (showRefreshLoader) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const data = await reportService.getEmployeeReports();
       setReports(data);
       setFilteredReports(data);
+
+      if (showRefreshLoader) {
+        setNotification({
+          type: 'success',
+          message: 'Reports refreshed successfully!'
+        });
+      }
     } catch (error) {
-      showNotification(`Failed to fetch reports: ${error.message}`, "error");
+      console.error('Error loading reports:', error);
+      setNotification({
+        type: 'error',
+        message: 'Failed to load reports'
+      });
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  };
-
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredReports.slice(startIndex, endIndex);
-
-  // Generate page numbers for pagination
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    if (endPage - startPage < maxVisiblePages - 1) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-    return pages;
-  };
-
-  const showNotification = (message, type = "success") => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleAddReport = async (reportData) => {
     setIsLoading(true);
     try {
       await reportService.createReport(reportData);
-      await fetchReports();
+      await loadReports();
+      setNotification({
+        type: 'success',
+        message: 'Report created successfully!'
+      });
       setIsAddModalOpen(false);
-      showNotification("Report created successfully!");
     } catch (error) {
-      showNotification(`Failed to create report: ${error.message}`, "error");
+      console.error('Error adding report:', error);
+      setNotification({
+        type: 'error',
+        message: `Failed to create report: ${error.message}`
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEditReport = async (reportData) => {
+  const handleUpdateReport = async (reportData) => {
     setIsLoading(true);
     try {
       await reportService.updateReport(selectedReport.id, reportData);
-      await fetchReports();
+      await loadReports();
+      setNotification({
+        type: 'success',
+        message: 'Report updated successfully!'
+      });
       setIsEditModalOpen(false);
       setSelectedReport(null);
-      showNotification("Report updated successfully!");
     } catch (error) {
-      showNotification(`Failed to update report: ${error.message}`, "error");
+      console.error('Error updating report:', error);
+      setNotification({
+        type: 'error',
+        message: `Failed to update report: ${error.message}`
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteReport = async () => {
+  const handleConfirmDelete = async () => {
     setIsLoading(true);
     try {
       await reportService.deleteReport(selectedReport.id);
-      await fetchReports();
+      await loadReports();
+      setNotification({
+        type: 'success',
+        message: 'Report deleted successfully!'
+      });
       setIsDeleteModalOpen(false);
       setSelectedReport(null);
-      showNotification("Report deleted successfully!");
     } catch (error) {
-      showNotification(`Failed to delete report: ${error.message}`, "error");
+      console.error('Error deleting report:', error);
+      setNotification({
+        type: 'error',
+        message: `Failed to delete report: ${error.message}`
+      });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    await loadReports(true);
+  };
+
+  const openAddModal = () => {
+    navigate(role === 'admin' ? '/admin/dashboard/report/create' : '/employee/dashboard/report/create');
   };
 
   const openEditModal = (report) => {
@@ -1042,7 +1153,24 @@ const ReportManagement = ({ role }) => {
     }).format(amount || 0);
   };
 
-  // Pagination handlers
+  const getTotalMoney = (report) => {
+    return (report.cashAtHand || 0) + (report.moneyOnPhone || 0);
+  };
+
+  const getTotalExpenses = (report) => {
+    return report.expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0;
+  };
+
+  const getTotalCredit = (report) => {
+    return report.transactions?.filter(t => t.type === 'CREDIT')
+      .reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+  };
+
+  const getTotalDebit = (report) => {
+    return report.transactions?.filter(t => t.type === 'DEBIT')
+      .reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+  };
+
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
@@ -1059,76 +1187,95 @@ const ReportManagement = ({ role }) => {
     }
   };
 
-  const handleItemsPerPageChange = (newItemsPerPage) => {
-    setItemsPerPage(newItemsPerPage);
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setFilteredReports(reports);
     setCurrentPage(1);
   };
 
-  // Calculate summary statistics
-  const calculateSummaryStats = () => {
-    const totalCashAtHand = filteredReports.reduce(
-      (sum, report) => sum + (report.cashAtHand || 0),
-      0
-    );
-    const totalMoneyOnPhone = filteredReports.reduce(
-      (sum, report) => sum + (report.moneyOnPhone || 0),
-      0
-    );
-    const totalExpenses = filteredReports.reduce((sum, report) => {
-      const reportExpenses = (report.expenses || []).reduce(
-        (expSum, exp) => expSum + (exp.amount || 0),
-        0
-      );
-      return sum + reportExpenses;
-    }, 0);
-    const totalCredit = filteredReports.reduce((sum, report) => {
-      const reportCredits = (report.transactions || [])
-        .filter((t) => t.type === "CREDIT")
-        .reduce((creditSum, t) => creditSum + (t.amount || 0), 0);
-      return sum + reportCredits;
-    }, 0);
-    const totalDebit = filteredReports.reduce((sum, report) => {
-      const reportDebits = (report.transactions || [])
-        .filter((t) => t.type === "DEBIT")
-        .reduce((debitSum, t) => debitSum + (t.amount || 0), 0);
-      return sum + reportDebits;
-    }, 0);
-    return {
-      totalCashAtHand,
-      totalMoneyOnPhone,
-      totalMoney: totalCashAtHand + totalMoneyOnPhone,
-      totalExpenses,
-      totalCredit,
-      totalDebit,
-    };
+  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredReports.slice(startIndex, endIndex);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
   };
 
-  const summaryStats = calculateSummaryStats();
+  const StatisticsCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-2 p-3">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Reports</p>
+            <p className="text-lg font-bold text-gray-900">{statistics?.totalReports || 0}</p>
+            <p className="text-xs text-gray-500 mt-1">{statistics?.recentReports || 0} recent reports</p>
+          </div>
+          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+            <FileText className="w-5 h-5 text-blue-600" />
+          </div>
+        </div>
+      </div>
 
-  // Pagination Component
-  const PaginationComponent = ({ showItemsPerPage = true }) => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Cash</p>
+            <p className="text-lg font-bold text-gray-900">{formatCurrency(statistics?.totalCash || 0)}</p>
+            <p className="text-xs text-gray-500 mt-1">Available funds</p>
+          </div>
+          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-green-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Total Expenses</p>
+            <p className="text-lg font-bold text-gray-900">{formatCurrency(statistics?.totalExpenses || 0)}</p>
+            <p className="text-xs text-gray-500 mt-1">Costs incurred</p>
+          </div>
+          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+            <TrendingDown className="w-5 h-5 text-red-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Credit/Debit</p>
+            <p className="text-lg font-bold text-green-600">{formatCurrency(statistics?.totalCredit || 0)}</p>
+            <p className="text-xs text-red-600">{formatCurrency(statistics?.totalDebit || 0)}</p>
+          </div>
+          <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-purple-600" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const PaginationComponent = () => (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-gray-200 bg-white">
       <div className="flex items-center gap-4">
         <p className="text-xs text-gray-600">
-          Showing {startIndex + 1} to{" "}
-          {Math.min(endIndex, filteredReports.length)} of{" "}
-          {filteredReports.length} entries
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredReports.length)} of {filteredReports.length} entries
         </p>
-        {showItemsPerPage && filteredReports.length > 0 && (
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-600">Show:</label>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-              className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
-        )}
       </div>
       {totalPages > 1 && (
         <div className="flex items-center gap-1">
@@ -1137,11 +1284,11 @@ const ReportManagement = ({ role }) => {
             disabled={currentPage === 1}
             className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
               currentPage === 1
-                ? "border-gray-200 text-gray-400 cursor-not-allowed"
-                : "border-gray-300 text-gray-700 hover:bg-gray-100"
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <ChevronLeft size={14} />
+            <ChevronLeft size={12} />
             Previous
           </button>
           <div className="flex items-center gap-1 mx-2">
@@ -1151,8 +1298,8 @@ const ReportManagement = ({ role }) => {
                 onClick={() => handlePageChange(page)}
                 className={`px-3 py-2 text-xs rounded-md transition-colors ${
                   currentPage === page
-                    ? "bg-primary-600 text-white"
-                    : "border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    ? 'bg-primary-600 text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 {page}
@@ -1164,442 +1311,482 @@ const ReportManagement = ({ role }) => {
             disabled={currentPage === totalPages}
             className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
               currentPage === totalPages
-                ? "border-gray-200 text-gray-400 cursor-not-allowed"
-                : "border-gray-300 text-gray-700 hover:bg-gray-100"
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
           >
             Next
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </button>
         </div>
       )}
     </div>
   );
 
-  // Card View Component (Mobile/Tablet)
-  const CardView = () => (
-    <div className="md:hidden">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-        {currentItems.map((report) => {
-          const totalExpenses = (report.expenses || []).reduce(
-            (sum, exp) => sum + (exp.amount || 0),
-            0
-          );
-          const totalMoney =
-            (report.cashAtHand || 0) + (report.moneyOnPhone || 0);
-          const totalCredit = (report.transactions || [])
-            .filter((t) => t.type === "CREDIT")
-            .reduce((total, t) => total + (t.amount || 0), 0);
-          const totalDebit = (report.transactions || [])
-            .filter((t) => t.type === "DEBIT")
-            .reduce((total, t) => total + (t.amount || 0), 0);
-          const netCashFlow = totalCredit - totalDebit;
-          return (
-            <div
-              key={report.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
+  const GridView = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+      {(currentItems || []).map((report, index) => (
+        <div
+          key={report.id}
+          className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200"
+        >
+          <div className="p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <FileText size={16} className="text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm text-gray-900 truncate">
+                    Report #{report.id?.substring(0, 8)}
+                  </h3>
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span className="text-xs text-gray-500">Processed</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2 mb-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-600">Total Cash:</span>
+                <span className="text-xs font-bold text-green-600">{formatCurrency(getTotalMoney(report))}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-600">Expenses:</span>
+                <span className="text-xs text-red-600">{formatCurrency(getTotalExpenses(report))}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-600">Credit/Debit:</span>
+                <div className="flex flex-col items-end">
+                  <span className="text-xs text-green-600">+{formatCurrency(getTotalCredit(report))}</span>
+                  <span className="text-xs text-red-600">-{formatCurrency(getTotalDebit(report))}</span>
+                </div>
+              </div>
+              {report.expenses?.length > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-600">Expense Items:</span>
+                  <span className="text-xs text-gray-900">{report.expenses.length}</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Calendar size={12} />
+                  <span>{formatDate(report.createdAt)}</span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => openViewModal(report)}
+                    disabled={isLoading}
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="View Details"
+                  >
+                    <Eye size={14} />
+                  </button>
+                  <button
+                    onClick={() => openEditModal(report)}
+                    disabled={isLoading}
+                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                  <button
+                    onClick={() => openDeleteModal(report)}
+                    disabled={isLoading}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const TableView = () => (
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 p-3 ml-3 mr-3">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Report ID</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Total Cash</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Expenses</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Credit/Debit</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {(currentItems || []).map((report, index) => (
+              <tr key={report.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-base">
-                      <FileText size={16} />
+                    <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                      <FileText size={14} className="text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 text-sm">
-                        Daily Report
-                      </h3>
+                      <div className="font-medium text-sm text-gray-900">
+                        Report #{report.id?.substring(0, 8)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {report.expenses?.length || 0} expense items
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-600">{formatDate(report.createdAt)}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-sm font-semibold text-green-600">
+                    {formatCurrency(getTotalMoney(report))}
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-sm font-semibold text-red-600">
+                    {formatCurrency(getTotalExpenses(report))}
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-green-600">+{formatCurrency(getTotalCredit(report))}</span>
+                    <span className="text-xs text-red-600">-{formatCurrency(getTotalDebit(report))}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    Processed
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => openViewModal(report)}
-                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      disabled={isLoading}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                      title="View Details"
                     >
-                      <Eye size={14} />
+                      <Eye size={16} />
                     </button>
                     <button
                       onClick={() => openEditModal(report)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      disabled={isLoading}
+                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                    <button
+                      onClick={() => openDeleteModal(report)}
+                      disabled={isLoading}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PaginationComponent />
+    </div>
+  );
+
+  const CardView = () => (
+    <div className="md:hidden">
+      <div className="grid grid-cols-1 gap-4 mb-6">
+        {(currentItems || []).map((report, index) => (
+          <div
+            key={report.id}
+            className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+          >
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <FileText size={16} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 truncate">
+                      Report #{report.id?.substring(0, 8)}
+                    </h3>
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                      <span className="text-xs text-gray-500">Processed</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => openViewModal(report)}
+                    disabled={isLoading}
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="View Details"
+                  >
+                    <Eye size={14} />
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2 mb-3">
+                <div className="flex items-start justify-between text-xs">
+                  <span className="font-medium text-gray-600">Total Cash:</span>
+                  <span className="font-bold text-green-600">{formatCurrency(getTotalMoney(report))}</span>
+                </div>
+                <div className="flex items-start justify-between text-xs">
+                  <span className="font-medium text-gray-600">Expenses:</span>
+                  <span className="text-red-600">{formatCurrency(getTotalExpenses(report))}</span>
+                </div>
+                <div className="flex items-start justify-between text-xs">
+                  <span className="font-medium text-gray-600">Credit:</span>
+                  <span className="text-green-600">+{formatCurrency(getTotalCredit(report))}</span>
+                </div>
+                <div className="flex items-start justify-between text-xs">
+                  <span className="font-medium text-gray-600">Debit:</span>
+                  <span className="text-red-600">-{formatCurrency(getTotalDebit(report))}</span>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Calendar size={12} />
+                    <span>{formatDate(report.createdAt)}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => openEditModal(report)}
+                      disabled={isLoading}
+                      className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                      title="Edit"
                     >
                       <Edit3 size={14} />
                     </button>
                     <button
                       onClick={() => openDeleteModal(report)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      disabled={isLoading}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                      title="Delete"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <div className="space-y-3 mb-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-green-50 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <DollarSign size={12} className="text-green-600" />
-                        <span className="text-xs font-medium text-green-800">
-                          Total Money
-                        </span>
-                      </div>
-                      <p className="font-bold text-green-700 text-sm">
-                        {formatCurrency(totalMoney)}
-                      </p>
-                    </div>
-                    <div className="bg-red-50 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <TrendingDown size={12} className="text-red-600" />
-                        <span className="text-xs font-medium text-red-800">
-                          Expenses
-                        </span>
-                      </div>
-                      <p className="font-bold text-red-700 text-sm">
-                        {formatCurrency(totalExpenses)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-blue-50 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp size={12} className="text-blue-600" />
-                        <span className="text-xs font-medium text-blue-800">
-                          Total Credit
-                        </span>
-                      </div>
-                      <p className="font-bold text-blue-700 text-sm">
-                        {formatCurrency(totalCredit)}
-                      </p>
-                    </div>
-                    <div className="bg-orange-50 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <TrendingDown size={12} className="text-orange-600" />
-                        <span className="text-xs font-medium text-orange-800">
-                          Total Debit
-                        </span>
-                      </div>
-                      <p className="font-bold text-orange-700 text-sm">
-                        {formatCurrency(totalDebit)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Receipt size={12} className="text-purple-600" />
-                      <span className="text-xs font-medium text-purple-800">
-                        Products
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Calendar size={10} />
-                    <span>Created {formatDate(report.createdAt)}</span>
-                  </div>
-                </div>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <PaginationComponent showItemsPerPage={false} />
+      <div className="bg-white rounded-lg border border-gray-200">
+        <PaginationComponent />
       </div>
-    </div>
-  );
-
-  // Table View Component (Desktop)
-  const TableView = () => (
-    <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                #
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cash Summary
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Credits/Debits
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Expenses
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {currentItems.map((report, index) => {
-              const totalExpenses = (report.expenses || []).reduce(
-                (sum, exp) => sum + (exp.amount || 0),
-                0
-              );
-              const totalMoney =
-                (report.cashAtHand || 0) + (report.moneyOnPhone || 0);
-              const totalCredit = (report.transactions || [])
-                .filter((t) => t.type === "CREDIT")
-                .reduce((total, t) => total + (t.amount || 0), 0);
-              const totalDebit = (report.transactions || [])
-                .filter((t) => t.type === "DEBIT")
-                .reduce((total, t) => total + (t.amount || 0), 0);
-              return (
-                <tr
-                  key={report.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                      {startIndex + index + 1}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={12} className="text-gray-400" />
-                      <span className="text-xs text-gray-900">
-                        {formatDate(report.createdAt)}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="space-y-1">
-                      <div className="text-xs font-medium text-gray-900">
-                        {formatCurrency(totalMoney)}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <TrendingUp size={10} className="text-green-400" />
-                        <span className="text-xs font-medium text-green-600">
-                          {formatCurrency(totalCredit)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <TrendingDown size={10} className="text-red-400" />
-                        <span className="text-xs font-medium text-red-600">
-                          {formatCurrency(totalDebit)}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <TrendingDown size={12} className="text-red-400" />
-                      <span className="font-medium text-red-600 text-sm">
-                        {formatCurrency(totalExpenses)}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {(report.expenses || []).length} entries
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => openViewModal(report)}
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="View Details"
-                      >
-                        <Eye size={14} />
-                      </button>
-                      <button
-                        onClick={() => openEditModal(report)}
-                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        onClick={() => openDeleteModal(report)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <PaginationComponent showItemsPerPage={false} />
     </div>
   );
 
   return (
-    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8 text-sm">
+    <div className="bg-gray-50 min-h-[90vh] ">
       {notification && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-            notification.type === "success"
-              ? "bg-primary-500 text-white"
-              : "bg-red-500 text-white"
-          } animate-in slide-in-from-top-2 duration-300 text-xs`}
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm ${
+            notification.type === 'success' ? 'bg-green-500 text-white' :
+            notification.type === 'warning' ? 'bg-yellow-500 text-white' :
+            'bg-red-500 text-white'
+          } animate-in slide-in-from-top-2 duration-300`}
         >
+          {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>
       )}
-      <div className="h-full overflow-y-auto mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary-600 rounded-lg">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Report Management
-            </h1>
-          </div>
-          <p className="text-gray-600 text-xs">
-            Track daily sales reports with cash flow and expenses
-          </p>
-        </div>
-        {/* Summary Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Receipt className="w-4 h-4 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Reports</p>
-                <p className="text-base font-bold text-gray-900">
-                  {filteredReports.length}
-                </p>
+      
+      <div className="h-full">
+        {/* Header Section */}
+        <div className="mb-4 shadow-md bg-white p-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div>
+                  <h1 className="text-2xl lg:text-2xl font-bold text-gray-900">Report Management</h1>
+                  <p className="text-sm text-gray-600 mt-1">Track daily sales reports with cash flow, expenses, and transactions</p>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-4 h-4 text-green-600" />
+              {/* Sync and Refresh buttons */}
+              <div className="flex gap-2">
+                {(searchTerm || startDate || endDate) && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm text-sm"
+                    title="Clear Filters"
+                  >
+                    <X size={16} />
+                    <span className="text-sm font-medium">Clear</span>
+                  </button>
+                )}
+                
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                >
+                  {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+                  <span className="text-sm font-medium">{isOnline ? 'Online' : 'Offline'}</span>
+                </div>
+                
+                {isOnline && (
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    title="Refresh"
+                  >
+                    <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                    <span className="text-sm font-medium">Refresh</span>
+                  </button>
+                )}
               </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Cash</p>
-                <p className="text-base font-bold text-gray-900">
-                  {formatCurrency(summaryStats.totalCashAtHand)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <TrendingUp className="w-4 h-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Phone Money</p>
-                <p className="text-base font-bold text-gray-900">
-                  {formatCurrency(summaryStats.totalMoneyOnPhone)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <TrendingDown className="w-4 h-4 text-red-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Expenses</p>
-                <p className="text-base font-bold text-gray-900">
-                  {formatCurrency(summaryStats.totalExpenses)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">
-                  Total Credit
-                </p>
-                <p className="text-base font-bold text-emerald-600">
-                  {formatCurrency(summaryStats.totalCredit)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <TrendingDown className="w-4 h-4 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Debit</p>
-                <p className="text-base font-bold text-orange-600">
-                  {formatCurrency(summaryStats.totalDebit)}
-                </p>
-              </div>
+
+              <button
+                onClick={openAddModal}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50"
+              >
+                <Plus size={18} />
+                <span className="text-sm font-semibold">New Report</span>
+              </button>
             </div>
           </div>
         </div>
-        {/* Controls */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-            <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search by date or product names..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
-              />
+
+        {/* Statistics Cards */}
+        {statistics && <StatisticsCards />}
+
+        {/* Search and Filter Bar */}
+        <div className="bg-white rounded-lg border border-gray-200 mb-6 p-2 ml-3 mr-3">
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+            <div className="w-full lg:w-[45%]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search by date, transaction description, or expense..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                />
+              </div>
             </div>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm"
-            >
-              <Plus size={16} />
-              Create Report
-            </button>
+            
+            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-[90%] ml-6 items-start sm:items-center">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* View mode toggle in filter section */}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                  title="Grid View"
+                >
+                  <Grid3x3 size={18} />
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-2 rounded transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                  title="Table View"
+                >
+                  <Table2 size={18} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        {/* Content */}
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            <p className="text-gray-600 mt-4 text-xs">Loading reports...</p>
+
+        {/* Main Content */}
+        {isLoading && !isRefreshing ? (
+          <div className="text-center py-16">
+            <div className="inline-flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <FileText className="w-8 h-8 text-primary-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <div>
+                <p className="text-lg font-medium text-gray-900 mb-2">Loading Reports</p>
+                <p className="text-sm text-gray-600">Please wait while we fetch your report data...</p>
+              </div>
+            </div>
           </div>
         ) : filteredReports.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-base font-medium text-gray-900 mb-2">
-              No reports found
-            </h3>
-            <p className="text-gray-600 mb-4 text-xs">
-              {searchTerm
-                ? "Try adjusting your search terms."
-                : "Get started by creating your first daily report."}
-            </p>
-            {!searchTerm && (
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
-              >
-                <Plus size={16} />
-                Create Report
-              </button>
-            )}
+          <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
+            <div className="max-w-md mx-auto">
+              <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <FileText className="w-12 h-12 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">No Reports Found</h3>
+              <p className="text-gray-600 mb-6">
+                {searchTerm || startDate || endDate 
+                  ? 'Try adjusting your search or date filters to find what you\'re looking for.' 
+                  : 'Get started by creating your first daily report.'}
+              </p>
+              {!(searchTerm || startDate || endDate) && (
+                <button
+                  onClick={openAddModal}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"
+                >
+                  <Plus size={18} />
+                  Create First Report
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <>
-            <CardView />
-            <TableView />
+            {viewMode === 'grid' ? (
+              <GridView />
+            ) : (
+              <>
+                <CardView />
+                <TableView />
+              </>
+            )}
           </>
         )}
+
         {/* Modals */}
         <UpsertReportModal
           isOpen={isAddModalOpen || isEditModalOpen}
@@ -1608,7 +1795,7 @@ const ReportManagement = ({ role }) => {
             setIsEditModalOpen(false);
             setSelectedReport(null);
           }}
-          onSubmit={isEditModalOpen ? handleEditReport : handleAddReport}
+          onSubmit={isEditModalOpen ? handleUpdateReport : handleAddReport}
           report={selectedReport}
           isLoading={isLoading}
           title={isEditModalOpen ? "Edit Report" : "Create New Report"}
@@ -1627,7 +1814,7 @@ const ReportManagement = ({ role }) => {
             setIsDeleteModalOpen(false);
             setSelectedReport(null);
           }}
-          onConfirm={handleDeleteReport}
+          onConfirm={handleConfirmDelete}
           report={selectedReport}
           isLoading={isLoading}
         />

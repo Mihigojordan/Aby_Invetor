@@ -5,7 +5,8 @@ import {
   Loader2,
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowLeft
 } from 'lucide-react';
 import useEmployeeAuth from '../../../context/EmployeeAuthContext';
 
@@ -80,13 +81,11 @@ const EmployeeLoginPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8">
+      <div className=" w-[32%] space-y-8">
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* Logo and Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-              <Users className="w-8 h-8 text-white" />
-            </div>
+        
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Employee Portal</h2>
             <p className="text-gray-600">Sign in to your ABY Inventory Employee dashboard</p>
           </div>
@@ -111,7 +110,7 @@ const EmployeeLoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 border outline-none border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder="Enter your work email"
                 autoComplete="email"
               />
@@ -128,7 +127,7 @@ const EmployeeLoginPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isSubmitting}
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 pr-12 outline-none border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                   placeholder="Enter your password"
                   autoComplete="current-password"
                 />
@@ -152,9 +151,15 @@ const EmployeeLoginPage = () => {
                 />
                 <span className="ml-2 text-sm text-gray-600">Remember me</span>
               </label>
-                <label className="flex items-center">
-             <Link to={'/auth'} className='underline text-blue-600 '>go back</Link>
-              </label>
+            <label className="flex items-center gap-2">
+  <Link
+    to="/auth"
+    className="flex items-center gap-1 underline text-blue-600 hover:text-blue-800"
+  >
+    <ArrowLeft size={16} />
+    Go back
+  </Link>
+</label>
              
             </div>
 

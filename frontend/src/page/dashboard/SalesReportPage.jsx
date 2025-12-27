@@ -1,21 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShoppingCart,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Package,
-  AlertTriangle,
-  Award,
-  Calendar,
-  User,
-  Hash,
-  Eye,
+  Search,
+  Plus,
   Edit3,
-  Star,
+  Trash2,
+  Package,
+  DollarSign,
+  Hash,
+  User,
+  Check,
+  AlertTriangle,
+  Calendar,
+  Eye,
+  Phone,
+  Mail,
+  Receipt,
+  Wifi,
+  WifiOff,
+  RotateCcw,
+  RefreshCw,
   ChevronLeft,
   ChevronRight,
-  CreditCard
+  FileText,
+  TrendingUp,
+  X,
+  Grid3x3,
+  Table2,
+  Filter,
+  TrendingDown,
+  ShoppingCart,
+  Clock,
+  ArrowUpToLine,
+  ShoppingBag,
+  Award,
+  Star,
+  CreditCard,
 } from 'lucide-react';
 import stockOutService from '../../services/stockoutService';
 import Swal from 'sweetalert2';
@@ -31,16 +50,21 @@ const SalesReportPage = ({role}) => {
   const [filteredSalesData, setFilteredSalesData] = useState([]);
   const { isOnline } = useNetworkStatusContext();
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [currentPeriod, setCurrentPeriod] = useState('today');
   const [notification, setNotification] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(8);
   const [periodStats, setPeriodStats] = useState({
     totalSales: 0,
     totalQuantity: 0,
     totalProfit: 0
   });
+  const [viewMode, setViewMode] = useState('table');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const navigate = useNavigate();
   const [stats, setStats] = useState([
@@ -81,9 +105,9 @@ const SalesReportPage = ({role}) => {
       color: 'text-green-600'
     },
     {
-      title: 'Non-Stock sales',
+      title: 'Non-Stock Sales',
       value: 'Loading...',
-      change: 'Product with maximum sales',
+      change: 'Backorder sales',
       icon: TrendingUp,
       bgColor: 'bg-red-50',
       path: null,
@@ -114,17 +138,26 @@ const SalesReportPage = ({role}) => {
     }
   }, []);
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 4000);
-  };
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   useEffect(() => {
     filterDataByPeriod();
-  }, [salesData, currentPeriod]);
+  }, [salesData, currentPeriod, searchTerm, startDate, endDate]);
 
-  const loadStockOuts = async () => {
-    setLoading(true);
+  const loadStockOuts = async (showRefreshLoader = false) => {
+    if (showRefreshLoader) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    
     try {
       const [allStockOuts, offlineAdds, offlineUpdates, offlineDeletes, stockinsData, productsData, backOrderData] = await Promise.all([
         db.stockouts_all.toArray(),
@@ -163,14 +196,28 @@ const SalesReportPage = ({role}) => {
       calculateStats(combinedStockOuts);
       setError(null);
 
+      if (showRefreshLoader) {
+        setNotification({
+          type: 'success',
+          message: 'Sales data refreshed successfully!'
+        });
+      }
+
       if (!isOnline && combinedStockOuts.length === 0) {
-        showNotification('No offline data available', 'warning');
+        setNotification({
+          type: 'warning',
+          message: 'No offline data available'
+        });
       }
     } catch (error) {
       console.error('Error loading stock-outs:', error);
-      showNotification('Failed to load stock-outs', 'error');
+      setNotification({
+        type: 'error',
+        message: 'Failed to load sales data'
+      });
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -199,9 +246,7 @@ const SalesReportPage = ({role}) => {
       return combinedStockin;
     } catch (error) {
       console.error('Error fetching stock-ins:', error);
-      if (!error.response) {
-        return await db.stockins_all.toArray();
-      }
+      return [];
     }
   };
 
@@ -223,9 +268,7 @@ const SalesReportPage = ({role}) => {
       return combinedBackOrder;
     } catch (error) {
       console.error('Error fetching backorders:', error);
-      if (!error?.response) {
-        return await db.backorders_all.toArray();
-      }
+      return [];
     }
   };
 
@@ -254,33 +297,46 @@ const SalesReportPage = ({role}) => {
       return combinedProducts;
     } catch (error) {
       console.error('Error fetching products:', error);
-      if (!error?.response) {
-        return await db.products_all.toArray();
-      }
+      return [];
     }
   };
 
   const filterDataByPeriod = () => {
     const now = new Date();
-    let startDate;
+    let periodStartDate;
 
     switch (currentPeriod) {
       case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        periodStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         break;
       case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        periodStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
       case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        periodStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
         break;
       default:
-        startDate = new Date(0);
+        periodStartDate = new Date(0);
     }
 
     const filtered = salesData.filter(item => {
       const itemDate = new Date(item.createdAt);
-      return itemDate >= startDate;
+      
+      // Filter by period
+      const matchesPeriod = itemDate >= periodStartDate;
+      
+      // Filter by custom date range
+      const matchesDateRange = (!startDate || itemDate >= new Date(startDate)) &&
+                             (!endDate || itemDate <= new Date(endDate));
+      
+      // Filter by search term
+      const matchesSearch = !searchTerm ||
+        item.stockin?.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.backorder?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.transactionId?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      return matchesPeriod && matchesDateRange && matchesSearch;
     });
 
     setFilteredSalesData(filtered);
@@ -289,15 +345,13 @@ const SalesReportPage = ({role}) => {
   };
 
   const calculatePeriodStats = (data) => {
-    const totalSales = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * (  ( item.offlineQuantity ?? item.quantity) || 0)), 0);
-    const totalQuantity = data.reduce((sum, item) => sum + (( item.offlineQuantity ?? item.quantity) || 0), 0);
+    const totalSales = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * ((item.offlineQuantity ?? item.quantity) || 0)), 0);
+    const totalQuantity = data.reduce((sum, item) => sum + ((item.offlineQuantity ?? item.quantity) || 0), 0);
     const totalProfit = data.reduce((sum, item) => {
-      
       const soldPrice = item.soldPrice || 0;
       const costPrice = item.stockin?.price || 0;
-      const quantity = ( item.offlineQuantity ?? item.quantity) || 0;
+      const quantity = (item.offlineQuantity ?? item.quantity) || 0;
       return sum + ((soldPrice - costPrice) * quantity);
-
     }, 0);
 
     setPeriodStats({
@@ -328,16 +382,15 @@ const SalesReportPage = ({role}) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'RWF'
-    }).format(price);
+    }).format(price || 0);
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: 'numeric'
     });
   };
 
@@ -369,10 +422,10 @@ const SalesReportPage = ({role}) => {
       return;
     }
 
-    const totalSalesAmount = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * (( item.offlineQuantity ?? item.quantity) || 0)), 0);
-    const totalQuantitySold = data.reduce((sum, item) => sum + (( item.offlineQuantity ?? item.quantity) || 0), 0);
+    const totalSalesAmount = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * ((item.offlineQuantity ?? item.quantity) || 0)), 0);
+    const totalQuantitySold = data.reduce((sum, item) => sum + ((item.offlineQuantity ?? item.quantity) || 0), 0);
     const backorderSales = data.filter(item => item.backorderId);
-    const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum +((item.soldPrice || 0) * (( item.offlineQuantity ?? item.quantity) || 0)), 0);
+    const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum + ((item.soldPrice || 0) * ((item.offlineQuantity ?? item.quantity) || 0)), 0);
 
     const productStats = {};
     data.forEach(item => {
@@ -386,7 +439,7 @@ const SalesReportPage = ({role}) => {
             totalValue: 0,
           };
         }
-        productStats[productId].totalQuantity += ( item.offlineQuantity ?? item.quantity) || 0;
+        productStats[productId].totalQuantity += (item.offlineQuantity ?? item.quantity) || 0;
         productStats[productId].totalValue += item.soldPrice || 0;
       }
     });
@@ -401,7 +454,7 @@ const SalesReportPage = ({role}) => {
           totalValue: 0,
         };
       }
-      backorderStats[productName].totalQuantity += ( item.offlineQuantity ?? item.quantity) || 0;
+      backorderStats[productName].totalQuantity += (item.offlineQuantity ?? item.quantity) || 0;
       backorderStats[productName].totalValue += item.soldPrice || 0;
     });
 
@@ -476,309 +529,336 @@ const SalesReportPage = ({role}) => {
     ]);
   };
 
-  const refresh = () => {
+  const refresh = async () => {
     if (isOnline) {
-      fetchSalesData();
+      await loadStockOuts(true);
     } else {
-      loadStockOuts();
+      setNotification({
+        type: 'error',
+        message: 'No internet connection'
+      });
     }
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPeriod('today');
+  };
+
+  const totalPages = Math.ceil(filteredSalesData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentItems = filteredSalesData.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(filteredSalesData.length / itemsPerPage);
 
-  const PaginationComponent = () => (
-    <div className="px-6 py-1 border-t border-gray-200 bg-white rounded-b-xl">
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-700">
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredSalesData.length)} of {filteredSalesData.length} results
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  const StatisticsCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-2 p-3">
+      {stats.map((stat, index) => (
+        <div
+          key={index}
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+          onClick={() => stat.path && navigate(stat.path)}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-600">{stat.title}</p>
+              <p className="text-lg font-bold text-gray-900">{stat.value}</p>
+              <p className="text-xs text-gray-500 mt-1">{stat.change}</p>
+            </div>
+            <div className={`w-10 h-10 ${stat.bgColor} rounded-lg flex items-center justify-center`}>
+              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <span className="px-3 py-1 text-xs font-medium">
-            {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-            className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
+      ))}
     </div>
   );
 
-  const CardView = () => (
-    <div className="space-y-6 md:hidden">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {currentItems.map((stockOut, index) => {
-          const profit = calculateProfit(stockOut);
-          const isProfit = profit > 0;
+  const PeriodCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2 ml-3 mr-3 -mt-3">
+      {['today', 'week', 'month'].map((period) => (
+        <div
+          key={period}
+          className={`bg-white rounded-lg border p-4 hover:shadow-md transition-shadow cursor-pointer ${
+            currentPeriod === period ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200'
+          }`}
+          onClick={() => setCurrentPeriod(period)}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-600">
+                {period === 'today' ? 'Today' : period === 'week' ? 'This Week' : 'This Month'}
+              </p>
+              <p className="text-lg font-bold text-gray-900">
+                {currentPeriod === period ? formatPrice(periodStats.totalSales) : 'Click to view'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {currentPeriod === period ? `${periodStats.totalQuantity} units sold` : `${period === 'today' ? 'Today\'s' : period === 'week' ? 'Weekly' : 'Monthly'} performance`}
+              </p>
+              {currentPeriod === period && (
+                <p className={`text-xs mt-1 font-medium ${periodStats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  Profit: {formatPrice(periodStats.totalProfit)}
+                </p>
+              )}
+            </div>
+            <div className="p-2 rounded-lg bg-blue-50">
+              <Calendar className="w-5 h-5 text-blue-600" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
-          return (
-            <div key={stockOut.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-gray-300">
-              <div className="p-6 pb-4">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
-                      <ShoppingCart size={16} />
-                    </div>
-                    <div>
-                      <div className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        #{startIndex + index + 1}
-                      </div>
+  const PaginationComponent = () => (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-gray-200 bg-white">
+      <div className="flex items-center gap-4">
+        <p className="text-xs text-gray-600">
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredSalesData.length)} of {filteredSalesData.length} entries
+        </p>
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
+              currentPage === 1
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <ChevronLeft size={12} />
+            Previous
+          </button>
+          <div className="flex items-center gap-1 mx-2">
+            {getPageNumbers().map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`px-3 py-2 text-xs rounded-md transition-colors ${
+                  currentPage === page
+                    ? 'bg-primary-600 text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
+              currentPage === totalPages
+                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Next
+            <ChevronRight size={12} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const GridView = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+      {(currentItems || []).map((stockOut, index) => {
+        const profit = calculateProfit(stockOut);
+        const isProfit = profit > 0;
+
+        return (
+          <div
+            key={stockOut.id || stockOut.localId}
+            className={`bg-white rounded-lg border hover:shadow-md transition-all duration-200 ${stockOut.synced ? 'border-gray-200' : 'border-yellow-200'}`}
+          >
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <ShoppingCart size={16} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 truncate">
+                      {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
+                    </h3>
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                      <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
                     </div>
                   </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2 mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-600">Quantity:</span>
+                  <span className="text-xs font-bold text-primary-600">{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-600">Unit Price:</span>
+                  <span className="text-xs text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-600">Total Price:</span>
+                  <span className="text-xs font-bold text-green-600">
+                    {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-600">Profit/Loss:</span>
+                  <span className={`text-xs font-bold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {formatPrice(Math.abs(profit))}
+                    {profit !== 0 && (
+                      <span className="ml-1">{isProfit ? '↗' : '↘'}</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Calendar size={12} />
+                    <span>{formatDate(stockOut.createdAt)}</span>
+                  </div>
                   <button
-                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    title="View Details"
                     onClick={() => handleViewMoreDetails(stockOut.id)}
+                    disabled={loading}
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="View Details"
                   >
                     <Eye size={14} />
                   </button>
                 </div>
-
-                <div className="mb-4">
-                  <h3 className="font-semibold text-gray-900 text-base mb-1 leading-tight">
-                    {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
-                  </h3>
-                  {stockOut.transactionId && (
-                    <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">
-                      {stockOut.transactionId}
-                    </div>
-                  )}
-                  {stockOut.backorderId && (
-                    <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
-                      {stockOut.backorderId && 'Non-Stock Sale'}
-                    </div>
-                  )}
-                  {stockOut.stockinId && (
-                    <div className="text-xs text-green-800 font-mono bg-green-100 px-2 py-1 rounded inline-block">
-                      {stockOut.stockinId && 'Stock In Sale'}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 text-xs">
-                    <User size={12} className="text-gray-400" />
-                    <span className="text-gray-600">
-                      {stockOut.clientName || 'Walk-in customer'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 pb-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Hash size={12} className="text-gray-400" />
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</span>
-                    </div>
-                    <div className="text-base font-semibold text-gray-900">
-                      {stockOut.quantity || 'N/A'}
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unit Price</span>
-                    </div>
-                    <div className="text-base font-semibold text-gray-900">
-                      {stockOut.soldPrice ? formatPrice(stockOut.soldPrice) : 'N/A'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 py-1 bg-gray-50 rounded-b-xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                      Profit/Loss
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-base ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                        {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
-                        
-                      </span>
-                      {profit !== 0 && (
-                        <span className={`text-xs ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
-                          {isProfit ? '↗' : '↘'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-end">
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                      Date Sold
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Calendar size={12} className="text-gray-400" />
-                      <span className="text-xs text-gray-600 font-medium">
-                        {formatDate(stockOut.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {currentItems.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShoppingCart size={24} className="text-gray-400" />
           </div>
-          <h3 className="text-base font-medium text-gray-900 mb-2">No stock out records</h3>
-          <p className="text-xs text-gray-500">Stock out transactions will appear here once you make some sales.</p>
-        </div>
-      )}
-
-      <PaginationComponent />
+        );
+      })}
     </div>
   );
 
   const TableView = () => (
-    <div className="bg-white hidden md:block rounded-xl shadow-sm border border-gray-200">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 p-3 ml-3 mr-3">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product/SKU</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profit/Loss</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Sold</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Product/Transaction</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Client</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Quantity</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Unit Price</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Total Price</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Profit/Loss</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {currentItems.map((stockOut, index) => {
+            {(currentItems || []).map((stockOut, index) => {
               const profit = calculateProfit(stockOut);
               const isProfit = profit > 0;
 
               return (
-                <tr key={stockOut.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-1 whitespace-nowrap">
-                    <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                      {startIndex + index + 1}
-                    </span>
-                  </td>
-                  <td className="px-6 py-1 whitespace-nowrap">
+                <tr key={stockOut.localId || stockOut.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
-                        <ShoppingCart size={14} />
+                      <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <ShoppingCart size={14} className="text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900 text-sm">
+                        <div className="font-medium text-sm text-gray-900">
                           {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
                         </div>
-                        <div className="flex gap-2 items-center">
-                          {stockOut.backorderId && (
-                            <div className="text-xs text-orange-800 font-mono bg-orange-100 px-2 py-1 rounded inline-block">
-                              {stockOut.backorderId && 'Non-Stock Sale'}
-                            </div>
-                          )}
-                          {stockOut.stockinId && (
-                            <div className="text-xs text-green-800 font-mono bg-green-100 px-2 py-1 rounded inline-block">
-                              {stockOut.stockinId && 'Stock In Sale'}
-                            </div>
-                          )}
-                          {stockOut.transactionId && (
-                            <div className="text-xs text-gray-500 font-mono">{stockOut.transactionId}</div>
-                          )}
-                        </div>
+                        {stockOut.transactionId && (
+                          <div className="text-xs text-gray-500 mt-1">{stockOut.transactionId}</div>
+                        )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-1 whitespace-nowrap">
-                    {stockOut.clientName ? (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1">
-                          <User size={12} className="text-gray-400" />
-                          <span className="text-xs text-gray-600 truncate max-w-32">
-                            {stockOut.clientName}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">Walk-in customer</span>
-                    )}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 truncate max-w-[120px]" title={stockOut.clientName}>
+                      {stockOut.clientName || stockOut.clientPhone || 'Walk-in'}
+                    </div>
                   </td>
-                  <td className="px-6 py-1 whitespace-nowrap">
-                    {stockOut.quantity ? (
-                      <div className="flex items-center gap-1">
-                        <Hash size={12} className="text-gray-400" />
-                        <span className="font-medium text-sm text-gray-900">{stockOut.quantity}</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">N/A</span>
-                    )}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Hash size={14} className="text-gray-400" />
+                      <span className="text-sm font-semibold text-gray-900">{stockOut.offlineQuantity ?? stockOut.quantity ?? '0'}</span>
+                    </div>
                   </td>
-                  <td className="px-6 py-1 whitespace-nowrap">
-                    {stockOut.soldPrice ? (
-                      <span className="font-medium text-sm text-gray-900">
-                        {formatPrice(stockOut.soldPrice)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400">N/A</span>
-                    )}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-sm text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
                   </td>
-                  <td className="px-6 py-1 whitespace-nowrap">
-                    {stockOut.soldPrice && stockOut.quantity ? (
-                      <span className="font-medium text-sm text-gray-900">
-                        {formatPrice(stockOut.soldPrice * stockOut.quantity)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400">N/A</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-1 whitespace-nowrap">
-                    <span className={`font-medium text-sm ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                      {profit !== 0 ? formatPrice(Math.abs(profit)) : '$0.00'}
-                      {profit !== 0 && (
-                        
-                        <span className="text-xs ml-1">
-                          {isProfit ? '↗' : '↘'}
-                        </span>
-                      )}
-                     
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-sm font-semibold text-green-600">
+                      {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}
                     </span>
                   </td>
-                  <td className="px-6 py-1 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={12} className="text-gray-400" />
-                      <span className="text-xs text-gray-600">
-                        {formatDate(stockOut.createdAt)}
-                      </span>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`text-sm font-semibold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {formatPrice(Math.abs(profit))}
+                      {profit !== 0 && (
+                        <span className="text-xs ml-1">{isProfit ? '↗' : '↘'}</span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stockOut.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                      {stockOut.synced ? 'Synced' : 'Pending'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} className="text-gray-400" />
+                      <span className="text-sm text-gray-600">{formatDate(stockOut.createdAt)}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-1 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
                       <button
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="View Details"
                         onClick={() => handleViewMoreDetails(stockOut.id)}
+                        disabled={loading}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                        title="View Details"
                       >
-                        <Eye size={14} />
+                        <Eye size={16} />
                       </button>
                     </div>
                   </td>
@@ -792,54 +872,97 @@ const SalesReportPage = ({role}) => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-        <div className="mx-auto">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Report</h1>
-            <p className="text-xs text-gray-600">Loading sales analytics...</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((index) => (
-              <div key={index} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 animate-pulse">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="h-3 bg-gray-200 rounded w-24 mb-2"></div>
-                    <div className="h-6 bg-gray-200 rounded w-16 mb-1"></div>
-                    <div className="h-2 bg-gray-200 rounded w-20"></div>
+  const CardView = () => (
+    <div className="md:hidden">
+      <div className="grid grid-cols-1 gap-4 mb-6">
+        {(currentItems || []).map((stockOut, index) => {
+          const profit = calculateProfit(stockOut);
+          const isProfit = profit > 0;
+
+          return (
+            <div
+              key={stockOut.localId || stockOut.id}
+              className={`bg-white rounded-lg border hover:shadow-md transition-shadow ${stockOut.synced ? 'border-gray-200' : 'border-yellow-200'}`}
+            >
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                      <ShoppingCart size={16} className="text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm text-gray-900 truncate">
+                        {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
+                      </h3>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                        <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
+                  <button
+                    onClick={() => handleViewMoreDetails(stockOut.id)}
+                    disabled={loading}
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="View Details"
+                  >
+                    <Eye size={14} />
+                  </button>
+                </div>
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Quantity:</span>
+                    <span className="font-bold text-primary-600">{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
+                  </div>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Unit Price:</span>
+                    <span className="text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
+                  </div>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Total Price:</span>
+                    <span className="font-bold text-green-600">{formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}</span>
+                  </div>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Profit/Loss:</span>
+                    <span className={`font-bold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {formatPrice(Math.abs(profit))}
+                      {profit !== 0 && (
+                        <span className="ml-1">{isProfit ? '↗' : '↘'}</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Calendar size={12} />
+                      <span>{formatDate(stockOut.createdAt)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          );
+        })}
       </div>
-    );
-  }
+      <div className="bg-white rounded-lg border border-gray-200">
+        <PaginationComponent />
+      </div>
+    </div>
+  );
 
-  if (error) {
+  if (loading && !isRefreshing) {
     return (
-      <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-        <div className="mx-auto">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Report</h1>
-            <p className="text-xs text-gray-600">Analytics and insights for your sales performance</p>
-          </div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
-            <div className="flex items-center">
-              <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
-              <div>
-                <h3 className="text-base font-semibold text-red-800">Error Loading Sales Data</h3>
-                <p className="text-xs text-red-700 mt-1">{error}</p>
-                <button
-                  onClick={refresh}
-                  className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                >
-                  Try Again
-                </button>
-              </div>
+      <div className="bg-gray-50 min-h-[90vh]">
+        <div className="text-center py-16">
+          <div className="inline-flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+              <ShoppingCart className="w-8 h-8 text-primary-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+            </div>
+            <div>
+              <p className="text-lg font-medium text-gray-900 mb-2">Loading Sales Report</p>
+              <p className="text-sm text-gray-600">Please wait while we fetch your sales data...</p>
             </div>
           </div>
         </div>
@@ -848,150 +971,177 @@ const SalesReportPage = ({role}) => {
   }
 
   return (
-    <div className="h-[90vh] overflow-y-auto bg-gray-50 p-6">
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'} animate-in slide-in-from-top-2 duration-300`}>
-          {notification.type === 'success' ? <Check size={14} /> : <AlertTriangle size={14} />}
-          <span className="text-xs">{notification.message}</span>
+     <div className=" border w-[99%]  bg-gray-50 h-[90vh]"> {/* Reduced padding */}
+      {/* Notification Toast */}
+     {notification && (
+        <div
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm ${
+            notification.type === 'success' ? 'bg-green-500 text-white' :
+            notification.type === 'warning' ? 'bg-yellow-500 text-white' :
+            'bg-red-500 text-white'
+          } animate-in slide-in-from-top-2 duration-300`}
+        >
+          {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
+          {notification.message}
         </div>
       )}
-      <div className="px-4 mx-auto">
-        <div className="mb-8">
+      
+      <div className="h-full">
+        {/* Header Section */}
+        <div className="mb-4 shadow-md bg-white p-2">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Report</h1>
-              <p className="text-xs text-gray-600">Analytics and insights for your sales performance</p>
-            </div>
-            <button
-              onClick={refresh}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
-            >
-              <Package className="w-4 h-4" />
-              Refresh Data
-            </button>
-          </div>
-        </div>
-
-        <div className={`grid ${getStatsGridCols()} gap-4 mb-10`}>
-          {stats.map((stat, index) => (
-            <div key={index}
-              className="bg-white rounded-xl cursor-pointer shadow-sm p-3 border border-gray-200 hover:shadow-md transition-shadow"
-              onClick={() => stat.path && navigate(stat.path)}
-            >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 mb-2">
                 <div>
-                  <p className="text-xs font-medium text-gray-600 mb-1">{stat.title}</p>
-                  <p className="text-lg font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-xs text-gray-500 mt-1">{stat.change}</p>
-                </div>
-                <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                  <h1 className="text-2xl lg:text-2xl font-bold text-gray-900">Sales Report</h1>
+                  <p className="text-sm text-gray-600 mt-1">Analytics and insights for your sales performance</p>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div
-            className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'today' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
-            onClick={() => setCurrentPeriod('today')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-1">Today Sales</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {currentPeriod === 'today' ? formatPrice(periodStats.totalSales) : 'Click to view'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {currentPeriod === 'today' ? `${periodStats.totalQuantity} units sold` : 'Today\'s performance'}
-                </p>
-                {currentPeriod === 'today' && (
-                  <p className={`text-xs mt-1 font-medium ${periodStats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    Profit: {formatPrice(periodStats.totalProfit)}
-                  </p>
+            <div className="flex items-center gap-3">
+              {/* Sync and Refresh buttons */}
+              <div className="flex gap-2">
+                {(searchTerm || startDate || endDate || currentPeriod !== 'today') && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm text-sm"
+                    title="Clear Filters"
+                  >
+                    <X size={16} />
+                    <span className="text-sm font-medium">Clear</span>
+                  </button>
                 )}
-              </div>
-              <div className="p-3 rounded-xl bg-blue-50">
-                <Calendar className="w-5 h-5 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'week' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
-            onClick={() => setCurrentPeriod('week')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-1">This Week</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {currentPeriod === 'week' ? formatPrice(periodStats.totalSales) : 'Click to view'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {currentPeriod === 'week' ? `${periodStats.totalQuantity} units sold` : 'Weekly performance'}
-                </p>
-                {currentPeriod === 'week' && (
-                  <p className={`text-xs mt-1 font-medium ${periodStats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    Profit: {formatPrice(periodStats.totalProfit)}
-                  </p>
+                
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                >
+                  {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+                  <span className="text-sm font-medium">{isOnline ? 'Online' : 'Offline'}</span>
+                </div>
+                
+                {isOnline && (
+                  <button
+                    onClick={refresh}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    title="Sync now"
+                  >
+                    <RotateCcw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                    <span className="text-sm font-medium">Sync</span>
+                  </button>
                 )}
-              </div>
-              <div className="p-3 rounded-xl bg-emerald-50">
-                <TrendingUp className="w-5 h-5 text-emerald-600" />
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${currentPeriod === 'month' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
-            onClick={() => setCurrentPeriod('month')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-1">This Month</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {currentPeriod === 'month' ? formatPrice(periodStats.totalSales) : 'Click to view'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {currentPeriod === 'month' ? `${periodStats.totalQuantity} units sold` : 'Monthly performance'}
-                </p>
-                {currentPeriod === 'month' && (
-                  <p className={`text-xs mt-1 font-medium ${periodStats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    Profit: {formatPrice(periodStats.totalProfit)}
-                  </p>
+                
+                {isOnline && (
+                  <button
+                    onClick={refresh}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    title="Refresh"
+                  >
+                    <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                    <span className="text-sm font-medium">Refresh</span>
+                  </button>
                 )}
-              </div>
-              <div className="p-3 rounded-xl bg-purple-50">
-                <Star className="w-5 h-5 text-purple-600" />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Sales Report - {getPeriodLabel()}
-            </h2>
-            <span className="text-xs text-gray-500">
-              {filteredSalesData.length} transactions
-            </span>
-          </div>
+        {/* Statistics Cards */}
+        {stats && <StatisticsCards />}
 
-          {filteredSalesData.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-              <Package className="w-10 h-10 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-base font-medium text-gray-900 mb-2">No Sales Data</h3>
-              <p className="text-xs text-gray-600">No sales transactions found for {getPeriodLabel().toLowerCase()}.</p>
+        {/* Search and Filter Bar */}
+        <div className="bg-white rounded-lg border border-gray-200 mb-6 p-2 ml-3 mr-3">
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+            <div className="w-full lg:w-[45%]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search by product, client, or transaction..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                />
+              </div>
             </div>
-          ) : (
-            <>
-              <CardView />
-              <TableView />
-            </>
-          )}
+            
+            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-[90%] ml-6 items-start sm:items-center">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* View mode toggle in filter section */}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                  title="Grid View"
+                >
+                  <Grid3x3 size={18} />
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-2 rounded transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                  title="Table View"
+                >
+                  <Table2 size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Period Cards */}
+        <PeriodCards />
+
+        {/* Main Content */}
+        {filteredSalesData.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
+            <div className="max-w-md mx-auto">
+              <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <ShoppingCart className="w-12 h-12 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">No Sales Data Found</h3>
+              <p className="text-gray-600 mb-6">
+                {searchTerm || startDate || endDate || currentPeriod !== 'today'
+                  ? 'Try adjusting your search, date filters, or period selection.'
+                  : 'No sales transactions found for the selected period.'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {viewMode === 'grid' ? (
+              <GridView />
+            ) : (
+              <>
+                <CardView />
+                <TableView />
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

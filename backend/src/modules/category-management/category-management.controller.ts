@@ -1,40 +1,55 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
+import { CacheTTL,CacheInterceptor } from '@nestjs/cache-manager';
+
 import { CategoryManagementService } from './category-management.service';
 
+@UseInterceptors(CacheInterceptor)
 @Controller('category')
 export class CategoryManagementController {
-    constructor(private readonly categoryService: CategoryManagementService ){}
+  constructor(private readonly categoryService: CategoryManagementService) {}
 
-    //Create Category
+  // ❌ NO CACHE (write)
   @Post('create')
-  async createCategory(@Body() data) {
-    return await this.categoryService.createCategory(data);
+  createCategory(@Body() data) {
+    return this.categoryService.createCategory(data);
   }
 
-  //Get All Categories
+  // ✅ CACHED
   @Get('all')
-  async getAllCategories() {
-    return await this.categoryService.getAllCategories();
-  }
-
-  // Get Single Category by ID
-  @Get('getone/:id')
-  async getCategoryById(@Param('id') id: string) {
-    return await this.categoryService.getCategoryById(id);
-  }
-
-  //Update Category
-  @Put('update/:id')
-  async updateCategory(
-    @Param('id') id: string,
-    @Body() data,
+  @CacheTTL(120) // 2 minutes
+  getAllCategories(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
   ) {
-    return await this.categoryService.updateCategory(id, data);
+    return this.categoryService.getAllCategories(+page, +limit);
   }
 
-  //Delete Category
+  // ✅ CACHED
+  @Get('getone/:id')
+  @CacheTTL(300) // 5 minutes
+  getCategoryById(@Param('id') id: string) {
+    return this.categoryService.getCategoryById(id);
+  }
+
+  // ❌ NO CACHE (write)
+  @Put('update/:id')
+  updateCategory(@Param('id') id: string, @Body() data) {
+    return this.categoryService.updateCategory(id, data);
+  }
+
+  // ❌ NO CACHE (write)
   @Delete('delete/:id')
-  async deleteCategory(@Param('id') id: string , @Body() data ) {
+  deleteCategory(@Param('id') id: string, @Body() data) {
     return this.categoryService.deleteCategory(id, data);
   }
 }
