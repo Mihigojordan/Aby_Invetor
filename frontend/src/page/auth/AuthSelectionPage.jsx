@@ -131,7 +131,7 @@ const AuthSelectionPage = () => {
             <div className="group">
               <div className="bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 p-8 border border-primary-100 hover:border-primary-200">
                 <div className="text-center mb-8">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl mb-4 shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl mb-4 shadow-lg group-hover:shadow-xl transition-shadow duration-300">
                     <Store className="w-8 h-8 text-white" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Partner</h2>
@@ -142,25 +142,25 @@ const AuthSelectionPage = () => {
                 {/* Partner Features */}
                 <div className="space-y-3 mb-8">
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
-                    <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary-400 rounded-full"></div>
                     <span>Create & manage requisitions</span>
                   </div>
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
-                    <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary-400 rounded-full"></div>
                     <span>Real-time requisition tracking</span>
                   </div>
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
-                    <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary-400 rounded-full"></div>
                     <span>Delivery confirmation</span>
                   </div>
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
-                    <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary-400 rounded-full"></div>
                     <span>Personal dashboard & history</span>
                   </div>
                 </div>
                 <button
                   onClick={handlePartnerLogin}
-                  className="w-full bg-gradient-to-r from-teal-600 to-teal-700 text-white py-4 px-6 rounded-xl hover:from-teal-700 hover:to-teal-800 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-all duration-300 font-semibold text-lg flex items-center justify-center group-hover:shadow-lg"
+                  className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-4 px-6 rounded-xl hover:from-primary-700 hover:to-primary-800 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-300 font-semibold text-lg flex items-center justify-center group-hover:shadow-lg"
                 >
                   <Package className="w-5 h-5 mr-2" />
                   Continue as Partner
