@@ -21,6 +21,7 @@ import {
   FolderTree,
   TrendingUp,
   BarChart3,
+  Clipboard,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -33,55 +34,6 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
   const { user: employeeData } = useEmployeeAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Auto-open dropdowns if current path matches any child item
-  useEffect(() => {
-    const currentPath = location.pathname;
-    
-    // Check if current path is within employee management section
-    const employeePages = [
-      "/admin/dashboard/employee",
-      "/employee/dashboard/employee",
-      "/admin/dashboard/employee-report",
-      "/employee/dashboard/report",
-      "/admin/dashboard/position",
-      "/employee/dashboard/position"
-    ];
-    
-    // Check if current path is within product management section
-    const productPages = [
-      "/admin/dashboard/product",
-      "/employee/dashboard/product",
-      "/admin/dashboard/category",
-      "/employee/dashboard/category"
-    ];
-    
-    // Check if current path is within stockout management section
-    const stockoutPages = [
-      "/admin/dashboard/stockout",
-      "/employee/dashboard/stockout",
-      "/admin/dashboard/sales-return",
-      "/employee/dashboard/sales-return",
-      "/admin/dashboard/sales-report",
-      "/employee/dashboard/requisition",
-      "/admin/dashboard/requisition",
-
-    ];
-    
-    if (employeePages.includes(currentPath)) {
-      setOpenDropdown('employees');
-    } else if (productPages.includes(currentPath)) {
-      setOpenDropdown('products');
-    } else if (stockoutPages.includes(currentPath)) {
-      setOpenDropdown('stockout');
-    } else {
-      setOpenDropdown(null);
-    }
-  }, [location.pathname]);
-
-  const toggleDropdown = (dropdownId) => {
-    setOpenDropdown(openDropdown === dropdownId ? null : dropdownId);
-  };
 
   const adminItems = [
     {
@@ -97,6 +49,18 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: "/admin/dashboard/employee",
     },
     {
+      key: "employee-report",
+      label: "Employee Report",
+      icon: FileText,
+      path: "/admin/dashboard/employee-report",
+    },
+    {
+      key: "permissions",
+      label: "Permission Management",
+      icon: Shield,
+      path: "/admin/dashboard/position",
+    },
+       {
       key:"partners",
       label: "Partner Management",
       icon: Briefcase,
@@ -104,8 +68,8 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     },
     
     {
-      key: "products",
-      label: "Product Management",
+      key: "product-list",
+      label: "Product List",
       icon: Package,
       path: "/admin/dashboard/product",
     },
@@ -125,29 +89,25 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       key: "stockout-movement",
       label: "Stock Out List",
       icon: ArrowUp,
-      isDropdown: true,
-      children: [
-        {
-          key: "stockout-movement",
-          label: "Stock Out List",
-          path: "/admin/dashboard/stockout",
-        },
-        {
-          key: "sales-returns",
-          label: "Sales Returns",
-          path: "/admin/dashboard/sales-return",
-        },
-        {
-          key: "sales-report",
-          label: "Sales Report",
-          path: "/admin/dashboard/sales-report",
-        },
-        {
+      path: "/admin/dashboard/stockout",
+    },
+    {
+      key: "sales-returns",
+      label: "Sales Returns",
+      icon: RotateCcw,
+      path: "/admin/dashboard/sales-return",
+    },
+       {
           key: "requisition-management",
           label: "Requisition Management",
           path: "/admin/dashboard/requisition",
+          icon: Clipboard,
         },
-      ],
+    {
+      key: "sales-report",
+      label: "Sales Report",
+      icon: BarChart3,
+      path: "/admin/dashboard/sales-report",
     },
   ];
 
@@ -189,38 +149,33 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     },
     
     {
-      key: "stockout",
-      label: "Stock Adjustment",
-      icon: ShoppingCart,
-      isDropdown: true,
-      taskname: ["saling", "selling", "sales", "stockout", "returning", "return"],
-      children: [
-        {
-          key: "stockout-movement",
-          label: "Stock Out List",
-          path: "/employee/dashboard/stockout",
-          taskname: ["saling", "selling", "sales", "stockout"],
-        },
-        {
-          key: "sales-returns",
-          label: "Sales Returns",
-          path: "/employee/dashboard/sales-return",
-          taskname: ["returning", "return"],
-        },
-        {
-          key: "sales-report",
-          label: "Sales Report",
-          path: "/employee/dashboard/sales-report",
-          taskname: ["saling", "selling", "sales", "stockout"],
-        },
-        {
+      key: "stockout-movement",
+      label: "Sales  Out Management",
+      icon: ArrowUp,
+      path: "/employee/dashboard/stockout",
+      taskname: ["saling", "selling", "sales", "stockout"],
+    },
+    {
+      key: "sales-returns",
+      label: "Sales Returns Management",
+      icon: RotateCcw,
+      path: "/employee/dashboard/sales-return",
+      taskname: ["returning", "return"],
+    },
+    {
+      key: "sales-report",
+      label: "Sales Report Management",
+      icon: BarChart3,
+      path: "/employee/dashboard/sales-report",
+      taskname: ["saling", "selling", "sales", "stockout"],
+    },
+       {
           key: "requisition-management",
           label: "Requisition Management",
+           taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
           path: "/employee/dashboard/requisition",
-          taskname: ["saling", "selling", "sales", "stockout"],
+          icon: Clipboard,
         },
-      ],
-    },
     {
       key: "employee_reports",
       label: "Report Management",
