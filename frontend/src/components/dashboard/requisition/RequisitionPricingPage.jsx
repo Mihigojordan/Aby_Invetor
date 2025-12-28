@@ -487,7 +487,7 @@ const RequisitionPricingPage = () => {
                           <div>
                             <h3 className="text-xl font-semibold text-gray-900">{item.itemName}</h3>
                             <p className="text-sm text-gray-600 mt-1">
-                              Stock: {item.stockIn?.product?.name || 'N/A'}
+                              Stock: {item.stockIn?.product?.productName || 'N/A'}
                               {item.stockIn?.sku && ` (${item.stockIn.sku})`}
                             </p>
                             {item.note && (

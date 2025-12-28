@@ -41,7 +41,7 @@ const StockSearchModal = ({ isOpen, onClose, onSelect, searchQuery = '' }) => {
       const lowerQuery = query.toLowerCase();
       setFilteredStocks(
         stocks.filter(stock =>
-          stock.product?.name?.toLowerCase().includes(lowerQuery) ||
+          stock.product?.productName?.toLowerCase().includes(lowerQuery) ||
           stock.sku?.toLowerCase().includes(lowerQuery) ||
           stock.supplier?.toLowerCase().includes(lowerQuery)
         )
@@ -106,7 +106,7 @@ const StockSearchModal = ({ isOpen, onClose, onSelect, searchQuery = '' }) => {
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{stock.product?.name || 'Unknown Product'}</p>
+                      <p className="font-semibold text-gray-900">{stock.product?.productName || 'Unknown Product'}</p>
                       <div className="text-sm text-gray-600 mt-1 space-y-1">
                         {stock.sku && <p>SKU: {stock.sku}</p>}
                         {stock.supplier && <p>Supplier: {stock.supplier}</p>}
@@ -536,7 +536,7 @@ const RequisitionApprovalPage = ({ role }) => {
                     <p className="font-medium">Approved: {item.qtyApproved} units</p>
                     {item.stockIn && (
                       <p className="text-sm mt-1">
-                        Stock: {item.stockIn.product?.name} (Available: {item.stockIn.quantity})
+                        Stock: {item.stockIn.product?.productName} (Available: {item.stockIn.quantity})
                       </p>
                     )}
                     {item.approvalNote && <p className="text-sm italic mt-2">Note: {item.approvalNote}</p>}
@@ -597,7 +597,7 @@ const RequisitionApprovalPage = ({ role }) => {
                           }`}>
                             <div className="flex justify-between">
                               <div>
-                                <p className="font-semibold">{approval.stockInfo.product?.name}</p>
+                                <p className="font-semibold">{approval.stockInfo.product?.productName}</p>
                                 <p className="text-sm text-gray-600">
                                   Available: <strong>{approval.stockInfo.quantity}</strong> • 
                                   Price: {formatCurrency(approval.stockInfo.sellingPrice)}
