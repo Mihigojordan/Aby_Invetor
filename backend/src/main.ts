@@ -16,6 +16,7 @@ async function bootstrap() {
      const allowedOrigins = [
        'http://localhost:5173',
        'http://localhost:4173',
+        'http://localhost:5174',
        'https://abyinventory.com',
        'https://www.abyinventory.com',
        'https://api.abyinventory.com'
