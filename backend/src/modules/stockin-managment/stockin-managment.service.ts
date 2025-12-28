@@ -12,7 +12,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { generateAndSaveBarcodeImage } from 'src/common/utils/generate-barcode.util';
 import { generateSKU } from 'src/common/utils/generate-sku.util';
-import { StockIn } from 'generated/prisma';
+import { StockIn } from '@prisma/client';
 
 
 @Injectable()

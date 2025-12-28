@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { RequisitionStatus, ItemStatus } from 'generated/prisma';
+import { RequisitionStatus, ItemStatus } from '@prisma/client';
 
 @Injectable()
 export class RequisitionService {

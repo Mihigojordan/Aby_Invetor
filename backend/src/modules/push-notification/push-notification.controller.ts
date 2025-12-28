@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Param, Delete, Get } from '@nestjs/common';
 import { PushNotificationsService } from './push-notification.service';
-import { UserType } from 'generated/prisma';
+import { UserType } from '@prisma/client';
 
 @Controller('push-notification')
 export class PushNotificationsController {

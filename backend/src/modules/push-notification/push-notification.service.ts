@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as webpush from 'web-push';
-import { UserType } from 'generated/prisma';
+import { UserType } from '@prisma/client';
 
 type WebPushSubscription = {
   endpoint: string;
