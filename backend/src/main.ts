@@ -12,14 +12,24 @@ async function bootstrap() {
   
   // Enhanced CORS configuration with API subdomain
   app.enableCors({
-    origin: [
-      process.env.CORS_ORIGIN,
-      'http://localhost:5173',
-      'http://localhost:4173',
-      'https://abyinventory.com',
-      'https://www.abyinventory.com',
-      'https://api.abyinventory.com'  // Add API subdomain
-    ].filter(Boolean),
+    origin: (origin, callback) => {
+     const allowedOrigins = [
+       'http://localhost:5173',
+       'http://localhost:4173',
+       'https://abyinventory.com',
+       'https://www.abyinventory.com',
+       'https://api.abyinventory.com'
+     ];
+     
+     // Allow requests with no origin (like mobile apps or curl requests)
+     if (!origin) return callback(null, true);
+     
+     if (allowedOrigins.includes(origin)) {
+       callback(null, true);
+     } else {
+       callback(new Error('Not allowed by CORS'));
+     }
+   },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Origin',
