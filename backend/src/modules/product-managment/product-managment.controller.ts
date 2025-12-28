@@ -6,7 +6,6 @@ import {
   Param,
   Post,
   Put,
-  Query,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -22,7 +21,9 @@ export class ProductManagmentController {
   constructor(private readonly productService: ProductManagmentService) {}
 
   @Post('create')
-  @UseInterceptors(FileFieldsInterceptor(productFileFields, productUploadConfig))
+  @UseInterceptors(
+    FileFieldsInterceptor(productFileFields, productUploadConfig),
+  )
   async create(
     @UploadedFiles() files: { imageurls?: Express.Multer.File[] },
     @Body() body,
@@ -31,24 +32,19 @@ export class ProductManagmentController {
       ...body,
       description: body.description,
       imageurls: files.imageurls,
-      createdAt: new Date(),
     });
   }
 
   @Get('all')
-  async findAll(
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    const pageNumber = Number(page) > 0 ? Number(page) : 1;
-    const pageLimit = Number(limit) > 0 ? Number(limit) : 10;
-    return this.productService.getAllProductsPaginated(pageNumber, pageLimit);
+  async findAll() {
+    return this.productService.getAllProducts();
   }
 
   @Get('getone/:id')
   async findOne(@Param('id') id: string) {
     return this.productService.getProductById(id);
   }
+
 
   @Put('update/:id')
   @UseInterceptors(FileFieldsInterceptor(productFileFields, productUploadConfig))
@@ -59,7 +55,7 @@ export class ProductManagmentController {
   ) {
     return this.productService.updateProduct(id, {
       ...body,
-      description: body.description,
+      description: body.description ,
       imageurls: files.imageurls,
     });
   }

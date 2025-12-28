@@ -173,12 +173,12 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
           </motion.button>
         )}
 
-        {canCancel && (
+        {/* {canCancel && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => navigate(`/${role}/dashboard/requisition/cancel/${req.id}`)}
             className="text-gray-500 hover:text-orange-600 p-2 rounded-full hover:bg-orange-50 transition-colors" title="Cancel">
             <XCircle className="w-4 h-4" />
           </motion.button>
-        )}
+        )} */}
 
         {canDelete && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => setDeleteConfirm(req)}
