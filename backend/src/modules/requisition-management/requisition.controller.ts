@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RequisitionService } from './requisition.service';
-import { RequisitionStatus } from 'generated/prisma';
+import { RequisitionStatus } from '@prisma/client';
 
 // Adjust these imports based on your auth setup
 import { DualAuthGuard, RequestWithAuth } from 'src/guards/dual-auth.guard';
