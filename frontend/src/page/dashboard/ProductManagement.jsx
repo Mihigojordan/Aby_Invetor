@@ -12,6 +12,7 @@ import { db } from '../../db/database';
 import { useProductOfflineSync } from '../../hooks/useProductOfflineSync';
 import categoryService from '../../services/categoryService';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
+import useScreenBelow from '../../hooks/useScreenBelow';
 
 const ProductManagement = ({ role }) => {
   const [products, setProducts] = useState([]);
@@ -33,6 +34,7 @@ const ProductManagement = ({ role }) => {
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
   const { triggerSync, syncError } = useProductOfflineSync();
+   const isBelow = useScreenBelow();
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
@@ -41,6 +43,16 @@ const ProductManagement = ({ role }) => {
     loadProducts();
     if (isOnline) handleManualSync();
   }, [isOnline]);
+     useEffect(()=>{
+    if(isBelow){
+      setViewMode('grid')
+    }
+    else{
+      setViewMode('table')
+
+    }
+
+  },[isBelow])
 
   const fetchCategories = async () => {
     try {
@@ -895,10 +907,10 @@ const ProductManagement = ({ role }) => {
         {/* Header Section */}
         <div className="mb-4 shadow-md bg-white p-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 flex-col sm:flex-row">
               <h1 className="text-xl font-bold text-gray-900">Product Management</h1>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div
                 className={`p-2 rounded-lg ${
                   isOnline ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
@@ -930,7 +942,7 @@ const ProductManagement = ({ role }) => {
               <button
                 onClick={handleAddProduct}
                 disabled={isLoading}
-                className="flex items-center gap-1 px-3 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-md text-sm font-medium transition-colors shadow-sm"
+                className="flex items-center flex-1 sm:flex-none gap-1 px-3 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-md text-sm font-medium transition-colors shadow-sm"
               >
                 <Plus size={14} />
                 Add Product

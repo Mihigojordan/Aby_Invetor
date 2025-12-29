@@ -13,11 +13,13 @@ import { db } from '../../db/database';
 import { useStockInOfflineSync } from '../../hooks/useStockInOfflineSync';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import { useNavigate } from 'react-router-dom';
+import useScreenBelow from '../../hooks/useScreenBelow';
 
 const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
   const [products, setProducts] = useState([]);
   const [filteredStockIns, setFilteredStockIns] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -37,6 +39,7 @@ const StockInManagement = ({ role }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('table');
   const navigate = useNavigate();
+ const isBelow = useScreenBelow();
 
   useEffect(() => {
     loadData();
@@ -77,6 +80,17 @@ const StockInManagement = ({ role }) => {
     setFilteredStockIns(filtered);
     setCurrentPage(1);
   }, [searchTerm, startDate, endDate, stockIns]);
+
+     useEffect(()=>{
+    if(isBelow){
+      setViewMode('grid')
+    }
+    else{
+      setViewMode('table')
+
+    }
+
+  },[isBelow])
 
   const fetchProducts = async () => {
     try {
@@ -648,100 +662,10 @@ const StockInManagement = ({ role }) => {
     </div>
   );
 
-  const GridView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-      {(currentItems || []).map((stockIn, index) => (
-        <div
-          key={stockIn.localId || stockIn.id}
-          className={`bg-white rounded-lg border hover:shadow-md transition-all duration-200 ${stockIn.synced ? 'border-gray-200' : 'border-yellow-200'}`}
-        >
-          <div className="p-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center">
-                  <Package size={16} className="text-primary-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm text-gray-900 truncate" title={stockIn.product?.productName || 'Unknown Product'}>
-                    {stockIn.product?.productName || 'Unknown Product'}
-                  </h3>
-                  <div className="flex items-center gap-1 mt-1">
-                    <div className={`w-2 h-2 rounded-full ${stockIn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    <span className="text-xs text-gray-500">{stockIn.synced ? 'Synced' : 'Pending Sync'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2 mb-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-600">Quantity:</span>
-                <span className="text-xs font-bold text-primary-600">{stockIn.offlineQuantity ?? stockIn.quantity}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-600">Unit Price:</span>
-                <span className="text-xs text-gray-900">{formatPrice(stockIn.price)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-600">Total Value:</span>
-                <span className="text-xs font-bold text-green-600">
-                  {formatPrice(stockIn.price * (stockIn.offlineQuantity ?? stockIn.quantity))}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-600">Sell Price:</span>
-                <span className="text-xs font-bold text-primary-600">{formatPrice(stockIn.sellingPrice)}</span>
-              </div>
-              {stockIn.supplier && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-600">Supplier:</span>
-                  <span className="text-xs text-gray-900 truncate max-w-[120px]" title={stockIn.supplier}>{stockIn.supplier}</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="pt-3 border-t border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar size={12} />
-                  <span>{formatDate(stockIn.createdAt || stockIn.lastModified)}</span>
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => openViewModal(stockIn)}
-                    disabled={isLoading}
-                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
-                    title="View Details"
-                  >
-                    <Eye size={14} />
-                  </button>
-                  <button
-                    onClick={() => openEditModal(stockIn)}
-                    disabled={isLoading}
-                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
-                    title="Edit"
-                  >
-                    <Edit3 size={14} />
-                  </button>
-                  <button
-                    onClick={() => openDeleteModal(stockIn)}
-                    disabled={isLoading}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  
 
   const TableView = () => (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 p-3 ml-3 mr-3">
+    <div className="bg-white rounded-lg border border-gray-200 w-full overflow-hidden mb-6 p-3 ml-3 mr-3">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -837,8 +761,8 @@ const StockInManagement = ({ role }) => {
   );
 
   const CardView = () => (
-    <div className="md:hidden ">
-      <div className="grid grid-cols-1 gap-4 mb-6 ">
+    <div className=" p-4 ">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 mb-6 ">
         {(currentItems || []).map((stockIn, index) => (
           <div
             key={stockIn.localId || stockIn.id}
@@ -947,8 +871,8 @@ const StockInManagement = ({ role }) => {
       )}
   <div className="h-full">
         {/* Header Section */}
-        <div className="mb-4 shadow-md bg-white p-2">
-          <div className="flex items-center justify-between">
+        <div className=" shadow-md bg-white p-2">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
             
@@ -958,7 +882,7 @@ const StockInManagement = ({ role }) => {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-col sm:flex-row">
               {/* Sync and Refresh buttons */}
                 <div className="flex gap-2">
                   <div
@@ -1000,6 +924,8 @@ const StockInManagement = ({ role }) => {
             </div>
           </div>
         </div>
+        <div className="p-4">
+
 
         {/* Statistics Cards */}
         <StatisticsCards />
@@ -1020,7 +946,7 @@ const StockInManagement = ({ role }) => {
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-[90%] ml-6 items-start sm:items-center">
+            <div className="flex flex-col sm:flex-row gap-4 w-full  items-start sm:items-center">
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
@@ -1108,15 +1034,16 @@ const StockInManagement = ({ role }) => {
         ) : (
           < >
             {viewMode === 'grid' ? (
-              <GridView />
+              <CardView />
             ) : (
               <>
-                <CardView />
+                
                 <TableView />
               </>
             )}
           </>
         )}
+        </div>
 
         {/* Modals */}
         <ViewStockInModal
