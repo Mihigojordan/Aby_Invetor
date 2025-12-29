@@ -15,11 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Filter,
-  Grid3x3,
-  Table2,
-  Menu,
-  ArrowUpDown,
 } from "lucide-react";
 import reportService from "../../services/reportService";
 
@@ -39,6 +34,7 @@ const UpsertReportModal = ({
     transactions: [],
   });
   const [validationErrors, setValidationErrors] = useState({});
+  const [currentProductName, setCurrentProductName] = useState("");
 
   useEffect(() => {
     if (report) {
@@ -57,6 +53,7 @@ const UpsertReportModal = ({
       });
     }
     setValidationErrors({});
+    setCurrentProductName("");
   }, [report, isOpen]);
 
   // Calculate totals in real-time
@@ -229,10 +226,10 @@ const UpsertReportModal = ({
   const netCashFlow = totalCredit - totalDebit;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-xl p-4 md:p-6 w-full max-w-5xl mx-4 max-h-[95vh] overflow-y-auto text-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white rounded-xl p-6 w-full max-w-5xl mx-4 max-h-[95vh] overflow-y-auto text-sm">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg md:text-xl font-bold text-gray-900">{title}</h2>
+          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg"
@@ -247,7 +244,7 @@ const UpsertReportModal = ({
               <h3 className="text-base font-semibold text-gray-900">
                 Cash Summary
               </h3>
-              <div className="bg-green-50 text-green-700 px-3 md:px-4 py-2 rounded-lg">
+              <div className="bg-green-50 text-green-700 px-4 py-2 rounded-lg">
                 <div className="flex items-center gap-2">
                   <DollarSign size={14} />
                   <span className="text-xs font-medium">
@@ -328,7 +325,7 @@ const UpsertReportModal = ({
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-semibold text-gray-900">Expenses</h3>
               <div className="flex items-center gap-3">
-                <div className="bg-red-50 text-red-700 px-3 md:px-4 py-2 rounded-lg">
+                <div className="bg-red-50 text-red-700 px-4 py-2 rounded-lg">
                   <div className="flex items-center gap-2">
                     <TrendingDown size={14} />
                     <span className="text-xs font-medium">
@@ -410,24 +407,22 @@ const UpsertReportModal = ({
               <h3 className="text-base font-semibold text-gray-900">
                 Transactions
               </h3>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="bg-green-50 text-green-700 px-2 md:px-3 py-1 rounded-lg text-xs">
+                  <div className="bg-green-50 text-green-700 px-3 py-1 rounded-lg text-xs">
                     <div className="flex items-center gap-1">
                       <TrendingUp size={12} />
-                      <span className="hidden sm:inline">Credit: </span>
-                      {formatCurrency(totalCredit)}
+                      <span>Credit: {formatCurrency(totalCredit)}</span>
                     </div>
                   </div>
-                  <div className="bg-red-50 text-red-700 px-2 md:px-3 py-1 rounded-lg text-xs">
+                  <div className="bg-red-50 text-red-700 px-3 py-1 rounded-lg text-xs">
                     <div className="flex items-center gap-1">
                       <TrendingDown size={12} />
-                      <span className="hidden sm:inline">Debit: </span>
-                      {formatCurrency(totalDebit)}
+                      <span>Debit: {formatCurrency(totalDebit)}</span>
                     </div>
                   </div>
                   <div
-                    className={`px-2 md:px-3 py-1 rounded-lg text-xs font-medium ${
+                    className={`px-3 py-1 rounded-lg text-xs font-medium ${
                       netCashFlow >= 0
                         ? "bg-blue-50 text-blue-700"
                         : "bg-orange-50 text-orange-700"
@@ -522,7 +517,7 @@ const UpsertReportModal = ({
             )}
           </div>
           {/* Summary Panel */}
-          <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg p-4 md:p-6">
+          <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-4">
               Report Summary
             </h3>
@@ -638,11 +633,11 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-primary-100">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center text-white">
-              <FileText size={16} className="md:size-20" />
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center text-white">
+              <FileText size={20} />
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-bold text-gray-900">Daily Report</h2>
+              <h2 className="text-xl font-bold text-gray-900">Daily Report</h2>
             </div>
           </div>
           <button
@@ -653,22 +648,22 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
           </button>
         </div>
         {/* Content */}
-        <div className="p-4 md:p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+        <div className="p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Financial Summary */}
             <div className="space-y-6">
               {/* Cash Summary */}
               <div className="bg-green-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <DollarSign className="w-4 h-4 text-green-600" />
-                  <h3 className="font-semibold text-gray-900 text-sm md:text-base">Cash Summary</h3>
+                  <h3 className="font-semibold text-gray-900 text-base">Cash Summary</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Cash at Hand
                     </label>
-                    <p className="text-base md:text-lg font-bold text-gray-900">
+                    <p className="text-lg font-bold text-gray-900">
                       {formatCurrency(report.cashAtHand || 0)}
                     </p>
                   </div>
@@ -676,7 +671,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Money on Phone
                     </label>
-                    <p className="text-base md:text-lg font-bold text-gray-900">
+                    <p className="text-lg font-bold text-gray-900">
                       {formatCurrency(report.moneyOnPhone || 0)}
                     </p>
                   </div>
@@ -684,7 +679,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Total Available
                     </label>
-                    <p className="text-base md:text-lg font-bold text-green-600">
+                    <p className="text-lg font-bold text-green-600">
                       {formatCurrency(totalMoney)}
                     </p>
                   </div>
@@ -694,7 +689,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
               <div className="bg-blue-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <TrendingUp className="w-4 h-4 text-blue-600" />
-                  <h3 className="font-semibold text-gray-900 text-sm md:text-base">
+                  <h3 className="font-semibold text-gray-900 text-base">
                     Transaction Flow
                   </h3>
                 </div>
@@ -703,7 +698,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Total Credit
                     </label>
-                    <p className="text-base md:text-lg font-bold text-green-600">
+                    <p className="text-lg font-bold text-green-600">
                       {formatCurrency(totalCredit)}
                     </p>
                   </div>
@@ -711,7 +706,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Total Debit
                     </label>
-                    <p className="text-base md:text-lg font-bold text-red-600">
+                    <p className="text-lg font-bold text-red-600">
                       {formatCurrency(totalDebit)}
                     </p>
                   </div>
@@ -721,7 +716,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
               <div className="bg-red-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <TrendingDown className="w-4 h-4 text-red-600" />
-                  <h3 className="font-semibold text-gray-900 text-sm md:text-base">
+                  <h3 className="font-semibold text-gray-900 text-base">
                     Expenses Summary
                   </h3>
                 </div>
@@ -729,7 +724,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Total Expenses
                   </label>
-                  <p className="text-base md:text-lg font-bold text-red-600">
+                  <p className="text-lg font-bold text-red-600">
                     {formatCurrency(totalExpenses)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
@@ -743,19 +738,19 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
               {/* Expense Details */}
               {report.expenses && report.expenses.length > 0 && (
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 text-sm md:text-base">
+                  <h3 className="font-semibold text-gray-900 mb-3 text-base">
                     Expense Breakdown
                   </h3>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                  <div className="space-y-2">
                     {report.expenses.map((expense, index) => (
                       <div
                         key={index}
                         className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0"
                       >
-                        <span className="text-xs text-gray-700 truncate max-w-[120px] md:max-w-[200px]">
+                        <span className="text-gray-700 text-xs">
                           {expense.description || 'No description'}
                         </span>
-                        <span className="font-medium text-red-600 text-xs md:text-sm">
+                        <span className="font-medium text-red-600 text-sm">
                           {formatCurrency(expense.amount)}
                         </span>
                       </div>
@@ -766,20 +761,20 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
               {/* Credit Transactions */}
               {creditTransactions.length > 0 && (
                 <div className="bg-green-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-sm md:text-base">
-                    <span className="w-2 h-2 md:w-3 md:h-3 bg-green-600 rounded-full"></span>
-                    Credit ({creditTransactions.length})
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-base">
+                    <span className="w-3 h-3 bg-green-600 rounded-full"></span>
+                    Credit Transactions ({creditTransactions.length})
                   </h3>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                  <div className="space-y-2">
                     {creditTransactions.map((transaction, index) => (
                       <div
                         key={index}
                         className="flex justify-between items-center py-2 border-b border-green-200 last:border-b-0"
                       >
-                        <span className="text-xs text-gray-700 truncate max-w-[120px] md:max-w-[200px]">
+                        <span className="text-gray-700 text-xs">
                           {transaction.description || 'No description'}
                         </span>
-                        <span className="font-medium text-green-600 text-xs md:text-sm">
+                        <span className="font-medium text-green-600 text-sm">
                           +{formatCurrency(transaction.amount)}
                         </span>
                       </div>
@@ -790,20 +785,20 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
               {/* Debit Transactions */}
               {debitTransactions.length > 0 && (
                 <div className="bg-red-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-sm md:text-base">
-                    <span className="w-2 h-2 md:w-3 md:h-3 bg-red-600 rounded-full"></span>
-                    Debit ({debitTransactions.length})
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-base">
+                    <span className="w-3 h-3 bg-red-600 rounded-full"></span>
+                    Debit Transactions ({debitTransactions.length})
                   </h3>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                  <div className="space-y-2">
                     {debitTransactions.map((transaction, index) => (
                       <div
                         key={index}
                         className="flex justify-between items-center py-2 border-b border-red-200 last:border-b-0"
                       >
-                        <span className="text-xs text-gray-700 truncate max-w-[120px] md:max-w-[200px]">
+                        <span className="text-gray-700 text-xs">
                           {transaction.description || 'No description'}
                         </span>
-                        <span className="font-medium text-red-600 text-xs md:text-sm">
+                        <span className="font-medium text-red-600 text-sm">
                           -{formatCurrency(transaction.amount)}
                         </span>
                       </div>
@@ -815,14 +810,14 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="w-4 h-4 text-gray-600" />
-                  <h3 className="font-semibold text-gray-900 text-sm md:text-base">Timeline</h3>
+                  <h3 className="font-semibold text-gray-900 text-base">Timeline</h3>
                 </div>
                 <div className="space-y-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Created
                     </label>
-                    <span className="text-xs md:text-sm text-gray-900">
+                    <span className="text-gray-900 text-sm">
                       {formatDate(report.createdAt)}
                     </span>
                   </div>
@@ -830,7 +825,7 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Last Updated
                     </label>
-                    <span className="text-xs md:text-sm text-gray-900">
+                    <span className="text-gray-900 text-sm">
                       {formatDate(report.updatedAt)}
                     </span>
                   </div>
@@ -840,10 +835,10 @@ const ViewReportModal = ({ isOpen, onClose, report }) => {
           </div>
         </div>
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-4 md:p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
-            className="px-4 md:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium text-sm"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium text-sm"
           >
             Close
           </button>
@@ -866,7 +861,7 @@ const DeleteModal = ({ isOpen, onClose, onConfirm, report, isLoading }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 text-sm">
         <h2 className="text-lg font-semibold mb-4">Delete Report</h2>
         <p className="text-gray-600 mb-6 text-xs">
@@ -905,27 +900,9 @@ const ReportManagement = ({ role }) => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [viewMode, setViewMode] = useState('card'); // Default to card for mobile
+  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Check screen size
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      // Auto-switch to card view on mobile
-      if (mobile && viewMode !== 'card') {
-        setViewMode('card');
-      }
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [viewMode]);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
     fetchReports();
@@ -946,21 +923,11 @@ const ReportManagement = ({ role }) => {
         (transaction.description || "").toLowerCase().includes(searchLower)
       );
       return reportDate.includes(searchLower) || transactionMatch;
-        })
-        .toLowerCase();
-      // Check if any transaction description matches the search term
-      const transactionMatch = (report.transactions || []).some((transaction) =>
-        (transaction.description || "").toLowerCase().includes(searchLower)
-      );
-      return reportDate.includes(searchLower) || transactionMatch;
     });
     setFilteredReports(filtered);
     setCurrentPage(1);
   }, [searchTerm, reports]);
-  }, [searchTerm, reports]);
 
-  const fetchReports = async () => {
-    setIsLoading(true);
   const fetchReports = async () => {
     setIsLoading(true);
     try {
@@ -968,7 +935,6 @@ const ReportManagement = ({ role }) => {
       setReports(data);
       setFilteredReports(data);
     } catch (error) {
-      showNotification(`Failed to fetch reports: ${error.message}`, "error");
       showNotification(`Failed to fetch reports: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
@@ -984,21 +950,12 @@ const ReportManagement = ({ role }) => {
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = isMobile ? 3 : 5;
+    const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
     if (endPage - startPage < maxVisiblePages - 1) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-    return pages;
-  };
-
-  const showNotification = (message, type = "success") => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
@@ -1015,31 +972,24 @@ const ReportManagement = ({ role }) => {
     try {
       await reportService.createReport(reportData);
       await fetchReports();
-      await fetchReports();
       setIsAddModalOpen(false);
       showNotification("Report created successfully!");
-      showNotification("Report created successfully!");
     } catch (error) {
-      showNotification(`Failed to create report: ${error.message}`, "error");
       showNotification(`Failed to create report: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEditReport = async (reportData) => {
   const handleEditReport = async (reportData) => {
     setIsLoading(true);
     try {
       await reportService.updateReport(selectedReport.id, reportData);
       await fetchReports();
-      await fetchReports();
       setIsEditModalOpen(false);
       setSelectedReport(null);
       showNotification("Report updated successfully!");
-      showNotification("Report updated successfully!");
     } catch (error) {
-      showNotification(`Failed to update report: ${error.message}`, "error");
       showNotification(`Failed to update report: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
@@ -1047,18 +997,14 @@ const ReportManagement = ({ role }) => {
   };
 
   const handleDeleteReport = async () => {
-  const handleDeleteReport = async () => {
     setIsLoading(true);
     try {
       await reportService.deleteReport(selectedReport.id);
       await fetchReports();
-      await fetchReports();
       setIsDeleteModalOpen(false);
       setSelectedReport(null);
       showNotification("Report deleted successfully!");
-      showNotification("Report deleted successfully!");
     } catch (error) {
-      showNotification(`Failed to delete report: ${error.message}`, "error");
       showNotification(`Failed to delete report: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
@@ -1097,7 +1043,6 @@ const ReportManagement = ({ role }) => {
   };
 
   // Pagination handlers
-  // Pagination handlers
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
@@ -1114,8 +1059,6 @@ const ReportManagement = ({ role }) => {
     }
   };
 
-  const handleItemsPerPageChange = (newItemsPerPage) => {
-    setItemsPerPage(newItemsPerPage);
   const handleItemsPerPageChange = (newItemsPerPage) => {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1);
@@ -1164,17 +1107,14 @@ const ReportManagement = ({ role }) => {
 
   // Pagination Component
   const PaginationComponent = ({ showItemsPerPage = true }) => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 md:px-6 py-3 border-t border-gray-200 bg-gray-50">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center gap-4">
         <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to{" "}
           {Math.min(endIndex, filteredReports.length)} of{" "}
           {filteredReports.length} entries
-          Showing {startIndex + 1} to{" "}
-          {Math.min(endIndex, filteredReports.length)} of{" "}
-          {filteredReports.length} entries
         </p>
-        {showItemsPerPage && filteredReports.length > 0 && !isMobile && (
+        {showItemsPerPage && filteredReports.length > 0 && (
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-600">Show:</label>
             <select
@@ -1195,26 +1135,22 @@ const ReportManagement = ({ role }) => {
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 ${isMobile ? 'text-[10px]' : 'text-xs'} border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
               currentPage === 1
-                ? "border-gray-200 text-gray-400 cursor-not-allowed"
-                : "border-gray-300 text-gray-700 hover:bg-gray-100"
                 ? "border-gray-200 text-gray-400 cursor-not-allowed"
                 : "border-gray-300 text-gray-700 hover:bg-gray-100"
             }`}
           >
-            <ChevronLeft size={isMobile ? 12 : 14} />
-            {!isMobile && 'Previous'}
+            <ChevronLeft size={14} />
+            Previous
           </button>
           <div className="flex items-center gap-1 mx-2">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 ${isMobile ? 'text-[10px]' : 'text-xs'} rounded-md transition-colors ${
+                className={`px-3 py-2 text-xs rounded-md transition-colors ${
                   currentPage === page
-                    ? "bg-primary-600 text-white"
-                    : "border border-gray-300 text-gray-700 hover:bg-gray-100"
                     ? "bg-primary-600 text-white"
                     : "border border-gray-300 text-gray-700 hover:bg-gray-100"
                 }`}
@@ -1226,142 +1162,24 @@ const ReportManagement = ({ role }) => {
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 ${isMobile ? 'text-[10px]' : 'text-xs'} border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
               currentPage === totalPages
-                ? "border-gray-200 text-gray-400 cursor-not-allowed"
-                : "border-gray-300 text-gray-700 hover:bg-gray-100"
                 ? "border-gray-200 text-gray-400 cursor-not-allowed"
                 : "border-gray-300 text-gray-700 hover:bg-gray-100"
             }`}
           >
-            {!isMobile && 'Next'}
-            <ChevronRight size={isMobile ? 12 : 14} />
+            Next
+            <ChevronRight size={14} />
           </button>
         </div>
       )}
     </div>
   );
 
-  // Mobile Summary Cards (Collapsible)
-  const MobileSummaryCards = () => (
-    <div className="md:hidden">
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <p className="text-[10px] font-medium text-gray-600">Reports</p>
-          <p className="text-sm font-bold text-gray-900">{filteredReports.length}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <p className="text-[10px] font-medium text-gray-600">Total Cash</p>
-          <p className="text-sm font-bold text-gray-900 truncate">
-            {formatCurrency(summaryStats.totalCashAtHand)}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <p className="text-[10px] font-medium text-gray-600">Phone Money</p>
-          <p className="text-sm font-bold text-gray-900 truncate">
-            {formatCurrency(summaryStats.totalMoneyOnPhone)}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <p className="text-[10px] font-medium text-gray-600">Expenses</p>
-          <p className="text-sm font-bold text-gray-900 truncate">
-            {formatCurrency(summaryStats.totalExpenses)}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Desktop Summary Statistics
-  const DesktopSummaryStats = () => (
-    <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <Receipt className="w-4 h-4 text-purple-600" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-600">Reports</p>
-            <p className="text-sm font-bold text-gray-900">
-              {filteredReports.length}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-green-100 rounded-lg">
-            <DollarSign className="w-4 h-4 text-green-600" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-600">Total Cash</p>
-            <p className="text-sm font-bold text-gray-900">
-              {formatCurrency(summaryStats.totalCashAtHand)}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <TrendingUp className="w-4 h-4 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-600">Phone Money</p>
-            <p className="text-sm font-bold text-gray-900">
-              {formatCurrency(summaryStats.totalMoneyOnPhone)}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-red-100 rounded-lg">
-            <TrendingDown className="w-4 h-4 text-red-600" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-600">Expenses</p>
-            <p className="text-sm font-bold text-gray-900">
-              {formatCurrency(summaryStats.totalExpenses)}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-100 rounded-lg">
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-600">
-              Total Credit
-            </p>
-            <p className="text-sm font-bold text-emerald-600">
-              {formatCurrency(summaryStats.totalCredit)}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-orange-100 rounded-lg">
-            <TrendingDown className="w-4 h-4 text-orange-600" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-600">Total Debit</p>
-            <p className="text-sm font-bold text-orange-600">
-              {formatCurrency(summaryStats.totalDebit)}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   // Card View Component (Mobile/Tablet)
   const CardView = () => (
-    <div className={`${isMobile ? 'block' : 'hidden md:block'}`}>
-      <div className="grid grid-cols-1 gap-3 mb-6">
+    <div className="md:hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
         {currentItems.map((report) => {
           const totalExpenses = (report.expenses || []).reduce(
             (sum, exp) => sum + (exp.amount || 0),
@@ -1375,81 +1193,107 @@ const ReportManagement = ({ role }) => {
           const totalDebit = (report.transactions || [])
             .filter((t) => t.type === "DEBIT")
             .reduce((total, t) => total + (t.amount || 0), 0);
+          const netCashFlow = totalCredit - totalDebit;
           return (
             <div
               key={report.id}
-              className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
             >
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2 flex-1">
-                    <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <FileText size={14} className="text-blue-600" />
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-base">
+                      <FileText size={16} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-semibold text-gray-900 truncate">
-                          Report #{report.id?.substring(0, 8)}
-                        </h3>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <div className="flex items-center gap-1">
-                          <Calendar size={10} className="text-gray-400" />
-                          <span className="text-[10px] text-gray-500">{formatDate(report.createdAt)}</span>
-                        </div>
-                        <div className="text-[10px] text-gray-500">
-                          {report.expenses?.length || 0} expenses
-                        </div>
-                      </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 text-sm">
+                        Daily Report
+                      </h3>
                     </div>
                   </div>
                   <div className="flex gap-1">
                     <button
                       onClick={() => openViewModal(report)}
-                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                     >
                       <Eye size={14} />
                     </button>
+                    <button
+                      onClick={() => openEditModal(report)}
+                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                    <button
+                      onClick={() => openDeleteModal(report)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div>
-                    <span className="text-[10px] font-medium text-gray-600">Total Cash</span>
-                    <p className="text-xs font-bold text-green-600 mt-0.5 truncate">{formatCurrency(totalMoney)}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-gray-600">Expenses</span>
-                    <p className="text-xs text-red-600 mt-0.5 truncate">{formatCurrency(totalExpenses)}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-gray-600">Credit</span>
-                    <p className="text-xs text-green-600 mt-0.5 truncate">+{formatCurrency(totalCredit)}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-gray-600">Debit</span>
-                    <p className="text-xs text-red-600 mt-0.5 truncate">-{formatCurrency(totalDebit)}</p>
-                  </div>
-                </div>
-                
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => openEditModal(report)}
-                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        onClick={() => openDeleteModal(report)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                <div className="space-y-3 mb-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-green-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <DollarSign size={12} className="text-green-600" />
+                        <span className="text-xs font-medium text-green-800">
+                          Total Money
+                        </span>
+                      </div>
+                      <p className="font-bold text-green-700 text-sm">
+                        {formatCurrency(totalMoney)}
+                      </p>
                     </div>
+                    <div className="bg-red-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingDown size={12} className="text-red-600" />
+                        <span className="text-xs font-medium text-red-800">
+                          Expenses
+                        </span>
+                      </div>
+                      <p className="font-bold text-red-700 text-sm">
+                        {formatCurrency(totalExpenses)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-blue-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp size={12} className="text-blue-600" />
+                        <span className="text-xs font-medium text-blue-800">
+                          Total Credit
+                        </span>
+                      </div>
+                      <p className="font-bold text-blue-700 text-sm">
+                        {formatCurrency(totalCredit)}
+                      </p>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingDown size={12} className="text-orange-600" />
+                        <span className="text-xs font-medium text-orange-800">
+                          Total Debit
+                        </span>
+                      </div>
+                      <p className="font-bold text-orange-700 text-sm">
+                        {formatCurrency(totalDebit)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Receipt size={12} className="text-purple-600" />
+                      <span className="text-xs font-medium text-purple-800">
+                        Products
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Calendar size={10} />
+                    <span>Created {formatDate(report.createdAt)}</span>
                   </div>
                 </div>
               </div>
@@ -1457,7 +1301,7 @@ const ReportManagement = ({ role }) => {
           );
         })}
       </div>
-      <div className="bg-white rounded-lg border border-gray-200">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <PaginationComponent showItemsPerPage={false} />
       </div>
     </div>
@@ -1465,27 +1309,27 @@ const ReportManagement = ({ role }) => {
 
   // Table View Component (Desktop)
   const TableView = () => (
-    <div className="hidden md:block bg-white rounded-lg border border-gray-200 mb-6">
+    <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 #
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Date
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Cash Summary
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Credits/Debits
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Expenses
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -1509,12 +1353,12 @@ const ReportManagement = ({ role }) => {
                   key={report.id}
                   className="hover:bg-gray-50 transition-colors"
                 >
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
                       {startIndex + index + 1}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <Calendar size={12} className="text-gray-400" />
                       <span className="text-xs text-gray-900">
@@ -1522,14 +1366,14 @@ const ReportManagement = ({ role }) => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1">
                       <div className="text-xs font-medium text-gray-900">
                         {formatCurrency(totalMoney)}
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1">
                       <div className="flex items-center gap-1">
                         <TrendingUp size={10} className="text-green-400" />
@@ -1545,7 +1389,7 @@ const ReportManagement = ({ role }) => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <TrendingDown size={12} className="text-red-400" />
                       <span className="font-medium text-red-600 text-sm">
@@ -1556,7 +1400,7 @@ const ReportManagement = ({ role }) => {
                       {(report.expenses || []).length} entries
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => openViewModal(report)}
@@ -1592,26 +1436,25 @@ const ReportManagement = ({ role }) => {
   );
 
   return (
-    <div className="bg-gray-50 min-h-[90vh] p-3 md:p-6 text-sm">
+    <div className="bg-gray-50 p-4 h-[90vh] sm:p-6 lg:p-8 text-sm">
       {notification && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-xs ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
             notification.type === "success"
               ? "bg-primary-500 text-white"
               : "bg-red-500 text-white"
-          } animate-in slide-in-from-top-2 duration-300 max-w-[90vw]`}
+          } animate-in slide-in-from-top-2 duration-300 text-xs`}
         >
           {notification.message}
         </div>
       )}
       <div className="h-full overflow-y-auto mx-auto">
-        {/* Header */}
-        <div className="mb-6">
+        <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-primary-600 rounded-lg">
               <FileText className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900">
               Report Management
             </h1>
           </div>
@@ -1619,56 +1462,111 @@ const ReportManagement = ({ role }) => {
             Track daily sales reports with cash flow and expenses
           </p>
         </div>
-
         {/* Summary Statistics */}
-        <MobileSummaryCards />
-        <DesktopSummaryStats />
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Receipt className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-600">Reports</p>
+                <p className="text-base font-bold text-gray-900">
+                  {filteredReports.length}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <DollarSign className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-600">Total Cash</p>
+                <p className="text-base font-bold text-gray-900">
+                  {formatCurrency(summaryStats.totalCashAtHand)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <TrendingUp className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-600">Phone Money</p>
+                <p className="text-base font-bold text-gray-900">
+                  {formatCurrency(summaryStats.totalMoneyOnPhone)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <TrendingDown className="w-4 h-4 text-red-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-600">Expenses</p>
+                <p className="text-base font-bold text-gray-900">
+                  {formatCurrency(summaryStats.totalExpenses)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-600">
+                  Total Credit
+                </p>
+                <p className="text-base font-bold text-emerald-600">
+                  {formatCurrency(summaryStats.totalCredit)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <TrendingDown className="w-4 h-4 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-600">Total Debit</p>
+                <p className="text-base font-bold text-orange-600">
+                  {formatCurrency(summaryStats.totalDebit)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
         {/* Controls */}
-        <div className="bg-white rounded-lg border border-gray-200 mb-6 p-4">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
             <div className="relative flex-grow max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search by date or transaction..."
+                placeholder="Search by date or product names..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
               />
             </div>
-            
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              {/* View Mode Toggle */}
-              <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('card')}
-                  className={`p-2 rounded transition-colors ${viewMode === 'card' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
-                  title="Card View"
-                >
-                  <Grid3x3 size={18} />
-                </button>
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`p-2 rounded transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
-                  title="Table View"
-                >
-                  <Table2 size={18} />
-                </button>
-              </div>
-              
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm ml-auto md:ml-0"
-              >
-                <Plus size={16} />
-                <span className="hidden sm:inline">Create Report</span>
-                <span className="sm:hidden">New</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm"
+            >
+              <Plus size={16} />
+              Create Report
+            </button>
           </div>
         </div>
-
         {/* Content */}
         {isLoading ? (
           <div className="text-center py-12">
@@ -1695,32 +1593,13 @@ const ReportManagement = ({ role }) => {
                 Create Report
               </button>
             )}
-          <div className="text-center py-12">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-base font-medium text-gray-900 mb-2">
-              No reports found
-            </h3>
-            <p className="text-gray-600 mb-4 text-xs">
-              {searchTerm
-                ? "Try adjusting your search terms."
-                : "Get started by creating your first daily report."}
-            </p>
-            {!searchTerm && (
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
-              >
-                <Plus size={16} />
-                Create Report
-              </button>
-            )}
           </div>
         ) : (
           <>
-            {viewMode === 'card' ? <CardView /> : <TableView />}
+            <CardView />
+            <TableView />
           </>
         )}
-
         {/* Modals */}
         <UpsertReportModal
           isOpen={isAddModalOpen || isEditModalOpen}
@@ -1729,7 +1608,6 @@ const ReportManagement = ({ role }) => {
             setIsEditModalOpen(false);
             setSelectedReport(null);
           }}
-          onSubmit={isEditModalOpen ? handleEditReport : handleAddReport}
           onSubmit={isEditModalOpen ? handleEditReport : handleAddReport}
           report={selectedReport}
           isLoading={isLoading}
@@ -1749,7 +1627,6 @@ const ReportManagement = ({ role }) => {
             setIsDeleteModalOpen(false);
             setSelectedReport(null);
           }}
-          onConfirm={handleDeleteReport}
           onConfirm={handleDeleteReport}
           report={selectedReport}
           isLoading={isLoading}
