@@ -31,6 +31,7 @@ import useAdminAuth from "../../context/AdminAuthContext";
 import { db } from "../../db/database";
 import { useCategoryOfflineSync } from "../../hooks/useCategoryOffline";
 import { useNetworkStatusContext } from "../../context/useNetworkContext";
+import useScreenBelow from "../../hooks/useScreenBelow";
 
 const CategoryManagement = ({ role }) => {
   const [categories, setCategories] = useState([]);
@@ -46,6 +47,7 @@ const CategoryManagement = ({ role }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // New: 'table', 'grid', 'list'
+   const isBelow = useScreenBelow();
 
   // Pagination state - Changed to 5 items per page
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,10 +62,17 @@ const CategoryManagement = ({ role }) => {
     loadCategories();
     if (isOnline) handleManualSync();
   }, [isOnline]);
+  
+     useEffect(()=>{
+    if(isBelow){
+      setViewMode('grid')
+    }
+    else{
+      setViewMode('table')
 
-  useEffect(()=>{
-     console.warn('categories:', categories)
-  })
+    }
+
+  },[isBelow])
 
   useEffect(() => {
     if (syncError) {
@@ -753,14 +762,14 @@ const CategoryManagement = ({ role }) => {
       <div className="h-full">
         {/* Header Section with bottom shadow */}
         <div className="mb-4 shadow-md bg-white  p-2"> {/* Bottom shadow */}
-          <div className="flex items-center  justify-between">
+          <div className="flex sm:items-center  justify-between gap-2  flex-col md:flex-row">
             <div className="flex items-center justify-between gap-3">
            
               <h1 className="text-xl font-bold text-gray-900"> {/* Smaller text */}
                 Category Management
               </h1>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               {/* Online/Offline Icon */}
               <div
                 className={`p-2 rounded-lg ${
@@ -799,7 +808,7 @@ const CategoryManagement = ({ role }) => {
                 <button
               onClick={() => setIsAddModalOpen(true)}
               disabled={isLoading}
-              className="flex items-center gap-1 px-3 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-md text-sm font-medium transition-colors shadow-sm"
+              className="flex items-center gap-1 flex-1 md:flex-none px-3 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-md text-sm font-medium transition-colors shadow-sm"
             >
               <Plus size={14} />
               Add Category
