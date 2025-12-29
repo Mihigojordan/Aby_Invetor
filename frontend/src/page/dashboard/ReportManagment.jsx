@@ -946,11 +946,21 @@ const ReportManagement = ({ role }) => {
         (transaction.description || "").toLowerCase().includes(searchLower)
       );
       return reportDate.includes(searchLower) || transactionMatch;
+        })
+        .toLowerCase();
+      // Check if any transaction description matches the search term
+      const transactionMatch = (report.transactions || []).some((transaction) =>
+        (transaction.description || "").toLowerCase().includes(searchLower)
+      );
+      return reportDate.includes(searchLower) || transactionMatch;
     });
     setFilteredReports(filtered);
     setCurrentPage(1);
   }, [searchTerm, reports]);
+  }, [searchTerm, reports]);
 
+  const fetchReports = async () => {
+    setIsLoading(true);
   const fetchReports = async () => {
     setIsLoading(true);
     try {
@@ -958,6 +968,7 @@ const ReportManagement = ({ role }) => {
       setReports(data);
       setFilteredReports(data);
     } catch (error) {
+      showNotification(`Failed to fetch reports: ${error.message}`, "error");
       showNotification(`Failed to fetch reports: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
@@ -988,6 +999,15 @@ const ReportManagement = ({ role }) => {
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  const showNotification = (message, type = "success") => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleAddReport = async (reportData) => {
@@ -995,9 +1015,12 @@ const ReportManagement = ({ role }) => {
     try {
       await reportService.createReport(reportData);
       await fetchReports();
+      await fetchReports();
       setIsAddModalOpen(false);
       showNotification("Report created successfully!");
+      showNotification("Report created successfully!");
     } catch (error) {
+      showNotification(`Failed to create report: ${error.message}`, "error");
       showNotification(`Failed to create report: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
@@ -1005,14 +1028,18 @@ const ReportManagement = ({ role }) => {
   };
 
   const handleEditReport = async (reportData) => {
+  const handleEditReport = async (reportData) => {
     setIsLoading(true);
     try {
       await reportService.updateReport(selectedReport.id, reportData);
       await fetchReports();
+      await fetchReports();
       setIsEditModalOpen(false);
       setSelectedReport(null);
       showNotification("Report updated successfully!");
+      showNotification("Report updated successfully!");
     } catch (error) {
+      showNotification(`Failed to update report: ${error.message}`, "error");
       showNotification(`Failed to update report: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
@@ -1020,14 +1047,18 @@ const ReportManagement = ({ role }) => {
   };
 
   const handleDeleteReport = async () => {
+  const handleDeleteReport = async () => {
     setIsLoading(true);
     try {
       await reportService.deleteReport(selectedReport.id);
       await fetchReports();
+      await fetchReports();
       setIsDeleteModalOpen(false);
       setSelectedReport(null);
       showNotification("Report deleted successfully!");
+      showNotification("Report deleted successfully!");
     } catch (error) {
+      showNotification(`Failed to delete report: ${error.message}`, "error");
       showNotification(`Failed to delete report: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
@@ -1066,6 +1097,7 @@ const ReportManagement = ({ role }) => {
   };
 
   // Pagination handlers
+  // Pagination handlers
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
@@ -1082,6 +1114,8 @@ const ReportManagement = ({ role }) => {
     }
   };
 
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
   const handleItemsPerPageChange = (newItemsPerPage) => {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1);
@@ -1136,6 +1170,9 @@ const ReportManagement = ({ role }) => {
           Showing {startIndex + 1} to{" "}
           {Math.min(endIndex, filteredReports.length)} of{" "}
           {filteredReports.length} entries
+          Showing {startIndex + 1} to{" "}
+          {Math.min(endIndex, filteredReports.length)} of{" "}
+          {filteredReports.length} entries
         </p>
         {showItemsPerPage && filteredReports.length > 0 && !isMobile && (
           <div className="flex items-center gap-2">
@@ -1162,6 +1199,8 @@ const ReportManagement = ({ role }) => {
               currentPage === 1
                 ? "border-gray-200 text-gray-400 cursor-not-allowed"
                 : "border-gray-300 text-gray-700 hover:bg-gray-100"
+                ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                : "border-gray-300 text-gray-700 hover:bg-gray-100"
             }`}
           >
             <ChevronLeft size={isMobile ? 12 : 14} />
@@ -1176,6 +1215,8 @@ const ReportManagement = ({ role }) => {
                   currentPage === page
                     ? "bg-primary-600 text-white"
                     : "border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    ? "bg-primary-600 text-white"
+                    : "border border-gray-300 text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 {page}
@@ -1187,6 +1228,8 @@ const ReportManagement = ({ role }) => {
             disabled={currentPage === totalPages}
             className={`flex items-center gap-1 px-3 py-2 ${isMobile ? 'text-[10px]' : 'text-xs'} border rounded-md transition-colors ${
               currentPage === totalPages
+                ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                : "border-gray-300 text-gray-700 hover:bg-gray-100"
                 ? "border-gray-200 text-gray-400 cursor-not-allowed"
                 : "border-gray-300 text-gray-700 hover:bg-gray-100"
             }`}
@@ -1652,6 +1695,25 @@ const ReportManagement = ({ role }) => {
                 Create Report
               </button>
             )}
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-base font-medium text-gray-900 mb-2">
+              No reports found
+            </h3>
+            <p className="text-gray-600 mb-4 text-xs">
+              {searchTerm
+                ? "Try adjusting your search terms."
+                : "Get started by creating your first daily report."}
+            </p>
+            {!searchTerm && (
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+              >
+                <Plus size={16} />
+                Create Report
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -1667,6 +1729,7 @@ const ReportManagement = ({ role }) => {
             setIsEditModalOpen(false);
             setSelectedReport(null);
           }}
+          onSubmit={isEditModalOpen ? handleEditReport : handleAddReport}
           onSubmit={isEditModalOpen ? handleEditReport : handleAddReport}
           report={selectedReport}
           isLoading={isLoading}
@@ -1686,6 +1749,7 @@ const ReportManagement = ({ role }) => {
             setIsDeleteModalOpen(false);
             setSelectedReport(null);
           }}
+          onConfirm={handleDeleteReport}
           onConfirm={handleDeleteReport}
           report={selectedReport}
           isLoading={isLoading}
