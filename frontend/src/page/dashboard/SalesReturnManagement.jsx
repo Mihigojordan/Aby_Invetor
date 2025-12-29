@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Receipt, Wifi, WifiOff, RotateCcw, RefreshCw, ChevronLeft, ChevronRight, FileText, TrendingUp, X, Grid3x3, Table2, Filter, RotateCcw as ReturnIcon, ArrowUpToLine, ShoppingBag } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Receipt, Wifi, WifiOff, RotateCcw, RefreshCw, ChevronLeft, ChevronRight, FileText, TrendingUp, X, Grid3x3, Table2, Filter, RotateCcw as ReturnIcon, ArrowUpToLine, ShoppingBag, Menu, MoreVertical } from 'lucide-react';
 import salesReturnService from '../../services/salesReturnService';
 import UpsertSalesReturnModal from '../../components/dashboard/salesReturn/UpsertSalesReturnModal';
 import ViewSalesReturnModal from '../../components/dashboard/salesReturn/ViewSalesReturnModal';
@@ -39,7 +39,24 @@ const SalesReturnManagement = ({ role }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(8);
   const [viewMode, setViewMode] = useState('table');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Check screen size and adjust view mode
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setViewMode('card');
+      } else if (window.innerWidth < 1024) {
+        setViewMode('grid');
+      }
+    };
+    
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadSalesReturns();
@@ -786,55 +803,55 @@ const SalesReturnManagement = ({ role }) => {
   };
 
   const StatisticsCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-2 p-3">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4 mb-2 p-2 md:p-3">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 md:p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-600">Total Returns</p>
-            <p className="text-lg font-bold text-gray-900">{statistics?.totalReturns || 0}</p>
-            <p className="text-xs text-gray-500 mt-1">{statistics?.recentReturns || 0} recent returns</p>
+            <p className="text-xs md:text-xs font-medium text-gray-600">Total Returns</p>
+            <p className="text-base md:text-lg font-bold text-gray-900">{statistics?.totalReturns || 0}</p>
+            <p className="text-xs text-gray-500 mt-0.5 md:mt-1">{statistics?.recentReturns || 0} recent</p>
           </div>
-          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-            <ReturnIcon className="w-5 h-5 text-blue-600" />
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+            <ReturnIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 md:p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-600">Total Items</p>
-            <p className="text-lg font-bold text-gray-900">{statistics?.totalItems || 0}</p>
-            <p className="text-xs text-gray-500 mt-1">Items returned</p>
+            <p className="text-xs md:text-xs font-medium text-gray-600">Total Items</p>
+            <p className="text-base md:text-lg font-bold text-gray-900">{statistics?.totalItems || 0}</p>
+            <p className="text-xs text-gray-500 mt-0.5 md:mt-1">Items returned</p>
           </div>
-          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-            <Package className="w-5 h-5 text-green-600" />
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-green-50 rounded-lg flex items-center justify-center">
+            <Package className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 md:p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-600">Total Quantity</p>
-            <p className="text-lg font-bold text-gray-900">{statistics?.totalQuantity || 0}</p>
-            <p className="text-xs text-gray-500 mt-1">Units returned</p>
+            <p className="text-xs md:text-xs font-medium text-gray-600">Total Quantity</p>
+            <p className="text-base md:text-lg font-bold text-gray-900">{statistics?.totalQuantity || 0}</p>
+            <p className="text-xs text-gray-500 mt-0.5 md:mt-1">Units returned</p>
           </div>
-          <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-orange-600" />
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-orange-600" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 md:p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-600">Avg Items/Return</p>
-            <p className="text-lg font-bold text-gray-900">{statistics?.averageItemsPerReturn || 0}</p>
-            <p className="text-xs text-gray-500 mt-1">Per transaction</p>
+            <p className="text-xs md:text-xs font-medium text-gray-600">Avg Items/Return</p>
+            <p className="text-base md:text-lg font-bold text-gray-900">{statistics?.averageItemsPerReturn || 0}</p>
+            <p className="text-xs text-gray-500 mt-0.5 md:mt-1">Per transaction</p>
           </div>
-          <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-            <Hash className="w-5 h-5 text-purple-600" />
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+            <Hash className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
           </div>
         </div>
       </div>
@@ -842,10 +859,10 @@ const SalesReturnManagement = ({ role }) => {
   );
 
   const PaginationComponent = () => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-gray-200 bg-white">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-white">
+      <div className="flex items-center gap-2">
         <p className="text-xs text-gray-600">
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredSalesReturns.length)} of {filteredSalesReturns.length} entries
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredSalesReturns.length)} of {filteredSalesReturns.length}
         </p>
       </div>
       {totalPages > 1 && (
@@ -853,21 +870,21 @@ const SalesReturnManagement = ({ role }) => {
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1.5 text-xs border rounded-md transition-colors ${
               currentPage === 1
                 ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <ChevronLeft size={12} />
-            Previous
+            <ChevronLeft size={10} />
+            <span className="hidden sm:inline">Previous</span>
           </button>
-          <div className="flex items-center gap-1 mx-2">
+          <div className="flex items-center gap-1 mx-1">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-xs rounded-md transition-colors ${
+                className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
                   currentPage === page
                     ? 'bg-primary-600 text-white'
                     : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
@@ -880,14 +897,14 @@ const SalesReturnManagement = ({ role }) => {
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1.5 text-xs border rounded-md transition-colors ${
               currentPage === totalPages
                 ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Next
-            <ChevronRight size={12} />
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight size={10} />
           </button>
         </div>
       )}
@@ -895,31 +912,31 @@ const SalesReturnManagement = ({ role }) => {
   );
 
   const GridView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 mb-6">
       {(currentItems || []).map((salesReturn, index) => (
         <div
           key={salesReturn.localId || salesReturn.id}
           className={`bg-white rounded-lg border hover:shadow-md transition-all duration-200 ${salesReturn.synced ? 'border-gray-200' : 'border-yellow-200'}`}
         >
-          <div className="p-4">
-            <div className="flex items-start justify-between mb-3">
+          <div className="p-3 md:p-4">
+            <div className="flex items-start justify-between mb-2 md:mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <ReturnIcon size={16} className="text-blue-600" />
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <ReturnIcon size={14} className="text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm text-gray-900 truncate" title={salesReturn.transactionId}>
-                    Return #{salesReturn.transactionId?.substring(0, 12)}...
+                  <h3 className="font-semibold text-xs md:text-sm text-gray-900 truncate" title={salesReturn.transactionId}>
+                    Return #{salesReturn.transactionId?.substring(0, 8)}...
                   </h3>
-                  <div className="flex items-center gap-1 mt-1">
-                    <div className={`w-2 h-2 rounded-full ${salesReturn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    <span className="text-xs text-gray-500">{salesReturn.synced ? 'Synced' : 'Pending Sync'}</span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${salesReturn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    <span className="text-xs text-gray-500">{salesReturn.synced ? 'Synced' : 'Pending'}</span>
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="space-y-2 mb-3">
+            <div className="space-y-1.5 md:space-y-2 mb-2 md:mb-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-gray-600">Items:</span>
                 <span className="text-xs font-bold text-primary-600">{getTotalItemsCount(salesReturn)}</span>
@@ -931,57 +948,56 @@ const SalesReturnManagement = ({ role }) => {
               {salesReturn.reason && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-600">Reason:</span>
-                  <span className="text-xs text-gray-900 truncate max-w-[120px]" title={salesReturn.reason}>{salesReturn.reason}</span>
+                  <span className="text-xs text-gray-900 truncate max-w-[100px] md:max-w-[120px]" title={salesReturn.reason}>{salesReturn.reason}</span>
                 </div>
               )}
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-medium text-gray-600">Products:</span>
-                <span className="text-xs text-gray-600 text-right truncate max-w-[120px]" title={getProductNames(salesReturn)}>
-                  {getProductNames(salesReturn)}
-                </span>
-              </div>
             </div>
             
-            <div className="pt-3 border-t border-gray-100">
+            <div className="pt-2 md:pt-3 border-t border-gray-100">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar size={12} />
-                  <span>{formatDate(salesReturn.createdAt)}</span>
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Calendar size={10} className="md:hidden" />
+                  <Calendar size={12} className="hidden md:block" />
+                  <span className="text-xs">{formatDate(salesReturn.createdAt)}</span>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-0.5 md:gap-1">
                   <button
                     onClick={() => openViewModal(salesReturn)}
                     disabled={isLoading}
-                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                    className="p-1 md:p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="View Details"
                   >
-                    <Eye size={14} />
+                    <Eye size={12} className="md:hidden" />
+                    <Eye size={14} className="hidden md:block" />
                   </button>
                   {salesReturn.creditnoteId && (
                     <button
                       onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
                       disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
+                      className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="View Credit Note"
                     >
-                      <Receipt size={14} />
+                      <Receipt size={12} className="md:hidden" />
+                      <Receipt size={14} className="hidden md:block" />
                     </button>
                   )}
                   <button
                     onClick={() => openEditModal(salesReturn)}
                     disabled={isLoading}
-                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                    className="p-1 md:p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="Edit"
                   >
-                    <Edit3 size={14} />
+                    <Edit3 size={12} className="md:hidden" />
+                    <Edit3 size={14} className="hidden md:block" />
                   </button>
                   <button
                     onClick={() => openDeleteModal(salesReturn)}
                     disabled={isLoading}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                    className="p-1 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="Delete"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} className="md:hidden" />
+                    <Trash2 size={14} className="hidden md:block" />
                   </button>
                 </div>
               </div>
@@ -993,107 +1009,109 @@ const SalesReturnManagement = ({ role }) => {
   );
 
   const TableView = () => (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 p-3 ml-3 mr-3">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 p-2 md:p-3 mx-1 md:mx-3">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Transaction ID</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Items</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Quantity</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Products</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Reason</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Date</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Actions</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Transaction</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b hidden md:table-cell">Items</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b hidden lg:table-cell">Quantity</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b hidden lg:table-cell">Products</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b hidden xl:table-cell">Reason</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Date</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {(currentItems || []).map((salesReturn, index) => (
               <tr key={salesReturn.localId || salesReturn.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <ReturnIcon size={14} className="text-blue-600" />
+                <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                      <ReturnIcon size={12} className="text-blue-600" />
                     </div>
                     <div>
-                      <div className="font-medium text-sm text-gray-900">
+                      <div className="font-medium text-xs md:text-sm text-gray-900 truncate max-w-[80px] md:max-w-none">
                         {salesReturn.transactionId || 'N/A'}
                       </div>
-                      {salesReturn.creditnoteId && (
-                        <div className="text-xs text-gray-500 mt-1">{salesReturn.creditnoteId}</div>
-                      )}
+                      <div className="text-xs text-gray-500 md:hidden">{getTotalItemsCount(salesReturn)} items</div>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap hidden md:table-cell">
                   <div className="text-sm text-gray-900">
                     {getTotalItemsCount(salesReturn)} items
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp size={14} className="text-gray-400" />
+                <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap hidden lg:table-cell">
+                  <div className="flex items-center gap-1 md:gap-2">
+                    <TrendingUp size={12} className="text-gray-400" />
                     <span className="text-sm font-semibold text-gray-900">{getTotalQuantity(salesReturn)}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm text-gray-900 truncate max-w-[200px] block">
+                <td className="px-3 py-2 md:px-4 md:py-3 hidden lg:table-cell">
+                  <span className="text-sm text-gray-900 truncate max-w-[150px] md:max-w-[200px] block">
                     {getProductNames(salesReturn)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm text-gray-600 truncate max-w-[150px] block">
-                    {salesReturn.reason || 'No reason provided'}
+                <td className="px-3 py-2 md:px-4 md:py-3 hidden xl:table-cell">
+                  <span className="text-sm text-gray-600 truncate max-w-[120px] md:max-w-[150px] block">
+                    {salesReturn.reason || 'No reason'}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${salesReturn.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                    <div className={`w-2 h-2 rounded-full ${salesReturn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    {salesReturn.synced ? 'Synced' : 'Pending'}
+                <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap">
+                  <span className={`inline-flex items-center gap-1 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${salesReturn.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${salesReturn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    <span className="hidden sm:inline">{salesReturn.synced ? 'Synced' : 'Pending'}</span>
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-600">{formatDate(salesReturn.createdAt)}</span>
+                <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-1 md:gap-2">
+                    <Calendar size={12} className="text-gray-400 hidden md:block" />
+                    <span className="text-xs md:text-sm text-gray-600">{formatDate(salesReturn.createdAt)}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-1">
+                <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-0.5 md:gap-1">
                     <button
                       onClick={() => openViewModal(salesReturn)}
                       disabled={isLoading}
-                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                      className="p-1.5 md:p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="View Details"
                     >
-                      <Eye size={16} />
+                      <Eye size={14} className="md:hidden" />
+                      <Eye size={16} className="hidden md:block" />
                     </button>
                     {salesReturn.creditnoteId && (
                       <button
                         onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
                         disabled={isLoading}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
+                        className="p-1.5 md:p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
                         title="View Credit Note"
                       >
-                        <Receipt size={16} />
+                        <Receipt size={14} className="md:hidden" />
+                        <Receipt size={16} className="hidden md:block" />
                       </button>
                     )}
                     <button
                       onClick={() => openEditModal(salesReturn)}
                       disabled={isLoading}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                      className="p-1.5 md:p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="Edit"
                     >
-                      <Edit3 size={16} />
+                      <Edit3 size={14} className="md:hidden" />
+                      <Edit3 size={16} className="hidden md:block" />
                     </button>
                     <button
                       onClick={() => openDeleteModal(salesReturn)}
                       disabled={isLoading}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                      className="p-1.5 md:p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
                       title="Delete"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} className="md:hidden" />
+                      <Trash2 size={16} className="hidden md:block" />
                     </button>
                   </div>
                 </td>
@@ -1108,89 +1126,90 @@ const SalesReturnManagement = ({ role }) => {
 
   const CardView = () => (
     <div className="md:hidden">
-      <div className="grid grid-cols-1 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-3 mb-6">
         {(currentItems || []).map((salesReturn, index) => (
           <div
             key={salesReturn.localId || salesReturn.id}
             className={`bg-white rounded-lg border hover:shadow-md transition-shadow ${salesReturn.synced ? 'border-gray-200' : 'border-yellow-200'}`}
           >
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-3">
+            <div className="p-3">
+              <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <ReturnIcon size={16} className="text-blue-600" />
+                  <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <ReturnIcon size={14} className="text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm text-gray-900 truncate" title={salesReturn.transactionId}>
-                      Return #{salesReturn.transactionId?.substring(0, 12)}...
-                    </h3>
-                    <div className="flex items-center gap-1 mt-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-sm text-gray-900 truncate max-w-[150px]" title={salesReturn.transactionId}>
+                        Return #{salesReturn.transactionId?.substring(0, 10)}...
+                      </h3>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => openViewModal(salesReturn)}
+                          disabled={isLoading}
+                          className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
+                          title="View Details"
+                        >
+                          <Eye size={12} />
+                        </button>
+                        <button
+                          onClick={() => openEditModal(salesReturn)}
+                          disabled={isLoading}
+                          className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit3 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
                       <div className={`w-1.5 h-1.5 rounded-full ${salesReturn.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                      <span className="text-xs text-gray-500">{salesReturn.synced ? 'Synced' : 'Pending Sync'}</span>
+                      <span className="text-xs text-gray-500">{salesReturn.synced ? 'Synced' : 'Pending'}</span>
+                      <span className="text-xs text-gray-500 mx-2">•</span>
+                      <Calendar size={10} className="text-gray-400" />
+                      <span className="text-xs text-gray-500">{formatDate(salesReturn.createdAt)}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => openViewModal(salesReturn)}
-                    disabled={isLoading}
-                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
-                    title="View Details"
-                  >
-                    <Eye size={14} />
-                  </button>
-                </div>
               </div>
-              <div className="space-y-2 mb-3">
-                <div className="flex items-start justify-between text-xs">
+              <div className="space-y-1.5 mb-2">
+                <div className="flex items-center justify-between text-xs">
                   <span className="font-medium text-gray-600">Items:</span>
-                  <span className="font-bold text-primary-600">{getTotalItemsCount(salesReturn)}</span>
+                  <span className="font-bold text-primary-600">{getTotalItemsCount(salesReturn)} items</span>
                 </div>
-                <div className="flex items-start justify-between text-xs">
+                <div className="flex items-center justify-between text-xs">
                   <span className="font-medium text-gray-600">Quantity:</span>
-                  <span className="text-gray-900">{getTotalQuantity(salesReturn)}</span>
+                  <span className="text-gray-900">{getTotalQuantity(salesReturn)} units</span>
                 </div>
                 {salesReturn.reason && (
-                  <div className="flex items-start justify-between text-xs">
-                    <span className="font-medium text-gray-600">Reason:</span>
-                    <span className="text-gray-900 truncate max-w-[150px]" title={salesReturn.reason}>{salesReturn.reason}</span>
+                  <div className="text-xs">
+                    <span className="font-medium text-gray-600">Reason: </span>
+                    <span className="text-gray-900 truncate">{salesReturn.reason}</span>
                   </div>
                 )}
               </div>
-              <div className="pt-3 border-t border-gray-100">
+              <div className="pt-2 border-t border-gray-100">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Calendar size={12} />
-                    <span>{formatDate(salesReturn.createdAt)}</span>
-                  </div>
                   <div className="flex gap-1">
                     {salesReturn.creditnoteId && (
                       <button
                         onClick={() => handleOpenCreditNote(salesReturn.id || salesReturn.localId)}
                         disabled={isLoading}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
-                        title="View Credit Note"
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
                       >
-                        <Receipt size={14} />
+                        <Receipt size={10} />
+                        Credit Note
                       </button>
                     )}
-                    <button
-                      onClick={() => openEditModal(salesReturn)}
-                      disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                    <button
-                      onClick={() => openDeleteModal(salesReturn)}
-                      disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
                   </div>
+                  <button
+                    onClick={() => openDeleteModal(salesReturn)}
+                    disabled={isLoading}
+                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -1203,8 +1222,83 @@ const SalesReturnManagement = ({ role }) => {
     </div>
   );
 
+  const MobileHeaderActions = () => (
+    <div className="md:hidden">
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
+        >
+          <Menu size={20} />
+        </button>
+        
+        <div className="flex gap-2">
+          {(searchTerm || startDate || endDate) && (
+            <button
+              onClick={handleClearFilters}
+              className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+              title="Clear Filters"
+            >
+              <X size={16} />
+            </button>
+          )}
+          
+          <div
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+          >
+            {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
+            <span className="text-xs font-medium">{isOnline ? 'Online' : 'Offline'}</span>
+          </div>
+        </div>
+      </div>
+
+      {isMobileMenuOpen && (
+        <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4 space-y-2 animate-in slide-in-from-top-2 duration-200">
+          {isOnline && (
+            <button
+              onClick={handleManualSync}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors disabled:opacity-50 text-sm"
+            >
+              <RotateCcw size={16} className={isLoading ? 'animate-spin' : ''} />
+              Sync Now
+            </button>
+          )}
+          
+          {isOnline && (
+            <button
+              onClick={() => loadSalesReturns(true)}
+              disabled={isRefreshing}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 text-sm"
+            >
+              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              Refresh Data
+            </button>
+          )}
+          
+          <div className="flex gap-2 border-t border-gray-100 pt-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded transition-colors text-xs ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              <Grid3x3 size={14} />
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded transition-colors text-xs ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              <Table2 size={14} />
+              Table
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="bg-gray-50 min-h-[90vh] ">
+    <div className="bg-gray-50 min-h-[90vh] px-2 md:px-0">
       {notification && (
         <div
           className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm ${
@@ -1214,26 +1308,43 @@ const SalesReturnManagement = ({ role }) => {
           } animate-in slide-in-from-top-2 duration-300`}
         >
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
-          {notification.message}
+          <span className="text-xs md:text-sm">{notification.message}</span>
         </div>
       )}
       <CreditNoteComponent isOpen={isCreditNoteOpen} onClose={handleCloseCreditModal} salesReturnId={salesReturnId} />
       
       <div className="h-full">
-        {/* Header Section */}
-        <div className="mb-4 shadow-md bg-white p-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
+        {/* Header Section - Responsive */}
+        <div className="mb-4 shadow-md bg-white p-3 md:p-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-start justify-between md:block">
                 <div>
-                  <h1 className="text-2xl lg:text-2xl font-bold text-gray-900">Sales Return Management</h1>
-                  <p className="text-sm text-gray-600 mt-1">Manage product returns, track returned inventory, and generate credit notes</p>
+                  <h1 className="text-xl md:text-2xl font-bold text-gray-900">Sales Returns</h1>
+                  <p className="text-xs md:text-sm text-gray-600 mt-1 hidden md:block">
+                    Manage product returns, track returned inventory, and generate credit notes
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1 md:hidden">
+                    Manage returns and credit notes
+                  </p>
+                </div>
+                
+                {/* Mobile header actions */}
+                <div className="md:hidden">
+                  <button
+                    onClick={openAddModal}
+                    disabled={isLoading}
+                    className="p-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    title="New Return"
+                  >
+                    <Plus size={18} />
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Sync and Refresh buttons */}
+            {/* Desktop header actions */}
+            <div className="hidden md:flex items-center gap-3">
               <div className="flex gap-2">
                 {(searchTerm || startDate || endDate) && (
                   <button
@@ -1290,65 +1401,72 @@ const SalesReturnManagement = ({ role }) => {
           </div>
         </div>
 
+        {/* Mobile header actions menu */}
+        <MobileHeaderActions />
+
         {/* Statistics Cards */}
         {statistics && <StatisticsCards />}
 
-        {/* Search and Filter Bar */}
-        <div className="bg-white rounded-lg border border-gray-200 mb-6 p-2 ml-3 mr-3">
-          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-            <div className="w-full lg:w-[45%]">
+        {/* Search and Filter Bar - Responsive */}
+        <div className="bg-white rounded-lg border border-gray-200 mb-6 p-3 mx-1 md:mx-3">
+          <div className="flex flex-col gap-4">
+            {/* Search input - full width on mobile */}
+            <div className="w-full">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 md:w-5 md:h-5" />
                 <input
                   type="text"
                   placeholder="Search by transaction ID, reason, product..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                  className="w-full pl-9 md:pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
                 />
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-[90%] ml-6 items-start sm:items-center">
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
-                  />
+            {/* Date filters and view toggle - responsive layout */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <div className="flex-1 sm:flex-none">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full sm:w-40 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                    />
+                  </div>
+                  <div className="flex-1 sm:flex-none">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full sm:w-40 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* View mode toggle in filter section */}
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
-                  title="Grid View"
-                >
-                  <Grid3x3 size={18} />
-                </button>
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`p-2 rounded transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
-                  title="Table View"
-                >
-                  <Table2 size={18} />
-                </button>
+              {/* View mode toggle - desktop only (mobile is in MobileHeaderActions) */}
+              <div className="hidden md:flex items-center gap-2">
+                <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                    title="Grid View"
+                  >
+                    <Grid3x3 size={18} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`p-2 rounded transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                    title="Table View"
+                  >
+                    <Table2 size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1356,37 +1474,38 @@ const SalesReturnManagement = ({ role }) => {
 
         {/* Main Content */}
         {isLoading && !isRefreshing ? (
-          <div className="text-center py-16">
-            <div className="inline-flex flex-col items-center gap-4">
+          <div className="text-center py-12 md:py-16">
+            <div className="inline-flex flex-col items-center gap-3 md:gap-4">
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-                <ReturnIcon className="w-8 h-8 text-primary-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                <div className="w-12 h-12 md:w-16 md:h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <ReturnIcon className="w-6 h-6 md:w-8 md:h-8 text-primary-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
               </div>
               <div>
-                <p className="text-lg font-medium text-gray-900 mb-2">Loading Sales Returns</p>
-                <p className="text-sm text-gray-600">Please wait while we fetch your return data...</p>
+                <p className="text-base md:text-lg font-medium text-gray-900 mb-1 md:mb-2">Loading Sales Returns</p>
+                <p className="text-xs md:text-sm text-gray-600">Please wait while we fetch your return data...</p>
               </div>
             </div>
           </div>
         ) : filteredSalesReturns.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
-            <div className="max-w-md mx-auto">
-              <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <ReturnIcon className="w-12 h-12 text-blue-600" />
+          <div className="text-center py-12 md:py-16 bg-white rounded-lg border border-gray-200 mx-2 md:mx-0">
+            <div className="max-w-md mx-auto px-4">
+              <div className="w-16 h-16 md:w-24 md:h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6">
+                <ReturnIcon className="w-8 h-8 md:w-12 md:h-12 text-blue-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">No Sales Returns Found</h3>
-              <p className="text-gray-600 mb-6">
+              <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2 md:mb-3">No Sales Returns Found</h3>
+              <p className="text-xs md:text-sm text-gray-600 mb-4 md:mb-6">
                 {searchTerm || startDate || endDate 
-                  ? 'Try adjusting your search or date filters to find what you\'re looking for.' 
+                  ? 'Try adjusting your search or date filters.' 
                   : 'Get started by processing your first sales return.'}
               </p>
               {!(searchTerm || startDate || endDate) && (
                 <button
                   onClick={openAddModal}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"
+                  className="inline-flex items-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors text-sm md:text-base"
                 >
-                  <Plus size={18} />
-                  Process First Return
+                  <Plus size={16} className="md:hidden" />
+                  <Plus size={18} className="hidden md:block" />
+                  <span>Process First Return</span>
                 </button>
               )}
             </div>
@@ -1395,6 +1514,8 @@ const SalesReturnManagement = ({ role }) => {
           <>
             {viewMode === 'grid' ? (
               <GridView />
+            ) : viewMode === 'card' ? (
+              <CardView />
             ) : (
               <>
                 <CardView />
