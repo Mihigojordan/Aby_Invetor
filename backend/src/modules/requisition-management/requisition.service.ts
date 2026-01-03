@@ -271,7 +271,7 @@ export class RequisitionService {
       if (approvalData.qtyApproved === 0) {
         itemStatus = ItemStatus.REJECTED;
       } else {
-        itemStatus = ItemStatus.APPROVED;
+        itemStatus = ItemStatus.REVIEWED;
         hasApprovedItems = true;
       }
 
@@ -304,7 +304,7 @@ export class RequisitionService {
       if (allRejected) {
         newStatus = RequisitionStatus.REJECTED;
       } else if (anyApproved) {
-        newStatus = RequisitionStatus.APPROVED;
+        newStatus = RequisitionStatus.REVIEWED;
       }
     }
 

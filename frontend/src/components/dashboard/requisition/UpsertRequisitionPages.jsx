@@ -1,14 +1,15 @@
 // src/pages/RequisitionForm.jsx
 import React, { useState, useEffect } from 'react';
 import {
-  ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle, X
+  ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle, X,
+  Edit2
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import requisitionService from '../../../services/requisitionService';
 import { usePartnerAuth } from '../../../context/PartnerAuthContext';
 
 const RequisitionForm = ({ requisitionId = null, onSuccess, onCancel }) => {
-  const { user: partner } = usePartnerAuth(); // Assuming context provides user object with id
+  const {  partner } = usePartnerAuth(); // Assuming context provides user object with id
   const navigate = useNavigate();
 
   const [originalData, setOriginalData] = useState(null); // To track changes in edit mode

@@ -301,6 +301,7 @@ enum UserType {
 
 enum RequisitionStatus {
   PENDING              // Just created, awaiting review
+  REVIEWED
   APPROVED             // All reviewed, at least one approved
   REJECTED             // All items rejected
   PARTIALLY_FULFILLED  // Some approved items delivered
@@ -310,6 +311,7 @@ enum RequisitionStatus {
 
 enum ItemStatus {
   PENDING              // Awaiting employee review
+  REVIEWED 
   APPROVED             // Approved by employee
   REJECTED             // Rejected by employee
   PARTIALLY_FULFILLED  // Some quantity delivered
