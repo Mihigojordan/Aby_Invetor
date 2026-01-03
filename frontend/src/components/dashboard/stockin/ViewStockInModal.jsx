@@ -121,7 +121,7 @@ const ViewStockInModal = ({ isOpen, onClose, stockIn }) => {
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Total Price</label>
                     <p className="text-3xl font-bold text-green-600">
-                      {formatPrice(stockIn.totalPrice)}
+                      {formatPrice(stockIn.price * stockIn.quantity)}
                     </p>
                   </div>
                   <div className="sm:col-span-2">

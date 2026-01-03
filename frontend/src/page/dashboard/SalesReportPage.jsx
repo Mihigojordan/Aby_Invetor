@@ -35,7 +35,6 @@ import {
   Award,
   Star,
   CreditCard,
-  Menu,
 } from 'lucide-react';
 import stockOutService from '../../services/stockoutService';
 import Swal from 'sweetalert2';
@@ -66,8 +65,6 @@ const SalesReportPage = ({role}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const navigate = useNavigate();
   const [stats, setStats] = useState([
@@ -117,22 +114,6 @@ const SalesReportPage = ({role}) => {
       color: 'text-green-600'
     }
   ]);
-
-  // Check if mobile on mount and resize
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      // Auto-switch to card view on mobile
-      if (window.innerWidth < 768 && viewMode !== 'card') {
-        setViewMode('card');
-      }
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const fetchSalesData = async () => {
     try {
@@ -580,7 +561,6 @@ const SalesReportPage = ({role}) => {
     setStartDate('');
     setEndDate('');
     setCurrentPeriod('today');
-    setShowMobileFilters(false);
   };
 
   const totalPages = Math.ceil(filteredSalesData.length / itemsPerPage);
@@ -590,7 +570,7 @@ const SalesReportPage = ({role}) => {
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = isMobile ? 3 : 5;
+    const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
     if (endPage - startPage < maxVisiblePages - 1) {
@@ -603,21 +583,21 @@ const SalesReportPage = ({role}) => {
   };
 
   const StatisticsCards = () => (
-    <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4'} mb-2 p-3`}>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-2 p-3">
       {stats.map((stat, index) => (
         <div
           key={index}
-          className={`bg-white rounded-lg shadow-sm border border-gray-200 ${isMobile ? 'p-2' : 'p-4'} hover:shadow-md transition-shadow cursor-pointer`}
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
           onClick={() => stat.path && navigate(stat.path)}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium text-gray-600`}>{stat.title}</p>
-              <p className={`${isMobile ? 'text-sm' : 'text-lg'} font-bold text-gray-900 truncate`}>{stat.value}</p>
-              <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-500 mt-1 truncate`}>{stat.change}</p>
+              <p className="text-xs font-medium text-gray-600">{stat.title}</p>
+              <p className="text-lg font-bold text-gray-900">{stat.value}</p>
+              <p className="text-xs text-gray-500 mt-1">{stat.change}</p>
             </div>
-            <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} ${stat.bgColor} rounded-lg flex items-center justify-center`}>
-              <stat.icon className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} ${stat.color}`} />
+            <div className={`w-10 h-10 ${stat.bgColor} rounded-lg flex items-center justify-center`}>
+              <stat.icon className={`w-5 h-5 ${stat.color}`} />
             </div>
           </div>
         </div>
@@ -626,34 +606,34 @@ const SalesReportPage = ({role}) => {
   );
 
   const PeriodCards = () => (
-    <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-1 md:grid-cols-3 gap-4'} mb-2 ${isMobile ? 'px-3' : 'ml-3 mr-3'} -mt-3`}>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2 ml-3 mr-3 -mt-3">
       {['today', 'week', 'month'].map((period) => (
         <div
           key={period}
-          className={`bg-white rounded-lg border ${isMobile ? 'p-3' : 'p-4'} hover:shadow-md transition-shadow cursor-pointer ${
+          className={`bg-white rounded-lg border p-4 hover:shadow-md transition-shadow cursor-pointer ${
             currentPeriod === period ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200'
           }`}
           onClick={() => setCurrentPeriod(period)}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium text-gray-600`}>
+              <p className="text-xs font-medium text-gray-600">
                 {period === 'today' ? 'Today' : period === 'week' ? 'This Week' : 'This Month'}
               </p>
-              <p className={`${isMobile ? 'text-sm' : 'text-lg'} font-bold text-gray-900 truncate`}>
+              <p className="text-lg font-bold text-gray-900">
                 {currentPeriod === period ? formatPrice(periodStats.totalSales) : 'Click to view'}
               </p>
-              <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-500 mt-1`}>
+              <p className="text-xs text-gray-500 mt-1">
                 {currentPeriod === period ? `${periodStats.totalQuantity} units sold` : `${period === 'today' ? 'Today\'s' : period === 'week' ? 'Weekly' : 'Monthly'} performance`}
               </p>
               {currentPeriod === period && (
-                <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-1 font-medium ${periodStats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-xs mt-1 font-medium ${periodStats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   Profit: {formatPrice(periodStats.totalProfit)}
                 </p>
               )}
             </div>
-            <div className={`${isMobile ? 'p-1.5' : 'p-2'} rounded-lg bg-blue-50`}>
-              <Calendar className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-blue-600`} />
+            <div className="p-2 rounded-lg bg-blue-50">
+              <Calendar className="w-5 h-5 text-blue-600" />
             </div>
           </div>
         </div>
@@ -662,9 +642,9 @@ const SalesReportPage = ({role}) => {
   );
 
   const PaginationComponent = () => (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-3 border-t border-gray-200 bg-white">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-gray-200 bg-white">
       <div className="flex items-center gap-4">
-        <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-600`}>
+        <p className="text-xs text-gray-600">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredSalesData.length)} of {filteredSalesData.length} entries
         </p>
       </div>
@@ -673,21 +653,21 @@ const SalesReportPage = ({role}) => {
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className={`flex items-center gap-1 ${isMobile ? 'px-2 py-1.5' : 'px-3 py-2'} ${isMobile ? 'text-[10px]' : 'text-xs'} border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
               currentPage === 1
                 ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <ChevronLeft size={isMobile ? 10 : 12} />
-            {!isMobile && 'Previous'}
+            <ChevronLeft size={12} />
+            Previous
           </button>
           <div className="flex items-center gap-1 mx-2">
             {getPageNumbers().map((page) => (
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`${isMobile ? 'px-2 py-1.5 text-[10px]' : 'px-3 py-2 text-xs'} rounded-md transition-colors ${
+                className={`px-3 py-2 text-xs rounded-md transition-colors ${
                   currentPage === page
                     ? 'bg-primary-600 text-white'
                     : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
@@ -700,14 +680,14 @@ const SalesReportPage = ({role}) => {
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 ${isMobile ? 'px-2 py-1.5' : 'px-3 py-2'} ${isMobile ? 'text-[10px]' : 'text-xs'} border rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-3 py-2 text-xs border rounded-md transition-colors ${
               currentPage === totalPages
                 ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
           >
-            {!isMobile && 'Next'}
-            <ChevronRight size={isMobile ? 10 : 12} />
+            Next
+            <ChevronRight size={12} />
           </button>
         </div>
       )}
@@ -715,7 +695,7 @@ const SalesReportPage = ({role}) => {
   );
 
   const GridView = () => (
-    <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'} mb-6 px-3 sm:px-0`}>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
       {(currentItems || []).map((stockOut, index) => {
         const profit = calculateProfit(stockOut);
         const isProfit = profit > 0;
@@ -725,42 +705,42 @@ const SalesReportPage = ({role}) => {
             key={stockOut.id || stockOut.localId}
             className={`bg-white rounded-lg border hover:shadow-md transition-all duration-200 ${stockOut.synced ? 'border-gray-200' : 'border-yellow-200'}`}
           >
-            <div className={isMobile ? 'p-3' : 'p-4'}>
+            <div className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-blue-50 rounded-lg flex items-center justify-center`}>
-                    <ShoppingCart size={isMobile ? 14 : 16} className="text-blue-600" />
+                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <ShoppingCart size={16} className="text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-gray-900 truncate`}>
+                    <h3 className="font-semibold text-sm text-gray-900 truncate">
                       {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
                     </h3>
                     <div className="flex items-center gap-1 mt-1">
-                      <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                      <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-500`}>{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
+                      <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                      <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className={`${isMobile ? 'space-y-1.5' : 'space-y-2'} mb-3`}>
+              <div className="space-y-2 mb-3">
                 <div className="flex items-center justify-between">
-                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium text-gray-600`}>Quantity:</span>
-                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-bold text-primary-600`}>{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
+                  <span className="text-xs font-medium text-gray-600">Quantity:</span>
+                  <span className="text-xs font-bold text-primary-600">{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium text-gray-600`}>Unit Price:</span>
-                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-900`}>{formatPrice(stockOut.soldPrice)}</span>
+                  <span className="text-xs font-medium text-gray-600">Unit Price:</span>
+                  <span className="text-xs text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium text-gray-600`}>Total Price:</span>
-                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-bold text-green-600`}>
+                  <span className="text-xs font-medium text-gray-600">Total Price:</span>
+                  <span className="text-xs font-bold text-green-600">
                     {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium text-gray-600`}>Profit/Loss:</span>
-                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-bold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                  <span className="text-xs font-medium text-gray-600">Profit/Loss:</span>
+                  <span className={`text-xs font-bold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                     {formatPrice(Math.abs(profit))}
                     {profit !== 0 && (
                       <span className="ml-1">{isProfit ? '↗' : '↘'}</span>
@@ -771,9 +751,9 @@ const SalesReportPage = ({role}) => {
               
               <div className="pt-3 border-t border-gray-100">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={isMobile ? 10 : 12} className="text-gray-400" />
-                    <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-500`}>{formatDate(stockOut.createdAt)}</span>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Calendar size={12} />
+                    <span>{formatDate(stockOut.createdAt)}</span>
                   </div>
                   <button
                     onClick={() => handleViewMoreDetails(stockOut.id)}
@@ -781,7 +761,7 @@ const SalesReportPage = ({role}) => {
                     className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="View Details"
                   >
-                    <Eye size={isMobile ? 12 : 14} />
+                    <Eye size={14} />
                   </button>
                 </div>
               </div>
@@ -793,20 +773,20 @@ const SalesReportPage = ({role}) => {
   );
 
   const TableView = () => (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 mx-3">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 p-3 ml-3 mr-3">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className={`${isMobile ? 'px-2 py-2 text-[10px]' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-700 uppercase tracking-wider border-b`}>Product/Transaction</th>
-              <th className={`${isMobile ? 'px-2 py-2 text-[10px]' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-700 uppercase tracking-wider border-b`}>Client</th>
-              <th className={`${isMobile ? 'px-2 py-2 text-[10px]' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-700 uppercase tracking-wider border-b`}>Qty</th>
-              <th className={`${isMobile ? 'px-2 py-2 text-[10px]' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-700 uppercase tracking-wider border-b`}>Unit Price</th>
-              <th className={`${isMobile ? 'px-2 py-2 text-[10px]' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-700 uppercase tracking-wider border-b`}>Total</th>
-              <th className={`${isMobile ? 'px-2 py-2 text-[10px]' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-700 uppercase tracking-wider border-b`}>Profit/Loss</th>
-              {!isMobile && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>}
-              <th className={`${isMobile ? 'px-2 py-2 text-[10px]' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-700 uppercase tracking-wider border-b`}>Date</th>
-              <th className={`${isMobile ? 'px-2 py-2 text-[10px]' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-700 uppercase tracking-wider border-b`}>Actions</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Product/Transaction</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Client</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Quantity</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Unit Price</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Total Price</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Profit/Loss</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -816,71 +796,69 @@ const SalesReportPage = ({role}) => {
 
               return (
                 <tr key={stockOut.localId || stockOut.id} className="hover:bg-gray-50 transition-colors">
-                  <td className={`${isMobile ? 'px-2 py-2' : 'px-4 py-3'} whitespace-nowrap`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} bg-blue-50 rounded-lg flex items-center justify-center`}>
-                        <ShoppingCart size={isMobile ? 12 : 14} className="text-blue-600" />
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <ShoppingCart size={14} className="text-blue-600" />
                       </div>
-                      <div className="max-w-[120px]">
-                        <div className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-900 truncate`}>
-                          {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale'}
+                      <div>
+                        <div className="font-medium text-sm text-gray-900">
+                          {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
                         </div>
-                        {stockOut.transactionId && !isMobile && (
-                          <div className="text-xs text-gray-500 mt-1 truncate">{stockOut.transactionId}</div>
+                        {stockOut.transactionId && (
+                          <div className="text-xs text-gray-500 mt-1">{stockOut.transactionId}</div>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className={`${isMobile ? 'px-2 py-2' : 'px-4 py-3'} whitespace-nowrap`}>
-                    <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-900 truncate max-w-[80px] sm:max-w-[120px]`} title={stockOut.clientName}>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 truncate max-w-[120px]" title={stockOut.clientName}>
                       {stockOut.clientName || stockOut.clientPhone || 'Walk-in'}
                     </div>
                   </td>
-                  <td className={`${isMobile ? 'px-2 py-2' : 'px-4 py-3'} whitespace-nowrap`}>
-                    <div className="flex items-center gap-1">
-                      <Hash size={isMobile ? 12 : 14} className="text-gray-400" />
-                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-gray-900`}>{stockOut.offlineQuantity ?? stockOut.quantity ?? '0'}</span>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Hash size={14} className="text-gray-400" />
+                      <span className="text-sm font-semibold text-gray-900">{stockOut.offlineQuantity ?? stockOut.quantity ?? '0'}</span>
                     </div>
                   </td>
-                  <td className={`${isMobile ? 'px-2 py-2' : 'px-4 py-3'} whitespace-nowrap`}>
-                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-900`}>{formatPrice(stockOut.soldPrice)}</span>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-sm text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
                   </td>
-                  <td className={`${isMobile ? 'px-2 py-2' : 'px-4 py-3'} whitespace-nowrap`}>
-                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-green-600`}>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-sm font-semibold text-green-600">
                       {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}
                     </span>
                   </td>
-                  <td className={`${isMobile ? 'px-2 py-2' : 'px-4 py-3'} whitespace-nowrap`}>
-                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`text-sm font-semibold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                       {formatPrice(Math.abs(profit))}
                       {profit !== 0 && (
-                        <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} ml-1`}>{isProfit ? '↗' : '↘'}</span>
+                        <span className="text-xs ml-1">{isProfit ? '↗' : '↘'}</span>
                       )}
                     </span>
                   </td>
-                  {!isMobile && (
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stockOut.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                        {stockOut.synced ? 'Synced' : 'Pending'}
-                      </span>
-                    </td>
-                  )}
-                  <td className={`${isMobile ? 'px-2 py-2' : 'px-4 py-3'} whitespace-nowrap`}>
-                    <div className="flex items-center gap-1">
-                      <Calendar size={isMobile ? 12 : 14} className="text-gray-400" />
-                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>{formatDate(stockOut.createdAt)}</span>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stockOut.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                      {stockOut.synced ? 'Synced' : 'Pending'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} className="text-gray-400" />
+                      <span className="text-sm text-gray-600">{formatDate(stockOut.createdAt)}</span>
                     </div>
                   </td>
-                  <td className={`${isMobile ? 'px-2 py-2' : 'px-4 py-3'} whitespace-nowrap`}>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleViewMoreDetails(stockOut.id)}
                         disabled={loading}
-                        className={`${isMobile ? 'p-1' : 'p-2'} text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors`}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                         title="View Details"
                       >
-                        <Eye size={isMobile ? 14 : 16} />
+                        <Eye size={16} />
                       </button>
                     </div>
                   </td>
@@ -895,8 +873,8 @@ const SalesReportPage = ({role}) => {
   );
 
   const CardView = () => (
-    <div className={`${isMobile ? 'block' : 'hidden md:block'}`}>
-      <div className="grid grid-cols-1 gap-3 mb-6 px-3">
+    <div className="md:hidden">
+      <div className="grid grid-cols-1 gap-4 mb-6">
         {(currentItems || []).map((stockOut, index) => {
           const profit = calculateProfit(stockOut);
           const isProfit = profit > 0;
@@ -906,74 +884,60 @@ const SalesReportPage = ({role}) => {
               key={stockOut.localId || stockOut.id}
               className={`bg-white rounded-lg border hover:shadow-md transition-shadow ${stockOut.synced ? 'border-gray-200' : 'border-yellow-200'}`}
             >
-              <div className="p-3">
+              <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2 flex-1">
-                    <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <ShoppingCart size={14} className="text-blue-600" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                      <ShoppingCart size={16} className="text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-xs font-semibold text-gray-900 truncate">
+                      <h3 className="font-semibold text-sm text-gray-900 truncate">
                         {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
                       </h3>
-                      <div className="flex items-center justify-between mt-1">
-                        <div className="flex items-center gap-1">
-                          <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                          <span className="text-[10px] text-gray-500">{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
-                        </div>
-                        <span className="text-[10px] text-gray-500">{formatDate(stockOut.createdAt)}</span>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                        <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
                       </div>
                     </div>
                   </div>
                   <button
                     onClick={() => handleViewMoreDetails(stockOut.id)}
                     disabled={loading}
-                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors ml-2"
+                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
                     title="View Details"
                   >
                     <Eye size={14} />
                   </button>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div>
-                    <span className="text-[10px] font-medium text-gray-600">Quantity:</span>
-                    <p className="text-xs font-bold text-primary-600 mt-0.5">{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</p>
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Quantity:</span>
+                    <span className="font-bold text-primary-600">{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-gray-600">Unit Price:</span>
-                    <p className="text-xs text-gray-900 mt-0.5">{formatPrice(stockOut.soldPrice)}</p>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Unit Price:</span>
+                    <span className="text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-gray-600">Total Price:</span>
-                    <p className="text-xs font-bold text-green-600 mt-0.5">
-                      {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}
-                    </p>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Total Price:</span>
+                    <span className="font-bold text-green-600">{formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}</span>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-gray-600">Profit/Loss:</span>
-                    <p className={`text-xs font-bold mt-0.5 ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Profit/Loss:</span>
+                    <span className={`font-bold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                       {formatPrice(Math.abs(profit))}
                       {profit !== 0 && (
                         <span className="ml-1">{isProfit ? '↗' : '↘'}</span>
                       )}
-                    </p>
+                    </span>
                   </div>
                 </div>
-                
-                <div className="pt-2 border-t border-gray-100">
+                <div className="pt-3 border-t border-gray-100">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="text-[10px] font-medium text-gray-600">Client:</div>
-                      <div className="text-[10px] text-gray-900 truncate max-w-[120px]">
-                        {stockOut.clientName || stockOut.clientPhone || 'Walk-in'}
-                      </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Calendar size={12} />
+                      <span>{formatDate(stockOut.createdAt)}</span>
                     </div>
-                    {stockOut.transactionId && (
-                      <div className="text-[10px] text-gray-500 truncate max-w-[80px]">
-                        {stockOut.transactionId}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -981,141 +945,8 @@ const SalesReportPage = ({role}) => {
           );
         })}
       </div>
-      <div className="bg-white rounded-lg border border-gray-200 mx-3">
+      <div className="bg-white rounded-lg border border-gray-200">
         <PaginationComponent />
-      </div>
-    </div>
-  );
-
-  const MobileFilterModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end md:hidden">
-      <div className="bg-white w-full rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-          <button
-            onClick={() => setShowMobileFilters(false)}
-            className="p-2 text-gray-400 hover:text-gray-600"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Period</label>
-            <div className="grid grid-cols-3 gap-2">
-              {['today', 'week', 'month'].map((period) => (
-                <button
-                  key={period}
-                  onClick={() => {
-                    setCurrentPeriod(period);
-                    setShowMobileFilters(false);
-                  }}
-                  className={`py-2 text-xs rounded-lg transition-colors ${
-                    currentPeriod === period
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {period === 'today' ? 'Today' : period === 'week' ? 'Week' : 'Month'}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">View Mode</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setViewMode('card');
-                  setShowMobileFilters(false);
-                }}
-                className={`flex-1 py-2 text-xs rounded-lg transition-colors ${
-                  viewMode === 'card' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Card View
-              </button>
-              {!isMobile && (
-                <button
-                  onClick={() => {
-                    setViewMode('grid');
-                    setShowMobileFilters(false);
-                  }}
-                  className={`flex-1 py-2 text-xs rounded-lg transition-colors ${
-                    viewMode === 'grid' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Grid View
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setViewMode('table');
-                  setShowMobileFilters(false);
-                }}
-                className={`flex-1 py-2 text-xs rounded-lg transition-colors ${
-                  viewMode === 'table' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Table View
-              </button>
-            </div>
-          </div>
-          
-          <div className="pt-4 border-t border-gray-200">
-            <div className="flex gap-2">
-              <button
-                onClick={handleClearFilters}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
-              >
-                Clear All
-              </button>
-              <button
-                onClick={() => setShowMobileFilters(false)}
-                className="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Apply Filters
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -1140,94 +971,78 @@ const SalesReportPage = ({role}) => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-[90vh] overflow-x-hidden">
+     <div className=" border w-[99%]  bg-gray-50 h-[90vh]"> {/* Reduced padding */}
       {/* Notification Toast */}
-      {notification && (
+     {notification && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${isMobile ? 'text-xs' : 'text-sm'} ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm ${
             notification.type === 'success' ? 'bg-green-500 text-white' :
             notification.type === 'warning' ? 'bg-yellow-500 text-white' :
             'bg-red-500 text-white'
-          } animate-in slide-in-from-top-2 duration-300 max-w-[90vw]`}
+          } animate-in slide-in-from-top-2 duration-300`}
         >
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
-          <span className="truncate">{notification.message}</span>
+          {notification.message}
         </div>
       )}
       
-      {/* Mobile Filter Modal */}
-      {showMobileFilters && <MobileFilterModal />}
-      
       <div className="h-full">
         {/* Header Section */}
-        <div className="mb-4 shadow-sm bg-white">
-          <div className={`${isMobile ? 'p-3' : 'p-4'}`}>
-            <div className={`${isMobile ? 'block' : 'flex items-center justify-between'}`}>
-              <div className={`${isMobile ? 'mb-3' : 'flex-1'}`}>
-                <div className="flex items-center gap-3 mb-2">
-                  <div>
-                    <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-gray-900`}>Sales Report</h1>
-                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600 mt-1`}>Analytics and insights for your sales performance</p>
-                  </div>
+        <div className="mb-4 shadow-md bg-white p-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div>
+                  <h1 className="text-2xl lg:text-2xl font-bold text-gray-900">Sales Report</h1>
+                  <p className="text-sm text-gray-600 mt-1">Analytics and insights for your sales performance</p>
                 </div>
               </div>
+            </div>
 
-              <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex items-center gap-3'}`}>
-                {/* Mobile Filter Button */}
-                {isMobile && (
+            <div className="flex items-center gap-3">
+              {/* Sync and Refresh buttons */}
+              <div className="flex gap-2">
+                {(searchTerm || startDate || endDate || currentPeriod !== 'today') && (
                   <button
-                    onClick={() => setShowMobileFilters(true)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm"
+                    onClick={handleClearFilters}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm text-sm"
+                    title="Clear Filters"
                   >
-                    <Filter size={16} />
-                    <span className="text-xs font-medium">Filters</span>
+                    <X size={16} />
+                    <span className="text-sm font-medium">Clear</span>
                   </button>
                 )}
                 
-                {/* Sync and Refresh buttons */}
-                <div className={`${isMobile ? 'flex gap-2' : 'flex gap-2'}`}>
-                  {(searchTerm || startDate || endDate || currentPeriod !== 'today') && !isMobile && (
-                    <button
-                      onClick={handleClearFilters}
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm text-sm"
-                      title="Clear Filters"
-                    >
-                      <X size={16} />
-                      <span className="text-sm font-medium">Clear</span>
-                    </button>
-                  )}
-                  
-                  <div
-                    className={`flex items-center justify-center gap-2 ${isMobile ? 'px-2 py-2' : 'px-3 py-2'} rounded-lg ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-                  >
-                    {isOnline ? <Wifi size={isMobile ? 14 : 16} /> : <WifiOff size={isMobile ? 14 : 16} />}
-                    {!isMobile && <span className="text-sm font-medium">{isOnline ? 'Online' : 'Offline'}</span>}
-                  </div>
-                  
-                  {isOnline && (
-                    <button
-                      onClick={refresh}
-                      disabled={isRefreshing}
-                      className={`flex items-center justify-center gap-2 ${isMobile ? 'px-2 py-2' : 'px-3 py-2'} bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50`}
-                      title="Sync now"
-                    >
-                      <RotateCcw size={isMobile ? 14 : 16} className={isRefreshing ? 'animate-spin' : ''} />
-                      {!isMobile && <span className="text-sm font-medium">Sync</span>}
-                    </button>
-                  )}
-                  
-                  {isOnline && !isMobile && (
-                    <button
-                      onClick={refresh}
-                      disabled={isRefreshing}
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
-                      title="Refresh"
-                    >
-                      <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                      <span className="text-sm font-medium">Refresh</span>
-                    </button>
-                  )}
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                >
+                  {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+                  <span className="text-sm font-medium">{isOnline ? 'Online' : 'Offline'}</span>
                 </div>
+                
+                {isOnline && (
+                  <button
+                    onClick={refresh}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    title="Sync now"
+                  >
+                    <RotateCcw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                    <span className="text-sm font-medium">Sync</span>
+                  </button>
+                )}
+                
+                {isOnline && (
+                  <button
+                    onClick={refresh}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    title="Refresh"
+                  >
+                    <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                    <span className="text-sm font-medium">Refresh</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1236,112 +1051,94 @@ const SalesReportPage = ({role}) => {
         {/* Statistics Cards */}
         {stats && <StatisticsCards />}
 
-        {/* Search and Filter Bar - Hidden on mobile when filters modal is shown */}
-        {!isMobile && (
-          <div className="bg-white rounded-lg border border-gray-200 mb-6 mx-3 p-3">
-            <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-              <div className="w-full lg:w-[45%]">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        {/* Search and Filter Bar */}
+        <div className="bg-white rounded-lg border border-gray-200 mb-6 p-2 ml-3 mr-3">
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+            <div className="w-full lg:w-[45%]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search by product, client, or transaction..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-[90%] ml-6 items-start sm:items-center">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
                   <input
-                    type="text"
-                    placeholder="Search by product, client, or transaction..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-xs"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
                   />
                 </div>
               </div>
-              
-              <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-[90%] items-start sm:items-center">
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
+            </div>
 
-              {/* View mode toggle in filter section */}
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
-                    title="Grid View"
-                  >
-                    <Grid3x3 size={18} />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('table')}
-                    className={`p-2 rounded transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
-                    title="Table View"
-                  >
-                    <Table2 size={18} />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('card')}
-                    className={`p-2 rounded transition-colors ${viewMode === 'card' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
-                    title="Card View"
-                  >
-                    <FileText size={18} />
-                  </button>
-                </div>
+            {/* View mode toggle in filter section */}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                  title="Grid View"
+                >
+                  <Grid3x3 size={18} />
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-2 rounded transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                  title="Table View"
+                >
+                  <Table2 size={18} />
+                </button>
               </div>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Period Cards */}
         <PeriodCards />
 
         {/* Main Content */}
         {filteredSalesData.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-lg border border-gray-200 mx-3">
+          <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
             <div className="max-w-md mx-auto">
-              <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6`}>
-                <ShoppingCart className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} text-blue-600`} />
+              <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <ShoppingCart className="w-12 h-12 text-blue-600" />
               </div>
-              <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-gray-900 mb-3`}>No Sales Data Found</h3>
-              <p className={`${isMobile ? 'text-sm' : 'text-base'} text-gray-600 mb-6 px-4`}>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">No Sales Data Found</h3>
+              <p className="text-gray-600 mb-6">
                 {searchTerm || startDate || endDate || currentPeriod !== 'today'
                   ? 'Try adjusting your search, date filters, or period selection.'
                   : 'No sales transactions found for the selected period.'}
               </p>
-              {(searchTerm || startDate || endDate || currentPeriod !== 'today') && (
-                <button
-                  onClick={handleClearFilters}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors text-sm"
-                >
-                  Clear All Filters
-                </button>
-              )}
             </div>
           </div>
         ) : (
           <>
             {viewMode === 'grid' ? (
               <GridView />
-            ) : viewMode === 'table' ? (
-              <>
-                {isMobile ? <CardView /> : <TableView />}
-              </>
             ) : (
-              <CardView />
+              <>
+                <CardView />
+                <TableView />
+              </>
             )}
           </>
         )}

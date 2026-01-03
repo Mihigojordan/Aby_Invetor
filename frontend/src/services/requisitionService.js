@@ -99,11 +99,11 @@ class RequisitionService {
     }
   }
 
-  async overrideItemPrice(itemId, priceOverride) {
+  async overridePricesAndApproveRequisition(id, priceOverride) {
     try {
       const response = await api.put(
-        `/requisition/item/${itemId}/price`,
-        { priceOverride }
+        `/requisition/item/${id}/price`,
+        { items: priceOverride }
       );
       return response.data;
     } catch (error) {

@@ -4,20 +4,19 @@ import {
   Plus, Eye, Trash2, Search, ChevronLeft, ChevronRight,
   AlertTriangle, XCircle, X, RefreshCw,
   Grid3X3, List, Package, Truck, Clock, AlertOctagon, Edit, CheckCircle,
-  Menu, X as CloseIcon
+  Menu, X as CloseIcon, Eye as EyeIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import requisitionService from '../../services/requisitionService';
 import { format } from 'date-fns';
 import { useSocketEvent } from '../../context/SocketContext';
+import useScreenBelow from '../../hooks/useScreenBelow';
 
-const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
- 
+const RequisitionDashboard = ({ role }) => {
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-
   const isPartner = role === 'partner';
   const isEmployee = role === 'employee';
   const isAdmin = role === 'admin';
@@ -30,47 +29,33 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [viewMode, setViewMode] = useState('grid'); // 'table' | 'grid' | 'list' - default to grid for mobile
+  const [viewMode, setViewMode] = useState('grid');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [rejectConfirm, setRejectConfirm] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [operationStatus, setOperationStatus] = useState(null);
   const [operationLoading, setOperationLoading] = useState(false);
 
-  // Handle responsive behavior
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      
-      // On mobile, default to grid view and hide menu if screen gets larger
-      if (mobile && viewMode === 'table') {
-        setViewMode('grid');
-      }
-      if (!mobile) {
-        setShowMobileMenu(false);
-      }
-    };
+  const isBelow = useScreenBelow();
 
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initial check
-    
-    return () => window.removeEventListener('resize', handleResize);
-  }, [viewMode]);
+  useEffect(() => {
+    if (isBelow) {
+      setViewMode('grid');
+    } else {
+      setViewMode('table');
+    }
+  }, [isBelow]);
 
   // Socket updates
   useSocketEvent('requisitionCreated', (newReq) => {
     setAllRequisitions(prev => [...prev, newReq]);
   }, []);
-
   useSocketEvent('requisitionUpdated', (updated) => {
     setAllRequisitions(prev => prev.map(r => r.id === updated.id ? updated : r));
   }, []);
-
   useSocketEvent('requisitionCancelled', (updated) => {
     setAllRequisitions(prev => prev.map(r => r.id === updated.id ? updated : r));
   }, []);
-
   useSocketEvent('requisitionDeleted', ({ id }) => {
     setAllRequisitions(prev => prev.filter(r => r.id !== id));
   }, []);
@@ -150,10 +135,11 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
     }
   };
 
-  // Status badge
+  // Status badge configuration - now includes REVIEWED
   const getStatusConfig = (status) => {
     const config = {
       PENDING: { bg: 'bg-yellow-100', txt: 'text-yellow-800', icon: Clock, label: 'Pending' },
+      REVIEWED: { bg: 'bg-purple-100', txt: 'text-purple-800', icon: EyeIcon, label: 'Reviewed' },
       APPROVED: { bg: 'bg-blue-100', txt: 'text-blue-800', icon: CheckCircle, label: 'Approved' },
       PARTIALLY_FULFILLED: { bg: 'bg-orange-100', txt: 'text-orange-800', icon: Package, label: 'Partially Delivered' },
       COMPLETED: { bg: 'bg-green-100', txt: 'text-green-800', icon: Truck, label: 'Completed' },
@@ -174,7 +160,7 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
     );
   };
 
-  // Actions - Mobile optimized
+  // Actions
   const renderActions = (req) => {
     const canUpdate = isPartner && req.status === 'PENDING';
     const canCancel = isPartner && ['PENDING', 'REJECTED'].includes(req.status);
@@ -182,7 +168,7 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
     const canApprove = isEmployee && req.status === 'PENDING';
     const canDeliver = isEmployee && ['APPROVED', 'PARTIALLY_FULFILLED'].includes(req.status);
     const canConfirm = isPartner && ['APPROVED', 'PARTIALLY_FULFILLED'].includes(req.status);
-    const canOverridePrice = isAdmin && req.status === 'APPROVED';
+    const canOverridePrice = isAdmin && req.status === 'REVIEWED';
 
     return (
       <div className="flex items-center gap-1 sm:gap-2">
@@ -190,49 +176,42 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
           className="text-gray-500 hover:text-primary-600 p-1.5 sm:p-2 rounded-full hover:bg-primary-50 transition-colors" title="View">
           <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </motion.button>
-
         {canUpdate && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => navigate(`/${role}/dashboard/requisition/update/${req.id}`)}
             className="text-gray-500 hover:text-primary-600 p-1.5 sm:p-2 rounded-full hover:bg-primary-50 transition-colors" title="Edit">
             <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </motion.button>
         )}
-
         {canDelete && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => setDeleteConfirm(req)}
             className="text-gray-500 hover:text-red-600 p-1.5 sm:p-2 rounded-full hover:bg-red-50 transition-colors" title="Delete">
             <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </motion.button>
         )}
-
         {canApprove && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => navigate(`/${role}/dashboard/requisition/approve/${req.id}`)}
             className="text-gray-500 hover:text-green-600 p-1.5 sm:p-2 rounded-full hover:bg-green-50 transition-colors" title="Approve Items">
             <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </motion.button>
         )}
-
         {canApprove && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => setRejectConfirm(req)}
             className="text-gray-500 hover:text-red-600 p-1.5 sm:p-2 rounded-full hover:bg-red-50 transition-colors" title="Reject">
             <AlertOctagon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </motion.button>
         )}
-
         {canDeliver && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => navigate(`/${role}/dashboard/requisition/deliver/${req.id}`)}
             className="text-gray-500 hover:text-orange-600 p-1.5 sm:p-2 rounded-full hover:bg-orange-50 transition-colors" title="Deliver Items">
             <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </motion.button>
         )}
-
         {canOverridePrice && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => navigate(`/${role}/dashboard/requisition/override-price/${req.id}`)}
             className="text-gray-500 hover:text-purple-600 p-1.5 sm:p-2 rounded-full hover:bg-purple-50 transition-colors" title="Override Price">
             <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </motion.button>
         )}
-
         {canConfirm && (
           <motion.button whileHover={{ scale: 1.1 }} onClick={() => navigate(`/${role}/dashboard/requisition/confirm/${req.id}`)}
             className="text-gray-500 hover:text-indigo-600 p-1.5 sm:p-2 rounded-full hover:bg-indigo-50 transition-colors" title="Confirm Receipt">
@@ -256,7 +235,6 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
     let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
     const endPage = Math.min(totalPages, startPage + maxVisible - 1);
     if (endPage - startPage + 1 < maxVisible) startPage = Math.max(1, endPage - maxVisible + 1);
-
     for (let i = startPage; i <= endPage; i++) pages.push(i);
 
     return (
@@ -388,6 +366,15 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
     </div>
   );
 
+  // Stats - now includes REVIEWED
+  const stats = {
+    total: allRequisitions.length,
+    pending: allRequisitions.filter(r => r.status === 'PENDING').length,
+    reviewed: allRequisitions.filter(r => r.status === 'REVIEWED').length,
+    partial: allRequisitions.filter(r => r.status === 'PARTIALLY_FULFILLED').length,
+    completed: allRequisitions.filter(r => r.status === 'COMPLETED').length,
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       {/* Mobile Menu Overlay */}
@@ -442,7 +429,7 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
         )}
       </AnimatePresence>
 
-      {/* Header - Responsive */}
+      {/* Header */}
       <div className="sticky top-0 bg-white shadow-md z-30">
         <div className="px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
@@ -460,7 +447,7 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
                 <p className="text-xs text-gray-500 hidden xs:block">Create, view and manage requisitions</p>
               </div>
             </div>
-            
+
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center space-x-3">
               <motion.button whileHover={{ scale: 1.05 }} onClick={loadData} disabled={loading}
@@ -478,7 +465,7 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
               )}
             </div>
 
-            {/* Mobile Actions (small buttons) */}
+            {/* Mobile Actions */}
             <div className="flex md:hidden items-center gap-2">
               <button
                 onClick={loadData}
@@ -502,46 +489,21 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
         </div>
       </div>
 
-      {/* Stats - Responsive */}
+      {/* Stats Cards - now includes REVIEWED */}
       <div className="px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow border border-gray-100 p-3 sm:p-4">
             <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="p-2 sm:p-3 bg-primary-50 rounded-full flex items-center justify-center">
-                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-primary-600" />
+              <div className="p-2 sm:p-3 bg-gray-50 rounded-full flex items-center justify-center">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-600">Total</p>
-                <p className="text-lg sm:text-xl font-semibold text-gray-900">{allRequisitions.length}</p>
+                <p className="text-lg sm:text-xl font-semibold text-gray-900">{stats.total}</p>
               </div>
             </div>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow border border-gray-100 p-3 sm:p-4">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="p-2 sm:p-3 bg-green-50 rounded-full flex items-center justify-center">
-                <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600">Completed</p>
-                <p className="text-lg sm:text-xl font-semibold text-gray-900">
-                  {allRequisitions.filter(r => r.status === 'COMPLETED').length}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow border border-gray-100 p-3 sm:p-4">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="p-2 sm:p-3 bg-orange-50 rounded-full flex items-center justify-center">
-                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600">Partial</p>
-                <p className="text-lg sm:text-xl font-semibold text-gray-900">
-                  {allRequisitions.filter(r => r.status === 'PARTIALLY_FULFILLED').length}
-                </p>
-              </div>
-            </div>
-          </motion.div>
+
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow border border-gray-100 p-3 sm:p-4">
             <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="p-2 sm:p-3 bg-yellow-50 rounded-full flex items-center justify-center">
@@ -549,15 +511,49 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
               </div>
               <div>
                 <p className="text-xs text-gray-600">Pending</p>
-                <p className="text-lg sm:text-xl font-semibold text-gray-900">
-                  {allRequisitions.filter(r => r.status === 'PENDING').length}
-                </p>
+                <p className="text-lg sm:text-xl font-semibold text-gray-900">{stats.pending}</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow border border-gray-100 p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="p-2 sm:p-3 bg-purple-50 rounded-full flex items-center justify-center">
+                <EyeIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Reviewed</p>
+                <p className="text-lg sm:text-xl font-semibold text-gray-900">{stats.reviewed}</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow border border-gray-100 p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="p-2 sm:p-3 bg-orange-50 rounded-full flex items-center justify-center">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Partial</p>
+                <p className="text-lg sm:text-xl font-semibold text-gray-900">{stats.partial}</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow border border-gray-100 p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="p-2 sm:p-3 bg-green-50 rounded-full flex items-center justify-center">
+                <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Completed</p>
+                <p className="text-lg sm:text-xl font-semibold text-gray-900">{stats.completed}</p>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Toolbar - Responsive */}
+        {/* Toolbar */}
         <div className="bg-white rounded-lg shadow border border-gray-100 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
             <div className="relative flex-1">
@@ -599,7 +595,6 @@ const RequisitionDashboard = ({role}) => {  // 'partner' | 'employee' | 'admin'
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-xs">{error}</div>
         )}
-
         {loading ? (
           <div className="bg-white rounded-lg shadow border border-gray-100 p-6 sm:p-8 text-center text-gray-600">
             <div className="inline-flex items-center space-x-2">

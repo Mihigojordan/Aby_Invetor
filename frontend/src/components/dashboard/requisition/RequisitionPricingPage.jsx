@@ -8,51 +8,40 @@ import { useNavigate, useParams } from 'react-router-dom';
 import requisitionService from '../../../services/requisitionService';
 import { format } from 'date-fns';
 
-// Currency formatter - default to RWF (Rwandan Francs)
-const formatCurrency = (amount, currency = 'RWF') => {
-  if (amount === null || amount === undefined || isNaN(amount)) return 'RWF 0';
-
+// RWF Currency Formatter
+const formatCurrency = (amount) => {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return 'RWF 0';
+  }
   const num = Number(amount);
   return new Intl.NumberFormat('rw-RW', {
     style: 'currency',
-    currency: currency,
+    currency: 'RWF',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 0,
   }).format(num);
 };
 
-const PriceEditModal = ({ isOpen, onClose, item, onSave }) => {
+const PriceEditModal = ({ isOpen, onClose, item, currentPrice, onPriceChange }) => {
   const [newPrice, setNewPrice] = useState('');
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen && item) {
-      const current = item.priceOverride !== null && item.priceOverride !== undefined
-        ? Number(item.priceOverride)
-        : Number(item.unitPriceAtApproval || 0);
-      setNewPrice(current.toFixed(2));
+      setNewPrice(currentPrice.toString());
       setError('');
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, currentPrice]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setError('');
     const price = parseFloat(newPrice);
     if (isNaN(price) || price < 0) {
       setError('Please enter a valid price (≥ 0)');
       return;
     }
-
-    setSaving(true);
-    try {
-      await onSave(item.id, price);
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Failed to update price');
-    } finally {
-      setSaving(false);
-    }
+    onPriceChange(item.id, price);
+    onClose();
   };
 
   const calculateChange = () => {
@@ -73,11 +62,11 @@ const PriceEditModal = ({ isOpen, onClose, item, onSave }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Override Price</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Set Final Price</h2>
               <p className="text-sm text-gray-600 mt-1">{item.itemName}</p>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -87,32 +76,30 @@ const PriceEditModal = ({ isOpen, onClose, item, onSave }) => {
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          <div className="bg-gray-50 rounded-lg p-5 space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Original Price:</span>
-              <span className="font-semibold text-gray-900">
-                {formatCurrency(originalPrice)}
-              </span>
+              <span className="font-semibold text-gray-900">{formatCurrency(originalPrice)}</span>
             </div>
             {item.priceOverride !== null && item.priceOverride !== undefined && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Current Override:</span>
-                <span className="font-semibold text-blue-600">
-                  {formatCurrency(item.priceOverride)}
-                </span>
+                <span className="font-semibold text-blue-600">{formatCurrency(item.priceOverride)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Approved Quantity:</span>
-              <span className="font-semibold text-gray-900">
-                {item.qtyApproved} units
-              </span>
+              <span className="font-semibold text-gray-900">{item.qtyApproved} units</span>
+            </div>
+            <div className="flex justify-between text-sm font-medium">
+              <span className="text-gray-700">Original Total:</span>
+              <span className="text-gray-900">{formatCurrency(totalOriginal)}</span>
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              New Unit Price
+              New Unit Price (Override)
             </label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -129,20 +116,20 @@ const PriceEditModal = ({ isOpen, onClose, item, onSave }) => {
           </div>
 
           {newPrice && !isNaN(parseFloat(newPrice)) && (
-            <div className="space-y-3">
-              <div className={`p-4 rounded-lg border-2 ${
+            <div className="space-y-4">
+              <div className={`p-5 rounded-lg border-2 ${
                 diff > 0 ? 'bg-red-50 border-red-200' :
                 diff < 0 ? 'bg-green-50 border-green-200' :
                 'bg-gray-50 border-gray-200'
               }`}>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-700">Change per Unit</span>
                   <div className="flex items-center gap-2">
                     {diff !== 0 && (
                       diff > 0 ? <TrendingUp className="w-5 h-5 text-red-600" /> :
                       <TrendingDown className="w-5 h-5 text-green-600" />
                     )}
-                    <span className={`text-lg font-bold ${
+                    <span className={`text-xl font-bold ${
                       diff > 0 ? 'text-red-600' :
                       diff < 0 ? 'text-green-600' :
                       'text-gray-600'
@@ -162,17 +149,17 @@ const PriceEditModal = ({ isOpen, onClose, item, onSave }) => {
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-5">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm text-gray-600">Total Value</p>
-                    <p className="text-xs text-gray-500">({item.qtyApproved} units)</p>
+                    <p className="text-lg font-medium text-blue-900">New Total Value</p>
+                    <p className="text-sm text-blue-700">({item.qtyApproved} units)</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-blue-900">
+                    <p className="text-3xl font-bold text-blue-900">
                       {formatCurrency(totalNew)}
                     </p>
-                    <p className={`text-sm font-medium ${
+                    <p className={`text-sm font-medium mt-2 ${
                       totalDiff > 0 ? 'text-red-600' :
                       totalDiff < 0 ? 'text-green-600' :
                       'text-gray-600'
@@ -186,37 +173,26 @@ const PriceEditModal = ({ isOpen, onClose, item, onSave }) => {
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-2">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
         </div>
 
-        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+        <div className="p-6 border-t border-gray-200 flex justify-end gap-4">
           <button
             onClick={onClose}
-            disabled={saving}
-            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !newPrice || isNaN(parseFloat(newPrice))}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-3 font-medium shadow-md"
           >
-            {saving ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-5 h-5" />
-                Save Price
-              </>
-            )}
+            <Save className="w-5 h-5" />
+            Apply Price
           </button>
         </div>
       </div>
@@ -230,9 +206,12 @@ const RequisitionPricingPage = () => {
 
   const [requisition, setRequisition] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Track pending edits before saving
+  const [editedPrices, setEditedPrices] = useState({});
   const [editModal, setEditModal] = useState({ isOpen: false, item: null });
 
   useEffect(() => {
@@ -245,8 +224,8 @@ const RequisitionPricingPage = () => {
     try {
       const data = await requisitionService.getRequisitionById(requisitionId);
 
-      if (!['APPROVED', 'PARTIALLY_FULFILLED', 'COMPLETED'].includes(data.status)) {
-        setError('Price override is only available for approved requisitions.');
+      if (!['PENDING', 'APPROVED', 'REVIEWED'].includes(data.status)) {
+        setError('Price override is only available for pending, reviewed, or approved requisitions.');
         setLoading(false);
         return;
       }
@@ -261,54 +240,83 @@ const RequisitionPricingPage = () => {
 
   const openEditModal = (item) => {
     if (item.qtyDelivered > 0) {
-      setError(`Cannot override price for "${item.itemName}" — delivery has already started (${item.qtyDelivered} delivered).`);
+      setError(`Cannot override price for "${item.itemName}" — delivery has already started.`);
+      setTimeout(() => setError(''), 6000);
+      return;
+    }
+    if (item.qtyApproved <= 0) {
+      setError(`"${item.itemName}" has no approved quantity.`);
       setTimeout(() => setError(''), 6000);
       return;
     }
 
-    setEditModal({ isOpen: true, item });
+    // Current price = pending edit > saved override > original
+    const currentPrice = editedPrices[item.id] ??
+      (item.priceOverride !== null && item.priceOverride !== undefined
+        ? Number(item.priceOverride)
+        : Number(item.unitPriceAtApproval || 0));
+
+    setEditModal({ isOpen: true, item: { ...item, currentPrice } });
   };
 
   const closeEditModal = () => {
     setEditModal({ isOpen: false, item: null });
   };
 
-  const handleSavePrice = async (itemId, priceOverride) => {
-    try {
-      await requisitionService.overrideItemPrice(itemId, priceOverride);
+  const handlePriceChange = (itemId, price) => {
+    setEditedPrices(prev => ({
+      ...prev,
+      [itemId]: price
+    }));
+  };
 
-      setRequisition(prev => ({
-        ...prev,
-        items: prev.items.map(i =>
-          i.id === itemId
-            ? { ...i, priceOverride, priceOverriddenAt: new Date().toISOString() }
-            : i
-        )
+  const handleSaveAll = async () => {
+    if (Object.keys(editedPrices).length === 0) {
+      setError('No prices have been changed.');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const items = Object.entries(editedPrices).map(([id, overriddenPrice]) => ({
+        id,
+        overriddenPrice
       }));
 
-      setSuccess('Price override saved successfully!');
-      setTimeout(() => setSuccess(''), 4000);
+      const updatedRequisition = await requisitionService.overridePricesAndApproveRequisition(
+        requisitionId,
+        items
+      );
+
+      setRequisition(updatedRequisition);
+      setEditedPrices({});
+      setSuccess('Prices overridden and requisition approved successfully!');
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
-      throw err;
+      setError(err.message || 'Failed to save prices and approve requisition');
+    } finally {
+      setSaving(false);
     }
   };
 
   const calculateTotals = () => {
     if (!requisition) return { original: 0, current: 0, savings: 0 };
 
-    const relevantItems = requisition.items.filter(i =>
-      ['APPROVED', 'PARTIALLY_FULFILLED'].includes(i.status)
-    );
+    const relevantItems = requisition.items.filter(i => i.qtyApproved > 0);
 
     const original = relevantItems.reduce((sum, item) => {
       return sum + (Number(item.unitPriceAtApproval || 0) * item.qtyApproved);
     }, 0);
 
     const current = relevantItems.reduce((sum, item) => {
-      const price = item.priceOverride !== null && item.priceOverride !== undefined
-        ? Number(item.priceOverride)
-        : Number(item.unitPriceAtApproval || 0);
-      return sum + (price * item.qtyApproved);
+      const price = editedPrices[item.id] ??
+        (item.priceOverride !== null && item.priceOverride !== undefined
+          ? Number(item.priceOverride)
+          : Number(item.unitPriceAtApproval || 0));
+      return sum + (Number(price) * item.qtyApproved);
     }, 0);
 
     const savings = original - current;
@@ -341,11 +349,12 @@ const RequisitionPricingPage = () => {
     );
   }
 
-  const approvedItems = requisition.items.filter(i =>
-    ['APPROVED', 'PARTIALLY_FULFILLED'].includes(i.status)
+  const eligibleItems = requisition.items.filter(item =>
+    item.qtyApproved > 0 && item.qtyDelivered === 0
   );
 
   const totals = calculateTotals();
+  const hasChanges = Object.keys(editedPrices).length > 0;
 
   return (
     <div className="max-h-[90vh] overflow-y-auto bg-gray-50 py-8">
@@ -358,47 +367,30 @@ const RequisitionPricingPage = () => {
           Back to Requisitions
         </button>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex justify-between items-start">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Price Management</h1>
-             
+              <h1 className="text-3xl font-bold text-gray-900">Price Override & Approval</h1>
+              <p className="text-xl text-gray-600 mt-2">{requisition.requisitionNumber}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-600">Status</p>
+              <p className="text-sm text-gray-600">Current Status</p>
               <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
-                requisition.status === 'APPROVED' ? 'bg-blue-100 text-blue-800' :
-                requisition.status === 'PARTIALLY_FULFILLED' ? 'bg-orange-100 text-orange-800' :
-                'bg-green-100 text-green-800'
+                requisition.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                requisition.status === 'REVIEWED' ? 'bg-purple-100 text-purple-800' :
+                'bg-blue-100 text-blue-800'
               }`}>
                 {requisition.status.replace('_', ' ')}
               </span>
             </div>
           </div>
-        </div>
 
-        {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
-            <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
-            <p className="text-green-800 font-medium">{success}</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
-            <AlertCircle className="w-6 h-6 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
-            <p className="text-red-700">{error}</p>
-          </div>
-        )}
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Requisition Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex gap-3">
               <User className="w-5 h-5 text-gray-400 mt-0.5" />
               <div>
                 <p className="text-sm text-gray-600">Partner</p>
-                <p className="font-medium text-gray-900">{requisition.partner?.name || 'Unknown'}</p>
+                <p className="font-medium text-gray-900">{requisition.partner?.firstname} {requisition.partner?.lastname}</p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -422,26 +414,40 @@ const RequisitionPricingPage = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-sm border border-blue-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pricing Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
-              <p className="text-sm text-gray-600 mb-1">Original Total</p>
-              <p className="text-3xl font-bold text-gray-900">{formatCurrency(totals.original)}</p>
+        {success && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-6 flex items-center shadow-sm">
+            <CheckCircle className="w-8 h-8 text-green-600 mr-4" />
+            <p className="text-lg font-medium text-green-800">{success}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-6 flex items-start shadow-sm">
+            <AlertCircle className="w-8 h-8 text-red-600 mr-4 flex-shrink-0" />
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-8 mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Pricing Summary</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <p className="text-sm text-gray-600 mb-2">Original Total</p>
+              <p className="text-4xl font-bold text-gray-900">{formatCurrency(totals.original)}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
-              <p className="text-sm text-gray-600 mb-1">Current Total</p>
-              <p className="text-3xl font-bold text-blue-600">{formatCurrency(totals.current)}</p>
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <p className="text-sm text-gray-600 mb-2">Current Total {hasChanges && '(with changes)'}</p>
+              <p className="text-4xl font-bold text-blue-600">{formatCurrency(totals.current)}</p>
             </div>
-            <div className={`bg-white rounded-lg p-4 border-2 ${
+            <div className={`bg-white rounded-xl p-6 border-2 ${
               totals.savings > 0 ? 'border-green-500 bg-green-50' :
               totals.savings < 0 ? 'border-red-500 bg-red-50' :
               'border-gray-200'
             }`}>
-              <p className="text-sm text-gray-600 mb-1">
+              <p className="text-sm text-gray-600 mb-2">
                 {totals.savings >= 0 ? 'Total Savings' : 'Total Increase'}
               </p>
-              <p className={`text-3xl font-bold ${
+              <p className={`text-4xl font-bold ${
                 totals.savings > 0 ? 'text-green-600' :
                 totals.savings < 0 ? 'text-red-600' :
                 'text-gray-600'
@@ -452,149 +458,142 @@ const RequisitionPricingPage = () => {
           </div>
         </div>
 
-        {approvedItems.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Items to Price</h3>
-            <p className="text-gray-600">There are no approved items in this requisition.</p>
+        {eligibleItems.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-16 text-center">
+            <Package className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+            <h3 className="text-2xl font-semibold text-gray-900 mb-3">No Items Eligible for Pricing</h3>
+            <p className="text-gray-600">All items are either not approved or delivery has started.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Approved Items</h2>
-            {approvedItems.map((item) => {
-              const currentPrice = item.priceOverride !== null && item.priceOverride !== undefined
-                ? Number(item.priceOverride)
-                : Number(item.unitPriceAtApproval || 0);
-              const originalPrice = Number(item.unitPriceAtApproval || 0);
-              const hasOverride = item.priceOverride !== null && item.priceOverride !== undefined;
-              const priceDiff = currentPrice - originalPrice;
-              const percentChange = originalPrice > 0 ? (priceDiff / originalPrice) * 100 : 0;
-              const canEdit = item.qtyDelivered === 0;
-              const totalPrice = currentPrice * item.qtyApproved;
+          <>
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Set Final Prices</h2>
+              <div className="space-y-6">
+                {eligibleItems.map((item) => {
+                  // Current price priority: pending edit > saved override > original
+                  const currentPrice = editedPrices[item.id] ??
+                    (item.priceOverride !== null && item.priceOverride !== undefined
+                      ? Number(item.priceOverride)
+                      : Number(item.unitPriceAtApproval || 0));
 
-              return (
-                <div
-                  key={item.id}
-                  className={`bg-white rounded-lg shadow-sm border-2 p-6 transition-all ${
-                    hasOverride ? 'border-blue-300 bg-blue-50' : 'border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex gap-4 flex-1">
-                      <Package className="w-6 h-6 text-gray-400 mt-1" />
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="text-xl font-semibold text-gray-900">{item.itemName}</h3>
-                            <p className="text-sm text-gray-600 mt-1">
-                              Stock: {item.stockIn?.product?.productName || 'N/A'}
-                              {item.stockIn?.sku && ` (${item.stockIn.sku})`}
-                            </p>
-                            {item.note && (
-                              <p className="text-sm text-gray-600 mt-2 italic">"{item.note}"</p>
-                            )}
-                          </div>
-                          {!canEdit && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              Delivery Started
-                            </span>
-                          )}
-                        </div>
+                  const originalPrice = Number(item.unitPriceAtApproval || 0);
+                  const hasSavedOverride = item.priceOverride !== null && item.priceOverride !== undefined;
+                  const hasPendingEdit = editedPrices.hasOwnProperty(item.id);
+                  const isModified = hasPendingEdit || hasSavedOverride;
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">Quantity</p>
-                            <p className="text-lg font-semibold text-gray-900">{item.qtyApproved}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">Original Price</p>
-                            <p className="text-lg font-semibold text-gray-900">
-                              {formatCurrency(originalPrice)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">
-                              {hasOverride ? 'Override Price' : 'Current Price'}
-                            </p>
-                            <p className={`text-lg font-semibold ${hasOverride ? 'text-blue-600' : 'text-gray-900'}`}>
-                              {formatCurrency(currentPrice)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">Total</p>
-                            <p className="text-lg font-semibold text-gray-900">
-                              {formatCurrency(totalPrice)}
-                            </p>
-                          </div>
-                        </div>
+                  const totalPrice = currentPrice * item.qtyApproved;
 
-                        {hasOverride && (
-                          <div className={`p-3 rounded-lg border ${
-                            priceDiff > 0 ? 'bg-red-50 border-red-200' :
-                            priceDiff < 0 ? 'bg-green-50 border-green-200' :
-                            'bg-gray-50 border-gray-200'
-                          }`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {priceDiff !== 0 && (
-                                  priceDiff > 0 ? <TrendingUp className="w-5 h-5 text-red-600" /> :
-                                  <TrendingDown className="w-5 h-5 text-green-600" />
-                                )}
-                                <span className="text-sm font-medium text-gray-700">
-                                  Price {priceDiff > 0 ? 'Increased' : priceDiff < 0 ? 'Decreased' : 'Unchanged'}
-                                </span>
-                              </div>
-                              <div className="text-right">
-                                <span className={`text-lg font-bold ${
-                                  priceDiff > 0 ? 'text-red-600' :
-                                  priceDiff < 0 ? 'text-green-600' :
-                                  'text-gray-600'
-                                }`}>
-                                  {priceDiff > 0 ? '+' : ''}{formatCurrency(priceDiff)}
-                                </span>
-                                <span className={`text-sm ml-2 ${
-                                  priceDiff > 0 ? 'text-red-700' :
-                                  priceDiff < 0 ? 'text-green-700' :
-                                  'text-gray-700'
-                                }`}>
-                                  ({percentChange > 0 ? '+' : ''}{percentChange.toFixed(1)}%)
-                                </span>
-                              </div>
-                            </div>
-                            {item.priceOverriddenAt && (
-                              <p className="text-xs text-gray-600 mt-2">
-                                Last updated: {format(new Date(item.priceOverriddenAt), 'dd MMM yyyy, hh:mm a')}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => openEditModal(item)}
-                      disabled={!canEdit}
-                      className={`ml-4 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                        canEdit
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  return (
+                    <div
+                      key={item.id}
+                      className={`bg-white rounded-xl shadow-sm border-2 p-8 transition-all ${
+                        isModified ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
                       }`}
                     >
-                      <Edit2 className="w-4 h-4" />
-                      {hasOverride ? 'Edit Price' : 'Set Price'}
-                    </button>
-                  </div>
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex gap-5 flex-1">
+                          <Package className="w-8 h-8 text-gray-400 mt-1" />
+                          <div className="flex-1">
+                            <h3 className="text-2xl font-bold text-gray-900">{item.itemName}</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {item.stockIn?.product?.productName || 'Unknown Product'}
+                              {item.stockIn?.sku && ` • SKU: ${item.stockIn.sku}`}
+                            </p>
+                            {item.note && (
+                              <p className="text-sm text-gray-600 mt-3 italic">"{item.note}"</p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-3 font-medium shadow-md"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                          {isModified ? 'Edit Price' : 'Set Price'}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 bg-gray-50 rounded-xl">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Approved Quantity</p>
+                          <p className="text-2xl font-bold text-gray-900">{item.qtyApproved}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Original Unit Price</p>
+                          <p className="text-2xl font-bold text-gray-900">{formatCurrency(originalPrice)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">
+                            {isModified ? 'Final Unit Price' : 'Current Unit Price'}
+                          </p>
+                          <p className={`text-2xl font-bold ${isModified ? 'text-blue-600' : 'text-gray-900'}`}>
+                            {formatCurrency(currentPrice)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Total Value</p>
+                          <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalPrice)}</p>
+                        </div>
+                      </div>
+
+                      {isModified && (
+                        <div className="mt-6 p-5 bg-blue-100 border border-blue-300 rounded-lg">
+                          <p className="text-sm font-medium text-blue-900">
+                            {hasPendingEdit
+                              ? '✓ Price modified — will be saved when you click "Save All"'
+                              : '✓ Price has been overridden'}
+                          </p>
+                          {item.priceOverriddenAt && (
+                            <p className="text-xs text-blue-700 mt-1">
+                              Last updated: {format(new Date(item.priceOverriddenAt), 'dd MMM yyyy, hh:mm a')}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    {hasChanges ? `${Object.keys(editedPrices).length} price(s) changed` : 'No changes made'}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Saving will override prices and approve the requisition
+                  </p>
                 </div>
-              );
-            })}
-          </div>
+                <button
+                  onClick={handleSaveAll}
+                  disabled={!hasChanges || saving}
+                  className="px-10 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-4 font-semibold text-lg shadow-lg"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      Saving & Approving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-6 h-6" />
+                      Save All Prices & Approve Requisition
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         <PriceEditModal
           isOpen={editModal.isOpen}
           onClose={closeEditModal}
           item={editModal.item}
-          onSave={handleSavePrice}
+          currentPrice={editModal.item?.currentPrice || 0}
+          onPriceChange={handlePriceChange}
         />
       </div>
     </div>

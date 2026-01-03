@@ -44,7 +44,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     },
     {
       key: "employee-list",
-      label: "Employee List",
+      label: "Employee Management",
       icon: Users,
       path: "/admin/dashboard/employee",
     },
@@ -69,13 +69,13 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     
     {
       key: "product-list",
-      label: "Product List",
+      label: "Product Management",
       icon: Package,
       path: "/admin/dashboard/product",
     },
     {
       key: "category-management",
-      label: "Category List",
+      label: "Category Management",
       icon: FolderTree,
       path: "/admin/dashboard/category",
     },
@@ -87,7 +87,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     },
     {
       key: "stockout-movement",
-      label: "Stock Out List",
+      label: "Stock Out Management",
       icon: ArrowUp,
       path: "/admin/dashboard/stockout",
     },

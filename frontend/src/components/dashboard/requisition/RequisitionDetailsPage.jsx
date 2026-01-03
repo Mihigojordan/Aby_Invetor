@@ -26,6 +26,7 @@ const formatCurrency = (amount) => {
 const StatusBadge = ({ status, size = 'default' }) => {
   const configs = {
     PENDING: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending Review' },
+    REVIEWED: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Reviewed' },
     APPROVED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Approved' },
     REJECTED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Rejected' },
     PARTIALLY_FULFILLED: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Partially Fulfilled' },
@@ -110,7 +111,7 @@ const DeliveryHistoryCard = ({ delivery }) => {
   );
 };
 
-const ItemDetailsCard = ({ item, role }) => {
+const ItemDetailsCard = ({ item, role, showPrices }) => {
   const [expanded, setExpanded] = useState(false);
 
   const currentPrice = Number(item.priceOverride ?? item.unitPriceAtApproval ?? 0);
@@ -118,13 +119,16 @@ const ItemDetailsCard = ({ item, role }) => {
   const profit = currentPrice - costPrice;
   const profitMargin = costPrice > 0 ? (profit / costPrice) * 100 : 0;
 
-  const isApproved = item.status !== 'REJECTED';
+  // Individual item price visibility: hide if item is in restricted status
+  const shouldShowItemPrices = showPrices && !['PENDING', 'REJECTED', 'CANCELLED'].includes(item.status);
 
   return (
     <div className={`border-2 rounded-lg p-6 transition-all ${
       item.status === 'FULFILLED' ? 'bg-green-50 border-green-300' :
       item.status === 'REJECTED' ? 'bg-red-50 border-red-300' :
       item.status === 'PARTIALLY_FULFILLED' ? 'bg-blue-50 border-blue-300' :
+      item.status === 'REVIEWED' ? 'bg-purple-50 border-purple-300' :
+      item.status === 'CANCELLED' ? 'bg-gray-50 border-gray-300' :
       'bg-white border-gray-200'
     }`}>
       {/* Header */}
@@ -166,8 +170,8 @@ const ItemDetailsCard = ({ item, role }) => {
         </div>
       </div>
 
-      {/* Pricing (only for approved items) */}
-      {isApproved && (
+      {/* Pricing Section */}
+      {shouldShowItemPrices && (
         <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
           <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <DollarSign className="w-5 h-5" />
@@ -327,7 +331,6 @@ const ItemDetailsCard = ({ item, role }) => {
 
 const RequisitionDetailsPage = ({ role = 'employee' }) => {
   const { id: requisitionId } = useParams();
-
   const [requisition, setRequisition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -349,10 +352,19 @@ const RequisitionDetailsPage = ({ role = 'employee' }) => {
     }
   };
 
-  const calculateTotals = () => {
-    if (!requisition) return { revenue: 0, cost: 0, profit: 0, profitMargin: 0 };
+  // Determine if prices should be visible
+  const isPartner = role === 'partner';
+  const allowedStatuses = ['APPROVED', 'PARTIALLY_FULFILLED', 'FULFILLED', 'COMPLETED'];
+  const showPrices = isPartner
+    ? requisition && allowedStatuses.includes(requisition.status)
+    : true; // Employee/Admin always see prices
 
-    const approvedItems = requisition.items.filter(i => i.status !== 'REJECTED');
+  const calculateTotals = () => {
+    if (!requisition || !showPrices) return { revenue: 0, cost: 0, profit: 0, profitMargin: 0 };
+
+    const approvedItems = requisition.items.filter(i =>
+      !['PENDING', 'REJECTED', 'CANCELLED'].includes(i.status)
+    );
 
     const revenue = approvedItems.reduce((sum, item) => {
       const price = Number(item.priceOverride ?? item.unitPriceAtApproval ?? 0);
@@ -401,11 +413,11 @@ const RequisitionDetailsPage = ({ role = 'employee' }) => {
 
   const totals = calculateTotals();
 
-  const approvedCount = requisition.items.filter(i => 
+  const approvedCount = requisition.items.filter(i =>
     ['APPROVED', 'PARTIALLY_FULFILLED', 'FULFILLED'].includes(i.status)
   ).length;
 
-  const fulfilledCount = requisition.items.filter(i => 
+  const fulfilledCount = requisition.items.filter(i =>
     i.status === 'FULFILLED' || i.status === 'PARTIALLY_FULFILLED'
   ).length;
 
@@ -413,7 +425,7 @@ const RequisitionDetailsPage = ({ role = 'employee' }) => {
 
   return (
     <div className="bg-gray-50 py-8 max-h-[90vh] overflow-y-auto">
-      <div className=" mx-auto px-4">
+      <div className="mx-auto px-4">
         {/* Back Button */}
         <button
           onClick={() => window.history.back()}
@@ -428,7 +440,7 @@ const RequisitionDetailsPage = ({ role = 'employee' }) => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Requisition Details</h1>
-             
+              <p className="text-2xl text-gray-600 mt-2">{requisition.requisitionNumber}</p>
             </div>
             <StatusBadge status={requisition.status} />
           </div>
@@ -577,8 +589,8 @@ const RequisitionDetailsPage = ({ role = 'employee' }) => {
           </div>
         </div>
 
-        {/* Financial Summary - Admin Only */}
-        {role === 'admin' && (
+        {/* Financial Summary - Only for admin & when prices are allowed */}
+        {role === 'admin' && showPrices && (
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg shadow-sm border border-green-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-green-600" />
@@ -622,7 +634,12 @@ const RequisitionDetailsPage = ({ role = 'employee' }) => {
           <h2 className="text-xl font-bold text-gray-900 mb-4">Requisition Items</h2>
           <div className="space-y-4">
             {requisition.items.map((item) => (
-              <ItemDetailsCard key={item.id} item={item} role={role} />
+              <ItemDetailsCard
+                key={item.id}
+                item={item}
+                role={role}
+                showPrices={showPrices}
+              />
             ))}
           </div>
         </div>
@@ -641,7 +658,6 @@ const RequisitionDetailsPage = ({ role = 'employee' }) => {
                 <Download className="w-5 h-5" />
                 Export PDF
               </button>
-             
             </div>
           </div>
         </div>
