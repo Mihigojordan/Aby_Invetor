@@ -174,22 +174,32 @@ const StockOutManagement = ({ role }) => {
       const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
       const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
       const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
-      const combinedStockOuts = allStockOuts
-        .filter(so => !deleteIds.has(so.id))
-        .map(so => ({
-          ...so,
-          ...updateMap.get(so.id),
-          synced: true,
-          stockin: stockinMap.get(so.stockinId),
-          backorder: backOrderMap.get(so.backorderId)
-        }))
-        .concat(offlineAdds.map(a => ({
-          ...a,
-          synced: false,
-          backorder: backOrderMap.get(a.backorderLocalId),
-          stockin: stockinMap.get(a.stockinId)
-        })))
-        .sort((a, b) => a.synced - b.synced);
+     const combinedStockOuts = allStockOuts
+  .filter(so => !deleteIds.has(so.id))
+  .map(so => ({
+    ...so,
+    ...updateMap.get(so.id),
+    synced: true,
+    stockin: stockinMap.get(so.stockinId),
+    backorder: backOrderMap.get(so.backorderId)
+  }))
+  .concat(
+    offlineAdds.map(a => ({
+      ...a,
+      synced: false,
+      backorder: backOrderMap.get(a.backorderLocalId),
+      stockin: stockinMap.get(a.stockinId)
+    }))
+  )
+  .sort((a, b) => {
+    // 1️⃣ Unsynced first
+    if (a.synced !== b.synced) {
+      return a.synced - b.synced;
+    }
+
+    // 2️⃣ Then sort by date
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
 
       const convertedStockIns = Array.from(stockinMap.values());
 
@@ -951,6 +961,7 @@ const StockOutManagement = ({ role }) => {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Client</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Quantity</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Unit Price</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Payment Method</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Total Price</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Date</th>
@@ -993,6 +1004,9 @@ const StockOutManagement = ({ role }) => {
                   <span className="text-sm font-semibold text-green-600">
                     {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}
                   </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                 {stockOut.paymentMethod}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stockOut.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>

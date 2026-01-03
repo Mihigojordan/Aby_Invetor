@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { RequisitionStatus, ItemStatus } from 'generated/prisma';
+import { RequisitionStatus, ItemStatus } from '@prisma/client';
 
 @Injectable()
 export class RequisitionService {
@@ -322,47 +322,86 @@ export class RequisitionService {
   // ============================================================================
   // ADMIN PRICE OVERRIDE
   // ============================================================================
-  async overridePrice(
-    itemId: string,
-    priceOverride: number,
-  ) {
-    const item = await this.prisma.requisitionItem.findUnique({
-      where: { id: itemId },
-    });
+async   overridePricesAndApproveRequisition(
+  requisitionId: string,
+  items: { id: string; overriddenPrice: number }[],
+) {
+  // 1. Get requisition with items
+  const requisition = await this.prisma.requisition.findUnique({
+    where: { id: requisitionId },
+    include: { items: true },
+  });
+
+  if (!requisition) {
+    throw new NotFoundException('Requisition not found');
+  }
+
+  if (requisition.status === 'COMPLETED') {
+    throw new ForbiddenException('Cannot modify a completed requisition');
+  }
+
+  if (!items || items.length === 0) {
+    throw new BadRequestException('No items provided');
+  }
+
+  // 2. Validate items
+  for (const payloadItem of items) {
+    const item = requisition.items.find(i => i.id === payloadItem.id);
 
     if (!item) {
-      throw new NotFoundException('Item not found');
-    }
-
-    if (!item.qtyApproved || item.qtyApproved === 0) {
-      throw new ForbiddenException('Can only override price for approved items');
-    }
-
-    if (item.qtyDelivered > 0) {
-      throw new ForbiddenException(
-        'Cannot override price after delivery has started'
+      throw new BadRequestException(
+        `Item ${payloadItem.id} does not belong to this requisition`
       );
     }
 
-    if (priceOverride < 0) {
-      throw new BadRequestException('Price cannot be negative');
+    if (!item.qtyApproved || item.qtyApproved <= 0) {
+      throw new ForbiddenException(
+        `Item ${item.id} is not approved`
+      );
     }
 
-    return this.prisma.requisitionItem.update({
-      where: { id: itemId },
+    if (item.qtyDelivered && item.qtyDelivered > 0) {
+      throw new ForbiddenException(
+        `Cannot override price after delivery has started`
+      );
+    }
+
+    if (payloadItem.overriddenPrice < 0) {
+      throw new BadRequestException(
+        `Invalid price for item ${item.id}`
+      );
+    }
+  }
+
+  // 3. Transaction: update items + requisition
+  return this.prisma.$transaction(async (tx) => {
+    // Update items
+    for (const payloadItem of items) {
+      await tx.requisitionItem.update({
+        where: { id: payloadItem.id },
+        data: {
+          priceOverride: payloadItem.overriddenPrice,
+          priceOverriddenAt: new Date(),
+          status: 'APPROVED', // if you have item status
+        },
+      });
+    }
+
+    // Update requisition status
+    const updatedRequisition = await tx.requisition.update({
+      where: { id: requisitionId },
       data: {
-        priceOverride,
-        priceOverriddenAt: new Date(),
+        status: 'APPROVED',
       },
       include: {
-        requisition: {
-          include: {
-            items: true,
-          },
-        },
+        items: true,
       },
     });
-  }
+
+    return updatedRequisition;
+  });
+}
+
 
   // ============================================================================
   // DELIVERY/RECEIVING

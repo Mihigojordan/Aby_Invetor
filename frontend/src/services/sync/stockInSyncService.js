@@ -450,7 +450,8 @@ async syncStockIns(skipLocalFetch) {
             supplier: serverStockIn.supplier,
             sku: serverStockIn.sku,
             barcodeUrl: serverStockIn.barcodeUrl,
-            lastModified: new Date(),
+            lastModified: serverStockIn.createdAt,
+            createdAt: serverStockIn.createdAt,
             updatedAt: serverStockIn.updatedAt || new Date()
           });
         }

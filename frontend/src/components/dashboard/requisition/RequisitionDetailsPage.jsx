@@ -424,8 +424,8 @@ const RequisitionDetailsPage = ({ role = 'employee' }) => {
   const rejectedCount = requisition.items.filter(i => i.status === 'REJECTED').length;
 
   return (
-    <div className="bg-gray-50 py-8 min-h-screen">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className="bg-gray-50 py-8 max-h-[90vh] overflow-y-auto">
+      <div className="mx-auto px-4">
         {/* Back Button */}
         <button
           onClick={() => window.history.back()}

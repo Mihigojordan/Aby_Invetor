@@ -159,19 +159,41 @@ const StockInManagement = ({ role }) => {
       ]);
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-      const combinedStockIns = allStockIns
-        .filter(s => !deleteIds.has(s.id))
-        .map(s => ({
-          ...s,
-          ...updateMap.get(s.id),
-          synced: true,
-          product: productData.find(p => p.id === s.productId) || { productName: 'Unknown Product' }
-        }))
-        .concat(offlineAdds.map(a => ({
-          ...a,
-          synced: false,
-          product: productData.find(p => p.id === a.productId || p.localId === a.productId) || { productName: 'Unknown Product' }
-        }))).sort((a, b) => a.synced - b.synced);
+  const combinedStockIns = allStockIns
+  .filter(s => !deleteIds.has(s.id))
+  .map(s => ({
+    ...s,
+    ...updateMap.get(s.id),
+    synced: true,
+    product:
+      productData.find(p => p.id === s.productId) ??
+      { productName: 'Unknown Product' }
+  }))
+  .concat(
+    offlineAdds.map(a => ({
+      ...a,
+      synced: false,
+      product:
+        productData.find(
+          p => p.id === a.productId || p.localId === a.productId
+        ) ??
+        { productName: 'Unknown Product' }
+    }))
+  )
+  .sort((a, b) => {
+    // 1️⃣ Unsynced first
+    if (a.synced !== b.synced) {
+      return a.synced - b.synced;
+    }
+
+    // 2️⃣ Then by date
+    return (
+      new Date(b.createdAt || b.lastModified) -
+      new Date(a.createdAt || a.lastModified)
+    );
+  });
+
+        ;
       setStockIns(combinedStockIns);
       setFilteredStockIns(combinedStockIns);
       if (showRefreshLoader) {

@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RequisitionService } from './requisition.service';
-import { RequisitionStatus } from 'generated/prisma';
+import { RequisitionStatus } from '@prisma/client';
 
 // Adjust these imports based on your auth setup
 import { DualAuthGuard, RequestWithAuth } from 'src/guards/dual-auth.guard';
@@ -175,14 +175,14 @@ export class RequisitionController {
   @Put('item/:itemId/price')
   async overridePrice(
     @Param('itemId') itemId: string,
-    @Body('priceOverride') priceOverride: number,
+    @Body('items') items: any,
     @Req() req: RequestWithAuth
   ) {
     if (!req.admin) {
       throw new UnauthorizedException('Only admin can override prices');
     }
 
-    return this.service.overridePrice(itemId, priceOverride);
+    return this.service.overridePricesAndApproveRequisition(itemId, items );
   }
 
   // ============================================================================
