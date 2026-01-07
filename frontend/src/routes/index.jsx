@@ -59,6 +59,12 @@ import RequisitionDeliverPage from "../components/dashboard/requisition/Requisit
 import RequisitionPricingPage from "../components/dashboard/requisition/RequisitionPricingPage";
 import RequisitionDetailsPage from "../components/dashboard/requisition/RequisitionDetailsPage";
 import PartnerConfirmReceiptPage from "../components/dashboard/requisition/PartnerConfirmReceiptPage";
+import StockRequisitionDashboard from "../page/dashboard/StockRequistionManagement";
+import CreateStockRequisition from "../components/dashboard/stock-requisition/CreateRequisition";
+import ApproveStockRequisition from "../components/dashboard/stock-requisition/ApproveRequisition";
+import UpdateStockRequisition from "../components/dashboard/stock-requisition/UpdateRequistion";
+import ReceiveStockRequisition from "../components/dashboard/stock-requisition/ReceiveRequisition";
+import ViewStockRequisition from "../components/dashboard/stock-requisition/RequisitionDetailView";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -354,6 +360,33 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                             {
+                                path: "stock-requisition",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <StockRequisitionDashboard role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "stock-requisition/approve/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ApproveStockRequisition role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "stock-requisition/view/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ViewStockRequisition role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     }
                 ]
@@ -625,7 +658,43 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                            {
+                                path: "stock-requisition",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <StockRequisitionDashboard role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
 
+                            },
+                            {
+                                path: "stock-requisition/create",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <CreateStockRequisition role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            
+                            {
+                                path: "stock-requisition/receive/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ReceiveStockRequisition role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                            {
+                                path: "stock-requisition/view/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ViewStockRequisition role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
 
                         ]
                     }

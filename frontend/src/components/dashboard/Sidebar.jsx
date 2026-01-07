@@ -22,6 +22,7 @@ import {
   TrendingUp,
   BarChart3,
   Clipboard,
+  ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -103,6 +104,12 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           path: "/admin/dashboard/requisition",
           icon: Clipboard,
         },
+       {
+          key: "stock-requisition-management",
+          label: "Stock Requisition Management",
+          path: "/admin/dashboard/stock-requisition",
+          icon: ClipboardList,
+        },
     {
       key: "sales-report",
       label: "Sales Report",
@@ -175,6 +182,13 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
            taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
           path: "/employee/dashboard/requisition",
           icon: Clipboard,
+        },
+         {
+          key: "stock-requisition-management",
+          label: "Stock Requisition Management",
+          path: "/employee/dashboard/stock-requisition",
+          taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
+          icon: ClipboardList,
         },
     {
       key: "employee_reports",

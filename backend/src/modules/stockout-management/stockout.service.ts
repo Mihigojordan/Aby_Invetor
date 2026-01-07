@@ -149,7 +149,7 @@ async create(data: {
             adminId,
             employeeId,
             transactionId,
-            paymentMethod,
+            paymentMethod:paymentMethod || 'CASH',
             backorderId: backorder.backOrder.id
           },
         });

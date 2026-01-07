@@ -21,6 +21,7 @@ import { PartnerModule } from './modules/partner-management/partner.module';
 import { NotificationModule } from './modules/notifications/notification.module';
 import { PushNotificationsModule } from './modules/push-notification/push-notification.module';
 import { RequisitionModule } from './modules/requisition-management/requisition.module';
+import { StockRequisitionModule } from './modules/stock-requisition/stock-requisition.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { RequisitionModule } from './modules/requisition-management/requisition.
     PushNotificationsModule,
     NotificationModule,
     RequisitionModule,
+    StockRequisitionModule,
   ],
   controllers: [AppController],
   providers: [],

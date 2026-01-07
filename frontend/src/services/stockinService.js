@@ -101,6 +101,19 @@ async createMultipleStockIn(purchasesArray, userInfo = {}) {
       throw new Error(error.response?.data?.message || error.message || 'Failed to fetch stock-ins');
     }
   }
+  /**
+   * Get all stock-in entries
+   * @returns {Promise<Array>} Array of stock-in entries with product details
+   */
+  async getAllStockInsWithCategoies() {
+    try {
+      const response = await api.get('/stockin/all/categories');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching all stock-ins:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to fetch stock-ins');
+    }
+  }
 
   /**
    * Get a single stock-in entry by ID

@@ -54,6 +54,10 @@ model Employee {
     // Requisition relations
   approvedItems         RequisitionItem[]           @relation("ItemApprover")
   deliveriesCreated     RequisitionItemDelivery[]   @relation("DeliveryCreator")
+
+
+  stockRequisition StockRequisition[]
+   receivingLogs   ReceivingLog[]
 }
 
 enum Status {
@@ -112,6 +116,7 @@ model StockIn {
   employee     Employee?  @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   stockout     StockOut[]
    requisitionItems RequisitionItem[]   // Link to requisitions
+   stockRequisitionItem StockRequisitionItem[]
 
 }
 
@@ -133,6 +138,7 @@ model StockOut {
   admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   salesReturnItems SalesReturnItem[]
+  requisitionItemDelivery RequisitionItemDelivery[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -331,6 +337,7 @@ model Requisition {
   // Notes
   partnerNote       String?             // Partner's overall request note
   approvalSummary   String?             // Employee's summary of decisions
+  transactionId   String?             
   
   // Timestamps
   createdAt         DateTime            @default(now())
@@ -405,6 +412,7 @@ model RequisitionItem {
 model RequisitionItemDelivery {
   id                  String            @id @default(uuid())
   requisitionItemId   String
+  stockoutId      String?
   
   qtyDelivered        Int               // Quantity in this delivery
   deliveryNote        String?           // Delivery notes
@@ -422,8 +430,95 @@ model RequisitionItemDelivery {
   requisitionItem     RequisitionItem   @relation(fields: [requisitionItemId], references: [id], onDelete: Cascade)
   createdBy           Employee          @relation("DeliveryCreator", fields: [createdById], references: [id])
   confirmedBy         Partner?          @relation(fields: [confirmedByPartnerId], references: [id])
+  stockout         StockOut?          @relation(fields: [stockoutId], references: [id])
+
+
   
   // Indexes
   @@index([requisitionItemId])
   @@index([createdAt])
+}
+
+
+enum StockRequisitionStatus {
+  PENDING
+  APPROVED
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+  REJECTED
+  COMPLETED
+}
+
+enum StockReceivingStatus {
+  NOT_RECEIVED
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+}
+
+model StockRequisition {
+  id            String            @id @default(cuid())
+
+  employeeId    String
+  status        StockRequisitionStatus @default(PENDING)
+
+  description   String?
+  rejectReason  String?
+
+  // Approval
+  approvedAt    DateTime?
+
+
+  // Completion (when ALL items are fully received)
+  completedAt   DateTime?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // Relations
+   employee      Employee          @relation(fields: [employeeId], references: [id])
+  items         StockRequisitionItem[]
+ 
+}
+
+model StockRequisitionItem {
+  id              String           @id @default(cuid())
+  requisitionId   String
+  stockId         String?          // Null if item doesn't exist in stock yet
+
+  itemName        String
+  quantity        Float            // Requested amount
+
+    note            String?
+
+  // Receiving tracking
+  receivedQty     Float            @default(0)
+  receivingStatus StockReceivingStatus  @default(NOT_RECEIVED)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  categoryId     String?
+  sellingPrice   String?
+  price         String?
+  
+
+
+  // Relations
+  requisition     StockRequisition      @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  stock           StockIn?           @relation(fields: [stockId], references: [id])
+  receivingLogs   ReceivingLog[]
+}
+
+// Track each receiving transaction
+model ReceivingLog {
+  id                String          @id @default(cuid())
+  requisitionItemId String
+  receivedQty       Float
+  receivedById      String
+  receivedAt        DateTime        @default(now())
+  note              String?
+
+  // Relations
+  requisitionItem   StockRequisitionItem @relation(fields: [requisitionItemId], references: [id], onDelete: Cascade)
+  receivedBy        Employee        @relation(fields: [receivedById], references: [id])
 }

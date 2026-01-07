@@ -376,7 +376,7 @@ const RequisitionDashboard = ({ role }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
+    <div className="max-h-[90vh] overflow-y-auto bg-gray-100 font-sans">
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {showMobileMenu && (

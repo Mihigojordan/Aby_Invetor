@@ -360,7 +360,7 @@ const PartnerConfirmReceiptPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="max-h-[90vh] overflow-y-auto bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading your deliveries...</p>
@@ -371,7 +371,7 @@ const PartnerConfirmReceiptPage = () => {
 
   if (error && !requisition) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-h-[90vh] overflow-y-auto bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-md">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <p className="text-xl font-semibold text-gray-900 mb-2">Access Denied</p>
@@ -388,7 +388,7 @@ const PartnerConfirmReceiptPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="max-h-[90vh] overflow-y-auto bg-gray-50 py-8">
       <div className=" mx-auto px-4">
         {/* Back */}
         <button

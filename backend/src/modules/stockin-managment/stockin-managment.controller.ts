@@ -20,6 +20,10 @@ export class StockinManagmentController {
   async getAllStockIns() {
     return await this.stockInService.getAll();
   }
+  @Get('all/categories')
+  async getAllWithCategories() {
+    return await this.stockInService.getAllWithCategories();
+  }
 
   @Get('getone/:id')
   async getStockInById(@Param('id') id: string) {

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RequisitionStatus, ItemStatus } from '@prisma/client';
+import { generateStockSKU } from 'src/common/utils/generate-sku.util';
 
 @Injectable()
 export class RequisitionService {
@@ -420,9 +421,13 @@ async   overridePricesAndApproveRequisition(
       include: { items: true },
     });
 
+
+
     if (!requisition) {
       throw new NotFoundException('Requisition not found');
     }
+
+
 
     if (
       requisition.status !== RequisitionStatus.APPROVED &&
@@ -439,6 +444,18 @@ async   overridePricesAndApproveRequisition(
     if (!employee) {
       throw new BadRequestException('Employee not found');
     }
+
+
+    let transactionId = requisition?.transactionId ;
+
+if (!transactionId) {
+  transactionId = generateStockSKU('abyride', 'transaction');
+
+  await this.prisma.requisition.update({
+    where: { id: requisitionId },
+    data: { transactionId },
+  });
+}
 
     // Process each delivery
     for (const delivery of deliveries) {
@@ -468,15 +485,65 @@ async   overridePricesAndApproveRequisition(
         );
       }
 
+
+      const stockInId = item.stockInId;
+if (!stockInId) {
+  throw new BadRequestException(`No stock assigned for item ${item.itemName}`);
+}
+
+// Find existing stockout for this requisition item
+let stockout = await this.prisma.stockOut.findFirst({
+  where: {
+    stockinId: stockInId,
+    transactionId,
+    employeeId,
+  },
+});
+
+// Reduce stock (atomic)
+await this.prisma.stockIn.updateMany({
+  where: {
+    id: stockInId,
+    quantity: { gte: delivery.qtyDelivered },
+  },
+  data: {
+    quantity: { decrement: delivery.qtyDelivered },
+  },
+});
+
+// Create or update stockout
+if (stockout) {
+  stockout = await this.prisma.stockOut.update({
+    where: { id: stockout.id },
+    data: {
+      quantity: { increment: delivery.qtyDelivered },
+    },
+  });
+} else {
+  stockout = await this.prisma.stockOut.create({
+    data: {
+      stockinId:stockInId,
+      quantity: delivery.qtyDelivered,
+      soldPrice: Number(item.unitPriceAtApproval),
+      employeeId,
+      transactionId,
+      paymentMethod: 'CASH',
+    },
+  });
+}
+
+
       // Create delivery record
-      await this.prisma.requisitionItemDelivery.create({
-        data: {
-          requisitionItemId: item.id,
-          qtyDelivered: delivery.qtyDelivered,
-          deliveryNote: delivery.deliveryNote,
-          createdById: employeeId,
-        },
-      });
+   await this.prisma.requisitionItemDelivery.create({
+  data: {
+    requisitionItemId: item.id,
+    qtyDelivered: delivery.qtyDelivered,
+    deliveryNote: delivery.deliveryNote,
+    createdById: employeeId,
+    stockoutId: stockout.id,
+  },
+});
+
 
       // Update item status
       let itemStatus: ItemStatus;

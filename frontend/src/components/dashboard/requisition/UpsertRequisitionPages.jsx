@@ -235,7 +235,7 @@ const RequisitionForm = ({ requisitionId = null, onSuccess, onCancel }) => {
 
   if (fetching) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="max-h-[90vh] overflow-y-auto bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading requisition...</p>
@@ -245,7 +245,7 @@ const RequisitionForm = ({ requisitionId = null, onSuccess, onCancel }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="max-h-[90vh] overflow-y-auto bg-gray-50 py-8">
       <div className=" mx-auto px-4">
         {/* Header */}
         <div className="mb-8">

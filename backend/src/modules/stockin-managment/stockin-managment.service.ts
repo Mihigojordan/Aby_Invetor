@@ -105,6 +105,17 @@ export class StockinManagmentService {
       },
     });
   }
+  async getAllWithCategories() {
+    return this.prisma.stockIn.findMany({
+      include: {
+        product: {
+          include:{
+            category:true
+          }
+        },
+      },
+    });
+  }
 
   async update(
     id: string,
