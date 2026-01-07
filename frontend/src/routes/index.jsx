@@ -676,7 +676,15 @@ const routes = createBrowserRouter([
                                 )
 
                             },
-                            
+                             {
+                                path: "stock-requisition/update/:id",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <UpdateStockRequisition role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                             {
                                 path: "stock-requisition/receive/:id",
                                 element: (
