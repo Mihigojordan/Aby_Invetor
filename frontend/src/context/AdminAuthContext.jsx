@@ -2,8 +2,11 @@ import { createContext, useContext, useEffect, useState } from "react";
 import adminAuthService from "../services/adminAuthService";
 import { adminOfflineAuthService } from "../services/offline-auth/adminOfflineAuthService";
 import { useNetworkStatusContext } from "./useNetworkContext";
-    import { decrypt } from "../utils/Encryption";
+import { decrypt } from "../utils/Encryption";
 import { db } from "../db/database"; // your Dexie db
+import pushNotificationService from "../services/pushNotificationService";
+import { getClientDescription } from "../stores/detectDevice";
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const AdminAuthContext = createContext({
     user: null,
@@ -14,7 +17,12 @@ export const AdminAuthContext = createContext({
     isAuthenticated: false,
     isLocked: false,
     isLoading: true,
-    isOfflineMode: false
+    isOfflineMode: false,
+    subscribeToNotifications: async () => {},
+    unsubscribeFromNotifications: async () => {},
+    unsubscribeAllDevices: async () => {},
+    getSubscriptions: async () => [],
+    isSubscribedToNotifications: false,
 })
 
 // localStorage keys
@@ -67,6 +75,7 @@ export const AdminAuthContextProvider = ({ children }) => {
     const [isLocked, setIsLocked] = useState(() => getStoredValue(AUTH_STORAGE_KEYS.IS_LOCKED, false))
     const [isOfflineMode, setIsOfflineMode] = useState(() => getStoredValue(AUTH_STORAGE_KEYS.IS_OFFLINE_MODE, false))
     const [isLoading, setIsLoading] = useState(true)
+    const [isSubscribedToNotifications, setIsSubscribedToNotifications] = useState(false)
 
     // Helper function to update state and localStorage
     const updateAuthState = (authData) => {
@@ -83,6 +92,11 @@ export const AdminAuthContextProvider = ({ children }) => {
         setIsLocked(lockStatus)
         setIsOfflineMode(offlineMode || false)
 
+        // Reset notification subscription status when logging out
+        if (!authStatus) {
+            setIsSubscribedToNotifications(false)
+        }
+
         // Update localStorage
         if (userData) {
             setStoredValue(AUTH_STORAGE_KEYS.USER, userData)
@@ -95,80 +109,270 @@ export const AdminAuthContextProvider = ({ children }) => {
         setStoredValue(AUTH_STORAGE_KEYS.IS_OFFLINE_MODE, offlineMode || false)
     }
 
+    // 🔧 Helper function to convert VAPID key
+    const urlBase64ToUint8Array = (base64String) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+    };
 
-
-const reAuthWhenOnline = async () => {
-  if (!isOnline) return;
-
-  try {
-    try {
-        console.log("Checking backend auth state...");
-        const response = await adminAuthService.getAdminProfile();
-        // If already authenticated on backend → stop
-        if (response && response.id) {
-          console.log("Already authenticated online ✅");
-          return;
+    // 🔔 Subscribe to push notifications (only when online)
+    const subscribeToNotifications = async (label) => {
+        if (!user?.id) {
+            throw new Error('Admin must be logged in to subscribe');
         }
-    } catch (error) {
-        
-    }
 
+        if (!isOnline) {
+            throw new Error('Must be online to subscribe to notifications');
+        }
 
-    // Otherwise → try to re-login using IndexedDB stored credentials
-    console.log("Not authenticated, attempting re-login from IndexedDB...");
+        try {
+            // 1. Check if browser supports notifications
+            if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+                throw new Error('Push notifications not supported in this browser');
+            }
 
-    const storedUser = getStoredValue(AUTH_STORAGE_KEYS.USER);
-    if (!storedUser || !storedUser.id || !storedUser?.isOffline) {
-      console.warn("No stored user found in localStorage");
-      return;
-    }
+            // 2. Request permission
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                throw new Error('Notification permission denied');
+            }
 
-  
-    
+            // 3. Wait for service worker to be ready
+            const registration = await navigator.serviceWorker.ready;
 
-    // Fetch from IndexedDB by admin.id
-    const adminFromDB = await db.admins_all.get(storedUser.id);
-    if (!adminFromDB) {
-      console.warn("Admin not found in IndexedDB");
-      return;
-    }
+            // 4. Get VAPID public key from environment
+            const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+            if (!publicVapidKey) {
+                throw new Error('VAPID public key not configured');
+            }
 
-   
+            // 5. Subscribe to push manager
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
+            });
 
-    // Decrypt password
-    const decryptedPassword = await decrypt(storedUser.encryptedPassword);
+            // 6. Convert subscription to plain object
+            const subscriptionObject = subscription.toJSON();
+            console.log('Admin subscription:', subscription);
 
-    // Attempt online login
-    const loginResponse = await adminAuthService.adminLogin({
-      adminEmail: adminFromDB.adminEmail,
-      password: decryptedPassword
-    });
+            // 7. Send subscription to backend using push notification service
+            await pushNotificationService.subscribe(
+                user.id,
+                'ADMIN',
+                {
+                    id: '', // Will be generated by backend
+                    userId: user.id,
+                    type: 'ADMIN',
+                    endpoint: subscriptionObject.endpoint,
+                    p256dh: subscriptionObject.keys.p256dh,
+                    auth: subscriptionObject.keys.auth,
+                    label: label || `${navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'} Device`,
+                    createdAt: new Date().toISOString(),
+                },
+                label
+            );
 
-    if (loginResponse.authenticated) {
-      console.log("Re-login successful ✅");
+            setIsSubscribedToNotifications(true);
 
-      // Refresh user profile
-      const userProfile = await adminAuthService.getAdminProfile();
+            console.log('✅ Successfully subscribed to push notifications');
+            return { success: true, message: 'Successfully subscribed to notifications' };
+        } catch (error) {
+            console.error('❌ Error subscribing to notifications:', error);
+            throw new Error(error?.message || 'Failed to subscribe to notifications');
+        }
+    };
 
-      updateAuthState({
-        user: userProfile,
-        isAuthenticated: true,
-        isLocked: false,
-        isOfflineMode: false
-      });
-    }
-  } catch (error) {
-    console.error("Error in reAuthWhenOnline:", error);
-  }
-};
+    // 🔕 Unsubscribe from push notifications (current device only)
+    const unsubscribeFromNotifications = async () => {
+        if (!user?.id) {
+            throw new Error('Admin must be logged in');
+        }
 
-useEffect(() => {
-  if (isOnline) {
-    reAuthWhenOnline();
-  }
-}, [isOnline]);
+        if (!isOnline) {
+            throw new Error('Must be online to unsubscribe from notifications');
+        }
 
+        try {
+            // 1. Unsubscribe from push manager
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            
+            if (subscription) {
+                const endpoint = subscription.endpoint;
+                
+                // Unsubscribe from browser
+                await subscription.unsubscribe();
 
+                // 2. Remove subscription from backend
+                await pushNotificationService.unsubscribeDevice(
+                    user.id,
+                    'ADMIN',
+                    endpoint
+                );
+            }
+
+            setIsSubscribedToNotifications(false);
+
+            console.log('✅ Successfully unsubscribed from push notifications');
+            return { success: true, message: 'Successfully unsubscribed from notifications' };
+        } catch (error) {
+            console.error('❌ Error unsubscribing from notifications:', error);
+            throw new Error(error?.message || 'Failed to unsubscribe from notifications');
+        }
+    };
+
+    // 🔕 Unsubscribe all devices
+    const unsubscribeAllDevices = async () => {
+        if (!user?.id) {
+            throw new Error('Admin must be logged in');
+        }
+
+        if (!isOnline) {
+            throw new Error('Must be online to unsubscribe all devices');
+        }
+
+        try {
+            // Remove all subscriptions from backend
+            await pushNotificationService.unsubscribeAllDevices(
+                user.id,
+                'ADMIN'
+            );
+
+            // Also unsubscribe current device from browser
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            if (subscription) {
+                await subscription.unsubscribe();
+            }
+
+            setIsSubscribedToNotifications(false);
+
+            console.log('✅ Successfully unsubscribed all devices');
+            return { success: true, message: 'Successfully unsubscribed all devices' };
+        } catch (error) {
+            console.error('❌ Error unsubscribing all devices:', error);
+            throw new Error(error?.message || 'Failed to unsubscribe all devices');
+        }
+    };
+
+    // 📋 Get all subscriptions for current admin
+    const getSubscriptions = async () => {
+        if (!user?.id) {
+            throw new Error('Admin must be logged in');
+        }
+
+        if (!isOnline) {
+            throw new Error('Must be online to get subscriptions');
+        }
+
+        try {
+            const subscriptions = await pushNotificationService.getSubscriptions(
+                user.id,
+                'ADMIN'
+            );
+            return subscriptions;
+        } catch (error) {
+            console.error('❌ Error fetching subscriptions:', error);
+            throw new Error(error?.message || 'Failed to fetch subscriptions');
+        }
+    };
+
+    // 🔍 Check if current device is subscribed (only when online)
+    const checkSubscriptionStatus = async () => {
+        if (!user?.id || !isAuthenticated || !isOnline || isOfflineMode) return;
+
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            
+            if (subscription) {
+                // Verify with backend
+                const subscriptions = await pushNotificationService.getSubscriptions(
+                    user.id,
+                    'ADMIN'
+                );
+                
+                const isSubscribed = subscriptions.some(
+                    (sub) => sub.endpoint === subscription.endpoint
+                );
+                
+                setIsSubscribedToNotifications(isSubscribed);
+            } else {
+                setIsSubscribedToNotifications(false);
+            }
+        } catch (error) {
+            console.warn('Could not check subscription status:', error);
+            setIsSubscribedToNotifications(false);
+        }
+    };
+
+    const reAuthWhenOnline = async () => {
+        if (!isOnline) return;
+
+        try {
+            try {
+                console.log("Checking backend auth state...");
+                const response = await adminAuthService.getAdminProfile();
+                // If already authenticated on backend → stop
+                if (response && response.id) {
+                    console.log("Already authenticated online ✅");
+                    return;
+                }
+            } catch (error) {
+                // Continue to re-login attempt
+            }
+
+            // Otherwise → try to re-login using IndexedDB stored credentials
+            console.log("Not authenticated, attempting re-login from IndexedDB...");
+
+            const storedUser = getStoredValue(AUTH_STORAGE_KEYS.USER);
+            if (!storedUser || !storedUser.id || !storedUser?.isOffline) {
+                console.warn("No stored user found in localStorage");
+                return;
+            }
+
+            // Fetch from IndexedDB by admin.id
+            const adminFromDB = await db.admins_all.get(storedUser.id);
+            if (!adminFromDB) {
+                console.warn("Admin not found in IndexedDB");
+                return;
+            }
+
+            // Decrypt password
+            const decryptedPassword = await decrypt(storedUser.encryptedPassword);
+
+            // Attempt online login
+            const loginResponse = await adminAuthService.adminLogin({
+                adminEmail: adminFromDB.adminEmail,
+                password: decryptedPassword
+            });
+
+            if (loginResponse.authenticated) {
+                console.log("Re-login successful ✅");
+
+                // Refresh user profile
+                const userProfile = await adminAuthService.getAdminProfile();
+
+                updateAuthState({
+                    user: userProfile,
+                    isAuthenticated: true,
+                    isLocked: false,
+                    isOfflineMode: false
+                });
+            }
+        } catch (error) {
+            console.error("Error in reAuthWhenOnline:", error);
+        }
+    };
+
+    useEffect(() => {
+        if (isOnline) {
+            reAuthWhenOnline();
+        }
+    }, [isOnline]);
 
     const login = async (data) => {
         try {
@@ -216,14 +420,11 @@ useEffect(() => {
             
             updateAuthState({
                 user: {
-
                     ...response,
                     id: response.id,
                     adminName: response.adminName,
                     adminEmail: response.adminEmail,
                     encryptedPassword: response.encryptedPassword,
-                    
-
                     isOffline: true
                 },
                 isAuthenticated: true,
@@ -345,8 +546,6 @@ useEffect(() => {
             if (isOnline && storedAuth && !storedOfflineMode) {
                 const response = await adminAuthService.getAdminProfile()
 
-                
-
                 if (response) {
                     updateAuthState({
                         user: response,
@@ -446,6 +645,37 @@ useEffect(() => {
         }
     }, [isOnline])
 
+    // 🔍 Check subscription status when authenticated and online
+    useEffect(() => {
+        if (isAuthenticated && !isLoading && user?.id && isOnline && !isOfflineMode) {
+            checkSubscriptionStatus();
+        }
+    }, [isAuthenticated, isLoading, user?.id, isOnline, isOfflineMode]);
+
+    // 🔔 Auto-subscribe on login (only when online and not in offline mode)
+    useEffect(() => {
+        const autoSubscribe = async () => {
+            // Only run if authenticated, online, not offline mode, and not already subscribed
+            if (!isAuthenticated || isLoading || !user?.id || isSubscribedToNotifications || !isOnline || isOfflineMode) {
+                return;
+            }
+
+            // Check if admin wants auto-subscribe
+            const autoSubscribeEnabled = true;
+            const client = getClientDescription();
+            
+            if (autoSubscribeEnabled) {
+                try {
+                    await subscribeToNotifications(client.description || 'Auto-subscribed device');
+                } catch (error) {
+                    console.warn('Auto-subscribe failed:', error);
+                }
+            }
+        };
+
+        autoSubscribe();
+    }, [isAuthenticated, isLoading, user?.id, isSubscribedToNotifications, isOnline, isOfflineMode]);
+
     // Listen for online/offline events to sync when connection is restored
     useEffect(() => {
         const handleOnline = () => {
@@ -491,7 +721,12 @@ useEffect(() => {
         isLoading,
         isAuthenticated,
         isLocked,
-        isOfflineMode
+        isOfflineMode,
+        subscribeToNotifications,
+        unsubscribeFromNotifications,
+        unsubscribeAllDevices,
+        getSubscriptions,
+        isSubscribedToNotifications,
     }
 
     return (

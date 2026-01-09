@@ -7,6 +7,7 @@ import { EmployeeAuthContextProvider } from './context/EmployeeAuthContext.jsx'
 import { NetworkStatusProvider } from './context/useNetworkContext.jsx'
 import { PartnerAuthProvider } from './context/PartnerAuthContext.jsx'
 import { SocketProvider } from './context/SocketContext.jsx'
+import NotificationProvider from './context/NotificationContext.jsx'
 
 
 // // PWA Auto-Update Registration
@@ -107,9 +108,12 @@ import { SocketProvider } from './context/SocketContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
+    
      <NetworkStatusProvider retryInterval={3000}>
 
-<SocketProvider>
+<SocketProvider serverUrl={`${import.meta.env.VITE_API_URL}`} >
+
+    <NotificationProvider>
 
     <AdminAuthContextProvider>
       <EmployeeAuthContextProvider>
@@ -120,6 +124,7 @@ createRoot(document.getElementById('root')).render(
         </PartnerAuthProvider>
       </EmployeeAuthContextProvider>
     </AdminAuthContextProvider>
+    </NotificationProvider>
 </SocketProvider>
 
      </NetworkStatusProvider>

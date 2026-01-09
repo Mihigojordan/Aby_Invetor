@@ -5,6 +5,7 @@ import useAdminAuth from '../../context/AdminAuthContext'
 import useEmployeeAuth from '../../context/EmployeeAuthContext'
 import { API_URL } from '../../api/api'
 import ReactCountryFlag from 'react-country-flag'
+import NotificationBell from './notification/NotificationBell'
 
 const Header = ({ onToggle, role }) => {
   const adminAuth = useAdminAuth()
@@ -74,8 +75,7 @@ const Header = ({ onToggle, role }) => {
 
           {/* Notifications */}
           <button className="relative p-2 rounded-lg hover:bg-gray-100">
-            <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            <NotificationBell role={role} />
           </button>
 
           {/* Dark Mode */}

@@ -65,6 +65,8 @@ import ApproveStockRequisition from "../components/dashboard/stock-requisition/A
 import UpdateStockRequisition from "../components/dashboard/stock-requisition/UpdateRequistion";
 import ReceiveStockRequisition from "../components/dashboard/stock-requisition/ReceiveRequisition";
 import ViewStockRequisition from "../components/dashboard/stock-requisition/RequisitionDetailView";
+import PushNotificationPage from "../page/dashboard/PushNotificationPage";
+import NotificationsPage from "../page/dashboard/NotificationPage";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -387,6 +389,15 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                             {
+                                path: "notifications",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <NotificationsPage role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     }
                 ]
@@ -704,6 +715,16 @@ const routes = createBrowserRouter([
 
                             },
 
+                             {
+                                path: "notifications",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <NotificationsPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+
                         ]
                     }
                 ],
@@ -781,6 +802,15 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <PartnerConfirmReceiptPage role={'partner'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                         {
+                                path: "notifications",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <NotificationsPage role={'partner'} />
                                     </SuspenseWrapper>
                                 )
 

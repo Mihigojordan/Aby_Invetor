@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Shield, Eye, EyeOff, Lock, Save, BarChart3 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Shield, Eye, EyeOff, Lock, Save, BarChart3, BellDot } from 'lucide-react';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import { API_URL } from '../../api/api';
 import GeneralInformation from '../../components/dashboard/employee/GeneralInformation';
 import ChangePassword from '../../components/dashboard/employee/ChangePassword';
 import WorkPerformance from '../../components/dashboard/employee/WorkPerformance';
 import { decrypt, encrypt } from '../../utils/Encryption';
+import PushNotificationPage from './PushNotificationPage';
 
 
 const EmployeeProfile = ({}) => {
@@ -80,6 +81,11 @@ const encrypted = encrypt(secret).then(encrypted=>{
       label: 'Work Performance',
       icon: BarChart3,
     },
+    {
+      id: 'push-notification',
+      label: 'Push Notification',
+      icon: BellDot,
+    },
   ];
 
   return (
@@ -116,6 +122,7 @@ const encrypted = encrypt(secret).then(encrypted=>{
           {activeTab === 'general' && <GeneralInformation employee={employee} formatDate={formatDate} getStatusBadge={getStatusBadge} />}
           {activeTab === 'password' && <ChangePassword employee={employee} />}
           {activeTab === 'performance' && <WorkPerformance employee={employee} />}
+          {activeTab === 'push-notification' && <PushNotificationPage role={'employee'} employee={employee} />}
         </div>
       </div>
     </div>

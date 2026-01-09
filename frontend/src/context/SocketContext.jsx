@@ -22,18 +22,14 @@ export const SocketProvider = ({
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
-
-  // Default socket options
-  const defaultOptions = {
-    autoConnect: true,
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: maxReconnectAttempts,
-    timeout: 20000,
-    forceNew: true,
-    ...options
-  };
+  
+  // Store options in ref to avoid dependency issues
+  const optionsRef = useRef(options);
+  
+  // Update options ref when they change
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   // Initialize socket connection
   const initializeSocket = useCallback(() => {
@@ -41,11 +37,23 @@ export const SocketProvider = ({
       socketRef.current.disconnect();
     }
 
-    const socket = io(serverUrl, defaultOptions);
+    // Merge default options with provided options
+    const socketOptions = {
+      autoConnect: true,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: maxReconnectAttempts,
+      timeout: 20000,
+      forceNew: true,
+      ...optionsRef.current
+    };
+
+    const socket = io(serverUrl, socketOptions);
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Socket connected:', socketRef.current?.id);
+      console.log('Socket connected:', socket.id);
       setIsConnected(true);
       setConnectionError(null);
       reconnectAttemptsRef.current = 0;
@@ -90,7 +98,7 @@ export const SocketProvider = ({
     });
 
     return socket;
-  }, [serverUrl, options]); // Note: options is object, so we can't directly depend on it — consider JSON.stringify if needed
+  }, [serverUrl]); // Only depend on serverUrl (stable primitive)
 
   // Manual reconnection with exponential backoff
   const handleReconnection = useCallback(() => {
@@ -150,12 +158,14 @@ export const SocketProvider = ({
 
   // Listen to event with cleanup
   const on = useCallback((event, handler) => {
-    if (socketRef.current) {
-      socketRef.current.on(event, handler);
+    const currentSocket = socketRef.current;
+    if (currentSocket) {
+      currentSocket.on(event, handler);
       return () => {
-        socketRef.current?.off(event, handler);
+        currentSocket.off(event, handler);
       };
     }
+    return () => {}; // Return empty cleanup function if no socket
   }, []);
 
   // Remove listener
@@ -163,7 +173,7 @@ export const SocketProvider = ({
     socketRef.current?.off(event, handler);
   }, []);
 
-  // Initialize on mount
+  // Initialize on mount only
   useEffect(() => {
     const socket = initializeSocket();
 
@@ -205,13 +215,26 @@ export const useSocket = () => {
 
 // Hook for easy event listening with auto cleanup
 export const useSocketEvent = (event, handler, dependencies = []) => {
-  const { on, socket } = useSocket();
+  const { on } = useSocket();
+  const handlerRef = useRef(handler);
+  
+  // Keep handler ref up to date
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
 
   useEffect(() => {
-    if (!event || !handler) return;
-    const cleanup = on(event, handler);
+    if (!event) return;
+    
+    // Wrap handler to use the ref
+    const wrappedHandler = (...args) => {
+      handlerRef.current(...args);
+    };
+    
+    const cleanup = on(event, wrappedHandler);
     return cleanup;
-  }, [event, socket, handler, on, ...dependencies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event, on, ...dependencies]);
 };
 
 // Status display component
