@@ -49,7 +49,10 @@ class StockOutService {
     quantity: Number(stockOutData.quantity),
     soldPrice: Number(stockOutData.soldPrice), // Add this line
     isBackOrder: stockOutData.isBackOrder || false,
-    backOrder: stockOutData.backOrder || null
+    backOrder: stockOutData.backOrder || null,
+    paymentStatus: stockOutData.paymentStatus,
+
+    debtedAmount: stockOutData.debtedAmount,
   }],
   clientName: stockOutData.clientName || undefined,
   clientEmail: stockOutData.clientEmail || undefined,
@@ -120,6 +123,9 @@ const formattedSales = salesArray.map(sale => {
       quantity: Number(sale.quantity),
       soldPrice: Number(sale.soldPrice), // Add this
       isBackOrder: true,
+         paymentStatus: sale.paymentStatus,
+    debtedAmount: sale.debtedAmount,
+  
       backOrder: {
         productName: sale.backOrder.productName,
         quantity: Number(sale.quantity), // Back order quantity matches sales quantity
@@ -132,6 +138,9 @@ const formattedSales = salesArray.map(sale => {
       quantity: Number(sale.quantity),
       soldPrice: Number(sale.soldPrice), // Add this
       isBackOrder: false,
+       paymentStatus: sale.paymentStatus,
+    debtedAmount: sale.debtedAmount,
+    
       backOrder: null
     };
   }

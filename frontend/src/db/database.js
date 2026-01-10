@@ -30,9 +30,11 @@ export class AppDatabase extends Dexie {
       synced_stockin_ids: 'localId, serverId, syncedAt',
 
       // stockout
-      stockouts_all: 'id, stockinId, quantity, soldPrice, backorderId, clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
-      stockouts_offline_add: '++localId, stockinId, quantity, offlineQuantity, backorderLocalId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
-      stockouts_offline_update: 'id, stockinId, quantity, backorderUpdateId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, adminId, employeeId, transactionId, lastModified, updatedAt',
+      stockouts_all: 'id, stockinId, quantity, soldPrice, backorderId, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
+   
+   stockouts_offline_add: '++localId, stockinId, quantity, offlineQuantity, backorderLocalId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
+   
+   stockouts_offline_update: 'id, stockinId, quantity, backorderUpdateId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, updatedAt',
       stockouts_offline_delete: 'id, deletedAt, adminId, employeeId',
       synced_stockout_ids: 'localId, serverId, syncedAt',
 

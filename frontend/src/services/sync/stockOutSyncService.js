@@ -1098,6 +1098,8 @@ class StockOutSyncService {
             backorderId: serverStockOut.backorderId,
             employeeId: serverStockOut.employeeId,
             transactionId: serverStockOut.transactionId,
+            paymentStatus:serverStockOut.paymentStatus,
+            debtedAmount: serverStockOut.debtedAmount,
             lastModified: serverStockOut.createdAt || new Date(),
             createdAt: serverStockOut.createdAt,
             updatedAt: serverStockOut.updatedAt || new Date()

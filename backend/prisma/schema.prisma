@@ -132,6 +132,10 @@ model StockOut {
   clientEmail String?
   clientPhone String?
   paymentMethod PaymentMethod?
+
+  debtedAmount   Float?               // remaining unpaid
+  paymentStatus  PaymentStatus        @default(PENDING)
+
   backorderId String?
   backorder   BackOrder? @relation(fields: [backorderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   stockin     StockIn?  @relation(fields: [stockinId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -152,6 +156,13 @@ enum PaymentMethod {
   CASH
 }
 
+
+enum PaymentStatus {
+  SUCCESSFUL
+  FAILED
+  PENDING
+  DEBTED
+}
 
 model BackOrder{
   id  String    @id @default(uuid())

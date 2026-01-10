@@ -24,8 +24,8 @@ const SearchableStockInDropdown = ({
     const [searchTerm, setSearchTerm] = useState('');
     const dropdownRef = useRef(null);
     const inputRef = useRef(null);
-
     const { isOnline } = useNetworkStatusContext();
+
     // Filter stock items based on search term
     const filteredStockIns = stockIns?.filter(stockIn => {
         const searchLower = searchTerm.toLowerCase();
@@ -33,7 +33,6 @@ const SearchableStockInDropdown = ({
         const sku = stockIn.sku?.toLowerCase() || '';
         const quantity = (stockIn.offlineQuantity ?? stockIn.quantity ?? '').toString();
         const price = stockIn.sellingPrice?.toString() || '';
-
         return productName.includes(searchLower) ||
             sku.includes(searchLower) ||
             quantity.includes(searchLower) ||
@@ -51,7 +50,6 @@ const SearchableStockInDropdown = ({
                 setSearchTerm('');
             }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
@@ -187,8 +185,17 @@ const UpsertStockOutPage = ({ role }) => {
         paymentMethod: '',
         backorderId: '',
         // Multiple entries fields (for create mode)
-        salesEntries: [{ stockinId: '', quantity: '', soldPrice: '', isBackOrder: false, backOrder: null }]
+        salesEntries: [{ 
+            stockinId: '', 
+            quantity: '', 
+            soldPrice: '', 
+            isBackOrder: false, 
+            backOrder: null,
+            debtedAmount: '',
+            isDebt: false 
+        }]
     });
+
     const [stockOut, setStockOut] = useState(null);
     const [stockIns, setStockIns] = useState([]);
     const [title, setTitle] = useState(stockOut ? "Update Stock-Out Entry" : "Create Stock-Out Entries");
@@ -251,11 +258,18 @@ const UpsertStockOutPage = ({ role }) => {
                 clientEmail: '',
                 clientPhone: '',
                 paymentMethod: '',
-                salesEntries: [{ stockinId: '', quantity: '', soldPrice: '', isBackOrder: false, backOrder: null }]
+                salesEntries: [{ 
+                    stockinId: '', 
+                    quantity: '', 
+                    soldPrice: '', 
+                    isBackOrder: false, 
+                    backOrder: null,
+                    debtedAmount: '',
+                    isDebt: false 
+                }]
             });
         }
         setCloseForm(false);
-
         // Clear validation errors when modal opens/closes
         setValidationErrors({
             stockinId: '',
@@ -284,6 +298,7 @@ const UpsertStockOutPage = ({ role }) => {
             const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
             const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
             const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
+
             const combinedStockOuts = allStockOuts
                 .filter(so => !deleteIds.has(so.id))
                 .map(so => ({
@@ -344,19 +359,23 @@ const UpsertStockOutPage = ({ role }) => {
                     }
                 }
             }
+
             const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
                 db.stockins_all.toArray(),
                 db.stockins_offline_add.toArray(),
                 db.stockins_offline_update.toArray(),
                 db.stockins_offline_delete.toArray()
             ]);
+
             const deleteIds = new Set(offlineDeletes.map(d => d.id));
             const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
             const combinedStockin = allStockin
                 .filter(c => !deleteIds.has(c.id))
                 .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
                 .concat(offlineAdds.map(a => ({ ...a, synced: false })))
                 .sort((a, b) => a.synced - b.synced);
+
             return combinedStockin;
         } catch (error) {
             console.error('Error fetching stock-ins:', error);
@@ -384,14 +403,17 @@ const UpsertStockOutPage = ({ role }) => {
                     });
                 }
             }
+
             const [allBackOrder, offlineAdds] = await Promise.all([
                 db.backorders_all.toArray(),
                 db.backorders_offline_add.toArray(),
             ]);
+
             const combinedBackOrder = allBackOrder
                 .map(c => ({ ...c, synced: true }))
                 .concat(offlineAdds.map(a => ({ ...a, synced: false })))
                 .sort((a, b) => a.synced - b.synced);
+
             return combinedBackOrder;
         } catch (error) {
             console.error('Error fetching backorders:', error);
@@ -425,19 +447,23 @@ const UpsertStockOutPage = ({ role }) => {
                     });
                 }
             }
+
             const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
                 db.products_all.toArray(),
                 db.products_offline_add.toArray(),
                 db.products_offline_update.toArray(),
                 db.products_offline_delete.toArray()
             ]);
+
             const deleteIds = new Set(offlineDeletes.map(d => d.id));
             const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+
             const combinedProducts = allProducts
                 .filter(c => !deleteIds.has(c.id))
                 .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
                 .concat(offlineAdds.map(a => ({ ...a, synced: false })))
                 .sort((a, b) => a.synced - b.synced);
+
             return combinedProducts;
         } catch (error) {
             console.error('Error fetching products:', error);
@@ -478,29 +504,23 @@ const UpsertStockOutPage = ({ role }) => {
         if (!quantity) {
             return 'Quantity is required';
         }
-
         const numQuantity = Number(quantity);
-
         if (isNaN(numQuantity) || numQuantity <= 0) {
             return 'Quantity must be a positive number';
         }
-
         if (!Number.isInteger(numQuantity)) {
             return 'Quantity must be a whole number';
         }
-
         // Check if quantity exceeds available stock (only for stock-in, not Non-Stock Sales)
         if (stockinId && stockIns) {
             const selectedStockIn = stockIns.find(stock => stock.id === stockinId || stock.localId === stockinId);
             if (selectedStockIn) {
                 const availableQty = selectedStockIn.offlineQuantity ?? selectedStockIn.quantity;
-
                 if (numQuantity > availableQty) {
                     return `Quantity cannot exceed available stock (${availableQty})`;
                 }
             }
         }
-
         return '';
     };
 
@@ -517,26 +537,56 @@ const UpsertStockOutPage = ({ role }) => {
         return '';
     };
 
+    const handleBackOrderChange = (index, field, value) => {
+        const updatedEntries = [...formData.salesEntries];
+        updatedEntries[index] = {
+            ...updatedEntries[index],
+            backOrder: {
+                ...updatedEntries[index].backOrder,
+                [field]: value
+            }
+        };
+        setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
 
-
-const handleBackOrderChange = (index, field, value) => {
-    const updatedEntries = [...formData.salesEntries];
-    updatedEntries[index] = {
-        ...updatedEntries[index],
-        backOrder: {
-            ...updatedEntries[index].backOrder,
-            [field]: value
+        const updatedErrors = [...validationErrors.salesEntries];
+        if (updatedErrors[index]) {
+            const backOrderError = validateBackOrder(updatedEntries[index].backOrder);
+            updatedErrors[index] = { ...updatedErrors[index], backOrder: backOrderError };
+            setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
         }
     };
-    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
 
-    const updatedErrors = [...validationErrors.salesEntries];
-    if (updatedErrors[index]) {
-        const backOrderError = validateBackOrder(updatedEntries[index].backOrder);
-        updatedErrors[index] = { ...updatedErrors[index], backOrder: backOrderError };
-        setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
-    }
-};
+    const handleDebtToggle = (index) => {
+        const updatedEntries = [...formData.salesEntries];
+        const entry = updatedEntries[index];
+        
+        entry.isDebt = !entry.isDebt;
+        
+        if (entry.isDebt) {
+            let totalAmount = 0;
+            
+            if (entry.isBackOrder) {
+                totalAmount = (entry.backOrder?.sellingPrice || 0) * (Number(entry.quantity) || 0);
+            } else {
+                const stockInfo = getStockInfo(entry.stockinId);
+                if (stockInfo) {
+                    totalAmount = stockInfo.sellingPrice * (Number(entry.quantity) || 0);
+                }
+            }
+            
+            entry.debtedAmount = totalAmount.toString();
+        } else {
+            entry.debtedAmount = '0';
+        }
+        
+        setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+    };
+
+    const handleDebtedAmountChange = (index, value) => {
+        const updatedEntries = [...formData.salesEntries];
+        updatedEntries[index].debtedAmount = value;
+        setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+    };
 
     const onClose = (closeForm) => {
         if (closeForm) {
@@ -546,13 +596,12 @@ const handleBackOrderChange = (index, field, value) => {
                 showConfirmButton: false,
                 timer: 1500,
             }).then(() => {
-                const url =  role == 'admin' ? "/admin/dashboard/stockout" : "/employee/dashboard/stockout"
-                
+                const url = role == 'admin' ? "/admin/dashboard/stockout" : "/employee/dashboard/stockout"
+               
                 navigate(url);
             });
             return;
         }
-
         Swal.fire({
             title: "Are you sure?",
             text: "Do you really want to close this form?",
@@ -563,7 +612,7 @@ const handleBackOrderChange = (index, field, value) => {
             confirmButtonText: "Yes, close it!",
         }).then((result) => {
             if (result.isConfirmed) {
-                navigate(   role == 'admin' ? "/admin/dashboard/stockout" :"/employee/dashboard/stockout");
+                navigate( role == 'admin' ? "/admin/dashboard/stockout" :"/employee/dashboard/stockout");
             }
         });
     };
@@ -605,7 +654,6 @@ const handleBackOrderChange = (index, field, value) => {
                 soldPrice: ''
             }));
         }
-
         const stockinError = validateStockInId(value);
         setValidationErrors(prev => ({
             ...prev,
@@ -616,7 +664,6 @@ const handleBackOrderChange = (index, field, value) => {
     const handleQuantityChange = (e) => {
         const value = e.target.value;
         setFormData({ ...formData, quantity: value });
-
         const quantityError = validateQuantity(value, formData.stockinId);
         setValidationErrors(prev => ({
             ...prev,
@@ -628,7 +675,15 @@ const handleBackOrderChange = (index, field, value) => {
     const addSalesEntry = () => {
         setFormData(prev => ({
             ...prev,
-            salesEntries: [...prev.salesEntries, { stockinId: '', quantity: '', soldPrice: '', isBackOrder: false, backOrder: null }]
+            salesEntries: [...prev.salesEntries, { 
+                stockinId: '', 
+                quantity: '', 
+                soldPrice: '', 
+                isBackOrder: false, 
+                backOrder: null,
+                debtedAmount: '',
+                isDebt: false 
+            }]
         }));
         setValidationErrors(prev => ({
             ...prev,
@@ -653,7 +708,6 @@ const handleBackOrderChange = (index, field, value) => {
     const toggleEntryType = (index) => {
         const updatedEntries = [...formData.salesEntries];
         const currentEntry = updatedEntries[index];
-
         updatedEntries[index] = {
             ...currentEntry,
             isBackOrder: !currentEntry.isBackOrder,
@@ -664,11 +718,11 @@ const handleBackOrderChange = (index, field, value) => {
             backOrder: !currentEntry.isBackOrder ? {
                 productName: '',
                 sellingPrice: ''
-            } : null
+            } : null,
+            debtedAmount: '',
+            isDebt: false
         };
-
         setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
-
         // Clear validation errors for this entry
         const updatedErrors = [...validationErrors.salesEntries];
         updatedErrors[index] = {};
@@ -676,63 +730,60 @@ const handleBackOrderChange = (index, field, value) => {
     };
 
     // Handle Non-Stock Sale field changes
- 
- const handleSalesEntryChange = (index, field, value) => {
-    const updatedEntries = [...formData.salesEntries];
-    updatedEntries[index] = { ...updatedEntries[index], [field]: value };
+    const handleSalesEntryChange = (index, field, value) => {
+        const updatedEntries = [...formData.salesEntries];
+        updatedEntries[index] = { ...updatedEntries[index], [field]: value };
+        setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
 
-    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
+        const updatedErrors = [...validationErrors.salesEntries];
+        if (field === 'stockinId') {
+            const error = validateStockInId(value);
+            const quantityError = updatedEntries[index].quantity
+                ? validateQuantity(updatedEntries[index].quantity, value)
+                : '';
+            updatedErrors[index] = {
+                ...updatedErrors[index],
+                stockinId: error,
+                quantity: quantityError
+            };
+            setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
 
-    const updatedErrors = [...validationErrors.salesEntries];
-    if (field === 'stockinId') {
-        const error = validateStockInId(value);
-        const quantityError = updatedEntries[index].quantity
-            ? validateQuantity(updatedEntries[index].quantity, value)
-            : '';
-        updatedErrors[index] = {
-            ...updatedErrors[index],
-            stockinId: error,
-            quantity: quantityError
-        };
-        setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
-
-        if (value && stockIns) {
-            const selectedStock = stockIns.find(stock => stock.id === value || stock.localId === value);
-            if (selectedStock) {
-                const suggestedQuantity = calculateSuggestedQuantity(selectedStock.offlineQuantity ?? selectedStock.quantity);
-                updatedEntries[index].quantity = suggestedQuantity.toString();
-                updatedEntries[index].soldPrice = selectedStock.sellingPrice.toString();
-                setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
-            }
-        }
-    } else if (field === 'quantity') {
-        let error = '';
-        if (updatedEntries[index].isBackOrder) {
-            if (!value) {
-                error = 'Quantity is required';
-            } else {
-                const numQuantity = Number(value);
-                if (isNaN(numQuantity) || numQuantity <= 0) {
-                    error = 'Quantity must be a positive number';
-                } else if (!Number.isInteger(numQuantity)) {
-                    error = 'Quantity must be a whole number';
+            if (value && stockIns) {
+                const selectedStock = stockIns.find(stock => stock.id === value || stock.localId === value);
+                if (selectedStock) {
+                    const suggestedQuantity = calculateSuggestedQuantity(selectedStock.offlineQuantity ?? selectedStock.quantity);
+                    updatedEntries[index].quantity = suggestedQuantity.toString();
+                    updatedEntries[index].soldPrice = selectedStock.sellingPrice.toString();
+                    setFormData(prev => ({ ...prev, salesEntries: updatedEntries }));
                 }
             }
-        } else {
-            error = validateQuantity(value, updatedEntries[index].stockinId);
+        } else if (field === 'quantity') {
+            let error = '';
+            if (updatedEntries[index].isBackOrder) {
+                if (!value) {
+                    error = 'Quantity is required';
+                } else {
+                    const numQuantity = Number(value);
+                    if (isNaN(numQuantity) || numQuantity <= 0) {
+                        error = 'Quantity must be a positive number';
+                    } else if (!Number.isInteger(numQuantity)) {
+                        error = 'Quantity must be a whole number';
+                    }
+                }
+            } else {
+                error = validateQuantity(value, updatedEntries[index].stockinId);
+            }
+            updatedErrors[index] = { ...updatedErrors[index], quantity: error };
+            setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
         }
-        updatedErrors[index] = { ...updatedErrors[index], quantity: error };
-        setValidationErrors(prev => ({ ...prev, salesEntries: updatedErrors }));
-    }
-};
+    };
+
     // Helper function to set suggested quantity for a specific entry
     const setSuggestedQuantity = (index) => {
         const entry = formData.salesEntries[index];
         if (!entry.stockinId) return;
-
         const stockInfo = getStockInfo(entry.stockinId);
         if (!stockInfo) return;
-
         const suggestedQuantity = calculateSuggestedQuantity(stockInfo.offlineQuantity ?? stockInfo.quantity);
         handleSalesEntryChange(index, 'quantity', suggestedQuantity.toString());
     };
@@ -740,14 +791,12 @@ const handleBackOrderChange = (index, field, value) => {
     const handleEmailChange = (e) => {
         const value = e.target.value;
         setFormData({ ...formData, clientEmail: value });
-
         const emailError = validateEmail(value);
         setValidationErrors(prev => ({
             ...prev,
             clientEmail: emailError
         }));
     };
-
 
     const handleAddStockOut = async (stockOutData) => {
         setIsLoading(true);
@@ -767,6 +816,7 @@ const handleBackOrderChange = (index, field, value) => {
                 clientPhone: stockOutData.clientPhone,
                 paymentMethod: stockOutData.paymentMethod
             };
+
             let localTransactionId = `local-trans-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             let createdStockouts = [];
 
@@ -785,7 +835,9 @@ const handleBackOrderChange = (index, field, value) => {
                         createdAt: now,
                         updatedAt: now
                     };
+
                     backorderLocalId = await db.backorders_offline_add.add(backOrderRecord);
+
                     newStockout = {
                         stockinId: null,
                         quantity: sale.quantity,
@@ -795,6 +847,9 @@ const handleBackOrderChange = (index, field, value) => {
                         clientEmail: clientInfo.clientEmail,
                         clientPhone: clientInfo.clientPhone,
                         paymentMethod: clientInfo.paymentMethod,
+                        debtedAmount: sale.debtedAmount || 0,
+                        isDebt: sale.isDebt || false,
+                        paymentStatus: sale.isDebt ? 'DEBTED' : 'SUCCESSFUL',
                         ...userInfo,
                         transactionId: localTransactionId,
                         isBackOrder: true,
@@ -803,6 +858,7 @@ const handleBackOrderChange = (index, field, value) => {
                         createdAt: now,
                         updatedAt: now
                     };
+
                     const localId = await db.stockouts_offline_add.add(newStockout);
                     createdStockouts.push({ ...newStockout, localId, synced: false });
                 } else {
@@ -812,7 +868,9 @@ const handleBackOrderChange = (index, field, value) => {
                     if (stockin.quantity < sale.quantity) {
                         throw new Error(`Not enough stock for ID: ${sale.stockinId}. Available: ${stockin.quantity}, Requested: ${sale.quantity}`);
                     }
+
                     const soldPrice = sale.soldPrice || (stockin.sellingPrice * sale.quantity);
+
                     newStockout = {
                         stockinId: sale.stockinId,
                         quantity: sale.quantity,
@@ -822,6 +880,9 @@ const handleBackOrderChange = (index, field, value) => {
                         clientEmail: clientInfo.clientEmail,
                         clientPhone: clientInfo.clientPhone,
                         paymentMethod: clientInfo.paymentMethod,
+                        debtedAmount: sale.debtedAmount || 0,
+                        isDebt: sale.isDebt || false,
+                        paymentStatus: sale.isDebt ? 'DEBTED' : 'SUCCESSFUL',
                         ...userInfo,
                         transactionId: localTransactionId,
                         isBackOrder: false,
@@ -829,8 +890,10 @@ const handleBackOrderChange = (index, field, value) => {
                         createdAt: now,
                         updatedAt: now
                     };
+
                     const localId = await db.stockouts_offline_add.add(newStockout);
                     createdStockouts.push({ ...newStockout, localId, synced: false });
+
                     const newQuantity = (stockin.offlineQuantity ?? stockin.quantity) - sale.quantity;
                     const existingStockin = await db.stockins_all.get(sale.stockinId);
                     if (existingStockin) {
@@ -866,7 +929,13 @@ const handleBackOrderChange = (index, field, value) => {
                                 clientEmail: serverSo.clientEmail,
                                 clientPhone: serverSo.clientPhone,
                                 paymentMethod: serverSo.paymentMethod,
+                                debtedAmount: serverSo.debtedAmount || 0,
+                                isDebt: serverSo.isDebt || false,
+                                paymentStatus: serverSo.paymentStatus || 'PENDING',
+                                adminId: serverSo.adminId,
+                                employeeId: serverSo.employeeId,
                                 lastModified: serverSo.lastModified || now,
+                                createdAt: serverSo.createdAt || now,
                                 updatedAt: serverSo.updatedAt || now,
                             });
                             await db.stockouts_offline_add.delete(local.localId);
@@ -885,10 +954,12 @@ const handleBackOrderChange = (index, field, value) => {
                             }
                         })
                     );
-                    const url  =  role == 'admin' ? 
+
+                    const url = role == 'admin' ?
                      `/admin/dashboard/stockout?transactionId=${response.transactionId}` :
                      `/employee/dashboard/stockout?transactionId=${response.transactionId}`
                     navigate(url);
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Success',
@@ -899,7 +970,6 @@ const handleBackOrderChange = (index, field, value) => {
                         showConfirmButton: false,
                         timer: 1500,
                     });
-
                 } catch (error) {
                     console.warn('Error posting to server, keeping offline:', error);
                     Swal.fire({
@@ -914,7 +984,6 @@ const handleBackOrderChange = (index, field, value) => {
                     });
                 }
             } else {
-
                 Swal.fire({
                     icon: 'warning',
                     title: 'Offline Save',
@@ -925,13 +994,10 @@ const handleBackOrderChange = (index, field, value) => {
                     showConfirmButton: false,
                     timer: 1500,
                 });
-                 const url =  role == 'admin' ? `/admin/dashboard/stockout?transactionId=${localTransactionId}` :
+                 const url = role == 'admin' ? `/admin/dashboard/stockout?transactionId=${localTransactionId}` :
                  `/employee/dashboard/stockout?transactionId=${localTransactionId}`
                 navigate(url);
             }
-
-
-
 
             // Reset form after submission
             setFormData({
@@ -942,17 +1008,22 @@ const handleBackOrderChange = (index, field, value) => {
                 clientEmail: '',
                 clientPhone: '',
                 paymentMethod: '',
-                salesEntries: [{ stockinId: '', quantity: '', soldPrice: '', isBackOrder: false, backOrder: null }]
+                salesEntries: [{ 
+                    stockinId: '', 
+                    quantity: '', 
+                    soldPrice: '', 
+                    isBackOrder: false, 
+                    backOrder: null,
+                    debtedAmount: '',
+                    isDebt: false 
+                }]
             });
-
             setValidationErrors({
                 stockinId: '',
                 quantity: '',
                 clientEmail: '',
                 salesEntries: []
             });
-
-
         } catch (error) {
             console.error('Error adding stock out:', error);
             setCloseForm(false);
@@ -970,9 +1041,8 @@ const handleBackOrderChange = (index, field, value) => {
             setIsLoading(false);
         }
     };
-
-    
-      const handleUpdateStockOut = async (stockOutData) => {
+   
+    const handleUpdateStockOut = async (stockOutData) => {
         setIsLoading(true);
         try {
           const userInfo = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
@@ -991,7 +1061,7 @@ const handleBackOrderChange = (index, field, value) => {
             lastModified: now,
             updatedAt: now
           };
-    
+   
           if (isOnline) {
             try {
               const response = await stockOutService.updateStockOut(stockOutData.id, { ...stockOutData, ...userInfo });
@@ -1013,22 +1083,22 @@ const handleBackOrderChange = (index, field, value) => {
                 updatedAt: response.updatedAt || new Date()
               });
               await db.stockouts_offline_update.delete(selectedStockOut.id);
-            //   setNotification({
-            //     type: 'success',
-            //     message: 'Stock out updated successfully!'
-            //   });
+            // setNotification({
+            // type: 'success',
+            // message: 'Stock out updated successfully!'
+            // });
             } catch (error) {
               await db.stockouts_offline_update.put(updatedData);
-            //   setNotification({
-            //     type: 'warning',
-            //     message: 'Stock out updated offline (will sync when online)'
-            //   });
+            // setNotification({
+            // type: 'warning',
+            // message: 'Stock out updated offline (will sync when online)'
+            // });
             }
           } else {
             await db.stockouts_offline_update.put(updatedData);
             // setNotification({
-            //   type: 'warning',
-            //   message: 'Stock out updated offline (will sync when online)'
+            // type: 'warning',
+            // message: 'Stock out updated offline (will sync when online)'
             // });
           }
           if (stockOutData.stockinId) {
@@ -1040,36 +1110,29 @@ const handleBackOrderChange = (index, field, value) => {
               await db.stockins_all.update(stockOutData.stockinId, { quantity: newStockQuantity });
             }
           }
-    
+   
           await loadStockOuts();
          onClose(true)
         } catch (error) {
           console.error('Error updating stock out:', error);
             setCloseForm(false);
-
-        //   setNotification({
-        //     type: 'error',
-        //     message: `Failed to update stock out: ${error.message}`
-        //   });
+        // setNotification({
+        // type: 'error',
+        // message: `Failed to update stock out: ${error.message}`
+        // });
         } finally {
           setIsLoading(false);
         }
       };
 
-
-
-
     const handleSubmit = (e) => {
         e.preventDefault();
-
         if (isUpdateMode) {
             // Single entry validation for update mode
             const emailError = validateEmail(formData.clientEmail);
-
             // Validate based on whether it's a stock-in or Non-Stock Sale
             let stockinError = '';
             let quantityError = '';
-
             if (stockOut.backorderId) {
                 // Non-Stock Sale update - only validate quantity
                 quantityError = !formData.quantity ? 'Quantity is required' : '';
@@ -1086,18 +1149,15 @@ const handleBackOrderChange = (index, field, value) => {
                 stockinError = validateStockInId(formData.stockinId);
                 quantityError = validateQuantity(formData.quantity, formData.stockinId);
             }
-
             setValidationErrors({
                 stockinId: stockinError,
                 quantity: quantityError,
                 clientEmail: emailError,
                 salesEntries: []
             });
-
             if (stockinError || quantityError || emailError) {
                 return;
             }
-
             // Prepare single entry data for update
             const submitData = {
                 ...stockOut,
@@ -1111,8 +1171,7 @@ const handleBackOrderChange = (index, field, value) => {
             if (formData.paymentMethod) submitData.paymentMethod = formData.paymentMethod;
             setCloseForm(true);
             handleUpdateStockOut(submitData);
-
-           
+          
         } else {
             // Multiple entries validation for create mode
             const emailError = validateEmail(formData.clientEmail);
@@ -1129,7 +1188,6 @@ const handleBackOrderChange = (index, field, value) => {
                     };
                 }
             });
-
             setValidationErrors({
                 stockinId: '',
                 quantity: '',
@@ -1140,7 +1198,6 @@ const handleBackOrderChange = (index, field, value) => {
             // Check if there are any validation errors
             const hasEmailError = !!emailError;
             const hasSalesErrors = salesErrors.some(error => error.stockinId || error.quantity || error.backOrder);
-
             if (hasEmailError || hasSalesErrors) {
                 return;
             }
@@ -1163,6 +1220,8 @@ const handleBackOrderChange = (index, field, value) => {
                         quantity: Number(entry.quantity),
                         soldPrice: Number(entry.backOrder.sellingPrice),
                         isBackOrder: true,
+                        isDebt: entry.isDebt || false,
+                        debtedAmount: entry.isDebt ? Number(entry.debtedAmount || 0) : 0,
                         backOrder: {
                             productName: entry.backOrder.productName,
                             quantity: Number(entry.quantity),
@@ -1175,6 +1234,8 @@ const handleBackOrderChange = (index, field, value) => {
                         quantity: Number(entry.quantity),
                         soldPrice: Number(entry.soldPrice),
                         isBackOrder: false,
+                        isDebt: entry.isDebt || false,
+                        debtedAmount: entry.isDebt ? Number(entry.debtedAmount || 0) : 0,
                         backOrder: null
                     };
                 }
@@ -1188,16 +1249,12 @@ const handleBackOrderChange = (index, field, value) => {
             if (formData.paymentMethod) clientInfo.paymentMethod = formData.paymentMethod;
 
             setCloseForm(true);
-
             // Submit data in the format expected by the backend
             handleAddStockOut({
                 salesEntries: salesArray,
                 ...clientInfo
             });
         }
-
-
-
     };
 
     const isFormValid = () => {
@@ -1221,17 +1278,14 @@ const handleBackOrderChange = (index, field, value) => {
                 return entry.stockinId && entry.quantity && !isNaN(Number(entry.quantity)) && Number(entry.quantity) > 0;
             }
         });
-
         const noValidationErrors = validationErrors.salesEntries.every(error =>
             !error.stockinId && !error.quantity && !error.backOrder
         );
-
         return allEntriesValid && !validationErrors.clientEmail && noValidationErrors;
     }
 };
 
-
- if(loading){
+    if(loading){
         return (
             <div className="flex flex-col items-center justify-center h-[90vh]">
                     <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
@@ -1239,7 +1293,7 @@ const handleBackOrderChange = (index, field, value) => {
                 </div>
         )
     }
-    
+   
     return (
         <div className="flex items-center justify-center bg-white text-sm">
             <div className="rounded-lg p-4 w-full mx-3 max-h-[90vh]">
@@ -1257,7 +1311,6 @@ const handleBackOrderChange = (index, field, value) => {
                                         <ShoppingCart size={16} className="text-orange-600" />
                                         <h3 className="font-medium text-orange-800 text-sm">Updating Non-Stock Sale</h3>
                                     </div>
-
                                     {/* Display Non-Stock Sale info if available */}
                                     {stockOut.backorder && (
                                         <div className="mb-3 p-2 bg-white rounded border text-xs">
@@ -1267,7 +1320,6 @@ const handleBackOrderChange = (index, field, value) => {
                                             </div>
                                         </div>
                                     )}
-
                                     {/* Quantity for Non-Stock Sale */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1296,7 +1348,6 @@ const handleBackOrderChange = (index, field, value) => {
                                         <Package size={16} className="text-blue-600" />
                                         <h3 className="font-medium text-blue-800 text-sm">Updating Stock-In Transaction</h3>
                                     </div>
-
                                     {/* Sold Price */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1317,7 +1368,6 @@ const handleBackOrderChange = (index, field, value) => {
                                             </p>
                                         )}
                                     </div>
-
                                     {/* Stock-In Selection */}
                                     <div className="mb-3">
                                         <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1334,7 +1384,6 @@ const handleBackOrderChange = (index, field, value) => {
                                             <p className="text-red-500 text-xs mt-0.5">{validationErrors.stockinId}</p>
                                         )}
                                     </div>
-
                                     {/* Quantity */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1372,11 +1421,9 @@ const handleBackOrderChange = (index, field, value) => {
                                 <h3 className="text-base font-medium text-gray-800">Sales Entries</h3>
                                 <p className="text-xs text-gray-600">Add stock-in items or Non-Stock Sales for this transaction</p>
                             </div>
-
-                            <div className="grid grid-cols-1  gap-3">
+                            <div className="grid grid-cols-1 gap-3">
                                 {formData.salesEntries.map((entry, index) => {
                                     const stockInfo = getStockInfo(entry.stockinId);
-
                                     return (
                                         <div key={index} className={`border rounded-lg p-3 mb-3 ${entry.isBackOrder ? 'border-orange-200 bg-orange-50' : 'border-gray-200'}`}>
                                             <div className="flex justify-between items-center mb-2">
@@ -1431,7 +1478,6 @@ const handleBackOrderChange = (index, field, value) => {
                                                             placeholder="Enter product name"
                                                         />
                                                     </div>
-
                                                     <div>
                                                         <label className="block text-xs font-medium text-gray-700 mb-1">
                                                             Selling Price <span className="text-red-500">*</span>
@@ -1449,7 +1495,6 @@ const handleBackOrderChange = (index, field, value) => {
                                                             placeholder="Enter selling price"
                                                         />
                                                     </div>
-
                                                     <div>
                                                         <label className="block text-xs font-medium text-gray-700 mb-1">
                                                             Quantity <span className="text-red-500">*</span>
@@ -1475,6 +1520,59 @@ const handleBackOrderChange = (index, field, value) => {
                                                                 Total: {formatCurrency(entry.backOrder.sellingPrice * Number(entry.quantity || 0))}
                                                             </p>
                                                         )}
+                                                    </div>
+
+                                                    {/* Debt Management for Non-Stock Sale */}
+                                                    <div className="md:col-span-3">
+                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                            Payment & Debt
+                                                        </label>
+                                                        <div className="bg-gray-50 rounded-lg p-2 space-y-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDebtToggle(index)}
+                                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                                        entry.isDebt
+                                                                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                                    }`}
+                                                                >
+                                                                    {entry.isDebt ? '💳 Mark as Paid' : '📝 Mark as Debt'}
+                                                                </button>
+                                                                
+                                                                {entry.isDebt && (
+                                                                    <span className="text-xs text-red-600 font-medium">
+                                                                        Customer owes money
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            {entry.isDebt && (
+                                                                <div>
+                                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                                        Debted Amount (Amount Customer Owes)
+                                                                    </label>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={entry.debtedAmount}
+                                                                        onChange={(e) => handleDebtedAmountChange(index, e.target.value)}
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                                                                        placeholder="Enter amount owed"
+                                                                    />
+                                                                    {entry.backOrder?.sellingPrice && entry.quantity && (
+                                                                        <p className="text-xs text-gray-500 mt-1">
+                                                                            Total: {formatCurrency(entry.backOrder.sellingPrice * Number(entry.quantity || 0))}
+                                                                            {entry.debtedAmount && (
+                                                                                <> • Paid: {formatCurrency((entry.backOrder.sellingPrice * Number(entry.quantity || 0)) - Number(entry.debtedAmount))}</>
+                                                                            )}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                     {validationErrors.salesEntries[index]?.backOrder && (
@@ -1574,6 +1672,61 @@ const handleBackOrderChange = (index, field, value) => {
                                                         </div>
                                                     </div>
 
+                                                    {/* Debt Management */}
+                                                    <div className="col-span-1 sm:col-span-2 lg:col-span-3">
+                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                            Payment & Debt
+                                                        </label>
+                                                        <div className="bg-gray-50 rounded-lg p-2 space-y-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDebtToggle(index)}
+                                                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                                        entry.isDebt
+                                                                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                                    }`}
+                                                                >
+                                                                    {entry.isDebt ? '💳 Mark as Paid' : '📝 Mark as Debt'}
+                                                                </button>
+                                                                
+                                                                {entry.isDebt && (
+                                                                    <span className="text-xs text-red-600 font-medium">
+                                                                        Customer owes money
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            {entry.isDebt && (
+                                                                <div>
+                                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                                        Debted Amount (Amount Customer Owes)
+                                                                    </label>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={entry.debtedAmount}
+                                                                        onChange={(e) => handleDebtedAmountChange(index, e.target.value)}
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                                                                        placeholder="Enter amount owed"
+                                                                    />
+                                                                    <p className="text-xs text-gray-500 mt-1">
+                                                                        {stockInfo && entry.quantity && (
+                                                                            <>
+                                                                                Total Amount: {formatCurrency(stockInfo.sellingPrice * Number(entry.quantity || 0))}
+                                                                                {entry.debtedAmount && (
+                                                                                    <> • Paid: {formatCurrency((stockInfo.sellingPrice * Number(entry.quantity || 0)) - Number(entry.debtedAmount))}</>
+                                                                                )}
+                                                                            </>
+                                                                        )}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
                                                     {/* Stock Information Display */}
                                                     <div className="col-span-1 sm:col-span-2 lg:col-span-3">
                                                         <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1636,7 +1789,15 @@ const handleBackOrderChange = (index, field, value) => {
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        const newEntry = { stockinId: '', quantity: '', soldPrice: '', isBackOrder: true, backOrder: { productName: '', sellingPrice: '' } };
+                                        const newEntry = { 
+                                            stockinId: '', 
+                                            quantity: '', 
+                                            soldPrice: '', 
+                                            isBackOrder: true, 
+                                            backOrder: { productName: '', sellingPrice: '' },
+                                            debtedAmount: '',
+                                            isDebt: false 
+                                        };
                                         setFormData(prev => ({
                                             ...prev,
                                             salesEntries: [...prev.salesEntries, newEntry]
@@ -1658,7 +1819,6 @@ const handleBackOrderChange = (index, field, value) => {
                     {/* Client Information Section */}
                     <div className="border-t pt-3">
                         <h3 className="text-base font-medium text-gray-800 mb-2">Client Information</h3>
-
                         {/* Better layout for client info inputs */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {/* Client Name */}
@@ -1674,7 +1834,6 @@ const handleBackOrderChange = (index, field, value) => {
                                     placeholder="Enter client name"
                                 />
                             </div>
-
 
                             {/* Client Phone */}
                             <div>
@@ -1709,24 +1868,23 @@ const handleBackOrderChange = (index, field, value) => {
                         </div>
                     </div>
 
-<div className="flex gap-2 pt-3">
-    <button
-        type="button"
-        onClick={() => onClose()}
-        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-    >
-        Cancel
-    </button>
-    <button
-        type="submit"
-        disabled={closeForm || isLoading || !isFormValid()}
-        className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-        title={!isFormValid() ? 'Please fill all required fields correctly' : ''}
-    >
-        {isLoading ? 'Processing...' : stockOut ? 'Update' : 'Create Transaction'}
-    </button>
-</div>
-
+                    <div className="flex gap-2 pt-3">
+                        <button
+                            type="button"
+                            onClick={() => onClose()}
+                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={closeForm || isLoading || !isFormValid()}
+                            className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                            title={!isFormValid() ? 'Please fill all required fields correctly' : ''}
+                        >
+                            {isLoading ? 'Processing...' : stockOut ? 'Update' : 'Create Transaction'}
+                        </button>
+                    </div>
                 </form>
 
                 {/* Help Text */}

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `stockout` ADD COLUMN `debtedAmount` DOUBLE NULL,
+    ADD COLUMN `paymentStatus` ENUM('SUCCESSFUL', 'FAILED', 'PENDING', 'DEBTED') NOT NULL DEFAULT 'PENDING';
