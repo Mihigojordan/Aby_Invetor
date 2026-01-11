@@ -260,6 +260,25 @@ const formattedSales = salesArray.map(sale => {
             throw new Error(error.response.data.message || error.message || 'Failed to update stock-out');
         }
     }
+    async updatePayment(id, amount) {
+        try {
+            if (!id) {
+                throw new Error('Stock-out ID is required');
+            }
+
+            if (!amount) {
+                throw new Error('Update data is required');
+            }
+
+           
+
+            const response = await api.put(`/stockout/update-payment/${id}`, {amount});
+            return response.data;
+        } catch (error) {
+            console.error('Error updating stock-out:', error);
+            throw new Error(error.response.data.message || error.message || 'Failed to update stock-out');
+        }
+    }
 
     /**
      * Delete a stock-out entry

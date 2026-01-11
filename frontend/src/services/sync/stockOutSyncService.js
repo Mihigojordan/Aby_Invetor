@@ -48,37 +48,40 @@ class StockOutSyncService {
 
     for (const stockOut of unsyncedUpdates) {
       try {
-        const stockOutData = {
-          quantity: stockOut.quantity,
-          soldPrice: stockOut.soldPrice,
-          clientName: stockOut.clientName,
-          clientEmail: stockOut.clientEmail,
-          clientPhone: stockOut.clientPhone,
-          paymentMethod: stockOut.paymentMethod,
-          transactionId: stockOut.transactionId,
-        };
-
+   const stockOutData = {
+    quantity: stockOut.quantity,
+    soldPrice: stockOut.soldPrice,
+    clientName: stockOut.clientName,
+    clientEmail: stockOut.clientEmail,
+    clientPhone: stockOut.clientPhone,
+    paymentMethod: stockOut.paymentMethod,
+    transactionId: stockOut.transactionId,
+    debtedAmount: stockOut.debtedAmount,        // ADD THIS
+    paymentStatus: stockOut.paymentStatus        // ADD THIS
+};
         const response = await stockOutService.updateStockOut(stockOut.id, stockOutData);
 
         await db.transaction('rw', db.stockouts_all, db.stockouts_offline_update, async () => {
           const serverStockOut = response.data || response;
 
-          await db.stockouts_all.put({
-            id: stockOut.id,
-            stockinId: serverStockOut.stockinId || stockOut.stockinId,
-            quantity: serverStockOut.quantity || stockOut.quantity,
-            soldPrice: serverStockOut.soldPrice || stockOut.soldPrice,
-            clientName: serverStockOut.clientName || stockOut.clientName,
-            clientEmail: serverStockOut.clientEmail || stockOut.clientEmail,
-            clientPhone: serverStockOut.clientPhone || stockOut.clientPhone,
-            paymentMethod: serverStockOut.paymentMethod || stockOut.paymentMethod,
-            adminId: serverStockOut.adminId || stockOut.adminId,
-            employeeId: serverStockOut.employeeId || stockOut.employeeId,
-            transactionId: serverStockOut.transactionId || stockOut.transactionId,
-            lastModified: new Date(),
-            createdAt: serverStockOut.createdAt || stockOut.createdAt,
-            updatedAt: serverStockOut.updatedAt || new Date()
-          });
+         await db.stockouts_all.put({
+    id: stockOut.id,
+    stockinId: serverStockOut.stockinId || stockOut.stockinId,
+    quantity: serverStockOut.quantity || stockOut.quantity,
+    soldPrice: serverStockOut.soldPrice || stockOut.soldPrice,
+    clientName: serverStockOut.clientName || stockOut.clientName,
+    clientEmail: serverStockOut.clientEmail || stockOut.clientEmail,
+    clientPhone: serverStockOut.clientPhone || stockOut.clientPhone,
+    paymentMethod: serverStockOut.paymentMethod || stockOut.paymentMethod,
+    debtedAmount: serverStockOut.debtedAmount || stockOut.debtedAmount || 0,        // ADD THIS
+    paymentStatus: serverStockOut.paymentStatus || stockOut.paymentStatus || 'PENDING',  // ADD THIS
+    adminId: serverStockOut.adminId || stockOut.adminId,
+    employeeId: serverStockOut.employeeId || stockOut.employeeId,
+    transactionId: serverStockOut.transactionId || stockOut.transactionId,
+    lastModified: new Date(),
+    createdAt: serverStockOut.createdAt || stockOut.createdAt,
+    updatedAt: serverStockOut.updatedAt || new Date()
+});
 
           await db.stockouts_offline_update.delete(stockOut.id);
         });
@@ -640,12 +643,13 @@ class StockOutSyncService {
     }
 
     // Format sale data to match createMultipleStockOut expectations
-    if (stockOut.isBackOrder || backOrderPayload) {
+     if (stockOut.isBackOrder || backOrderPayload) {
       return {
         stockinId: null,
         quantity: Number(stockOut.quantity),
         isBackOrder: true,
         soldPrice: Number(stockOut.soldPrice),
+        debtedAmount: Number(stockOut.debtedAmount || 0),    // ADD THIS
         backOrder: backOrderPayload || {
           productName: stockOut.productName,
           quantity: Number(stockOut.quantity),
@@ -659,6 +663,8 @@ class StockOutSyncService {
         quantity: Number(stockOut.quantity),
         soldPrice: Number(stockOut.soldPrice),
         isBackOrder: false,
+
+        debtedAmount: Number(stockOut.debtedAmount || 0),    // ADD THIS
         backOrder: null
       };
     }
@@ -694,23 +700,27 @@ class StockOutSyncService {
           }
 
           // Save stockout
-          const stockOutRecord = {
-            id: serverStockOutId,
-            stockinId: serverStockOut.stockinId || localStockOut.stockinId,
-            quantity: serverStockOut.quantity || localStockOut.quantity,
-            soldPrice: serverStockOut.soldPrice || localStockOut.soldPrice,
-            clientName: serverStockOut.clientName || localStockOut.clientName,
-            clientEmail: serverStockOut.clientEmail || localStockOut.clientEmail,
-            clientPhone: serverStockOut.clientPhone || localStockOut.clientPhone,
-            paymentMethod: serverStockOut.paymentMethod || localStockOut.paymentMethod,
-            adminId: serverStockOut.adminId || localStockOut.adminId,
-            employeeId: serverStockOut.employeeId || localStockOut.employeeId,
-            transactionId: serverStockOut.transactionId || transactionId,
-            backorderId: serverStockOut.backorderId || null,
-            lastModified: new Date(),
-            createdAt: serverStockOut.createdAt || localStockOut.createdAt || new Date(),
-            updatedAt: serverStockOut.updatedAt || new Date()
-          };
+         // Save stockout
+const stockOutRecord = {
+    id: serverStockOutId,
+    stockinId: serverStockOut.stockinId || localStockOut.stockinId,
+    quantity: serverStockOut.quantity || localStockOut.quantity,
+    soldPrice: serverStockOut.soldPrice || localStockOut.soldPrice,
+    clientName: serverStockOut.clientName || localStockOut.clientName,
+    clientEmail: serverStockOut.clientEmail || localStockOut.clientEmail,
+    clientPhone: serverStockOut.clientPhone || localStockOut.clientPhone,
+    paymentMethod: serverStockOut.paymentMethod || localStockOut.paymentMethod,
+    debtedAmount: serverStockOut.debtedAmount || localStockOut.debtedAmount || 0,        // ADD THIS
+                    
+    paymentStatus: serverStockOut.paymentStatus || localStockOut.paymentStatus || 'PENDING',  // ADD THIS
+    adminId: serverStockOut.adminId || localStockOut.adminId,
+    employeeId: serverStockOut.employeeId || localStockOut.employeeId,
+    transactionId: serverStockOut.transactionId || transactionId,
+    backorderId: serverStockOut.backorderId || null,
+    lastModified: new Date(),
+    createdAt: serverStockOut.createdAt || localStockOut.createdAt || new Date(),
+    updatedAt: serverStockOut.updatedAt || new Date()
+};
           await db.stockouts_all.put(stockOutRecord);
 
           // Handle backorder
@@ -1083,28 +1093,27 @@ class StockOutSyncService {
       await db.transaction('rw', db.stockouts_all, db.synced_stockout_ids, async () => {
         await db.stockouts_all.clear();
         console.log('✨ Cleared local stockouts, replacing with server data');
-
-        for (const serverStockOut of serverStockOuts) {
-          await db.stockouts_all.put({
-            id: serverStockOut.id,
-            stockinId: serverStockOut.stockinId,
-            quantity: serverStockOut.quantity,
-            soldPrice: serverStockOut.soldPrice,
-            clientName: serverStockOut.clientName,
-            clientEmail: serverStockOut.clientEmail,
-            clientPhone: serverStockOut.clientPhone,
-            paymentMethod: serverStockOut.paymentMethod,
-            adminId: serverStockOut.adminId,
-            backorderId: serverStockOut.backorderId,
-            employeeId: serverStockOut.employeeId,
-            transactionId: serverStockOut.transactionId,
-            paymentStatus:serverStockOut.paymentStatus,
-            debtedAmount: serverStockOut.debtedAmount,
-            lastModified: serverStockOut.createdAt || new Date(),
-            createdAt: serverStockOut.createdAt,
-            updatedAt: serverStockOut.updatedAt || new Date()
-          });
-        }
+for (const serverStockOut of serverStockOuts) {
+    await db.stockouts_all.put({
+        id: serverStockOut.id,
+        stockinId: serverStockOut.stockinId,
+        quantity: serverStockOut.quantity,
+        soldPrice: serverStockOut.soldPrice,
+        clientName: serverStockOut.clientName,
+        clientEmail: serverStockOut.clientEmail,
+        clientPhone: serverStockOut.clientPhone,
+        paymentMethod: serverStockOut.paymentMethod,
+        adminId: serverStockOut.adminId,
+        backorderId: serverStockOut.backorderId,
+        employeeId: serverStockOut.employeeId,
+        transactionId: serverStockOut.transactionId,
+        paymentStatus: serverStockOut.paymentStatus || 'PENDING',        // ALREADY THERE
+        debtedAmount: serverStockOut.debtedAmount || 0,                  // ALREADY THER   
+        lastModified: serverStockOut.createdAt || new Date(),
+        createdAt: serverStockOut.createdAt,
+        updatedAt: serverStockOut.updatedAt || new Date()
+    });
+}
 
         const serverIds = new Set(serverStockOuts.map(s => s.id));
         await db.synced_stockout_ids

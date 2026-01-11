@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Receipt, Wifi, WifiOff, RotateCcw, RefreshCw, ChevronLeft, ChevronRight, FileText, TrendingUp, X, Grid3x3, Table2, Filter, Truck, ShoppingBag, ArrowUpToLine, CreditCard, Smartphone, HandCoins } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Receipt, Wifi, WifiOff, RotateCcw, RefreshCw, ChevronLeft, ChevronRight, FileText, TrendingUp, X, Grid3x3, Table2, Filter, Truck, ShoppingBag, ArrowUpToLine, CreditCard, Smartphone, HandCoins, CreditCardIcon } from 'lucide-react';
 import stockOutService from '../../services/stockoutService';
 import stockInService from '../../services/stockinService';
 import UpsertStockOutModal from '../../components/dashboard/stockout/UpsertStockOutModal';
@@ -16,6 +16,7 @@ import backOrderService from '../../services/backOrderService';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import { useNavigate } from 'react-router-dom';
 import useScreenBelow from '../../hooks/useScreenBelow';
+import UpdatePaymentModal from '../../components/dashboard/stockout/UpdatePaymentModal';
 
 const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
@@ -44,6 +45,10 @@ const StockOutManagement = ({ role }) => {
   const [viewMode, setViewMode] = useState('table');
   const navigate = useNavigate();
   const isBelow = useScreenBelow();
+  
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+
 
   useEffect(() => {
     if (isBelow) {
@@ -178,6 +183,9 @@ const StockOutManagement = ({ role }) => {
       byPaymentMethod: paymentMethodTotals
     };
   };
+
+
+  
 
   const loadStockOuts = async (showRefreshLoader = false) => {
     if (showRefreshLoader) {
@@ -402,6 +410,71 @@ const StockOutManagement = ({ role }) => {
       }
     }
   };
+
+  // Place this function inside StockOutManagement component (before return)
+const handlePaymentUpdate = async (updatedStockOutFromServer) => {
+  try {
+    const stockOutId = updatedStockOutFromServer.id;
+    
+    // 1. Update in stockouts_all (main storage)
+    await db.stockouts_all.update(stockOutId, {
+      paymentStatus: updatedStockOutFromServer.paymentStatus,
+      debtedAmount: updatedStockOutFromServer.debtedAmount,
+      updatedAt: updatedStockOutFromServer.updatedAt || new Date(),
+      lastModified: new Date()
+    });
+
+    // 2. If there was a pending offline update, update or remove it
+    const existingOfflineUpdate = await db.stockouts_offline_update.get(stockOutId);
+    if (existingOfflineUpdate) {
+      if (updatedStockOutFromServer.paymentStatus !== 'DEBTED' || 
+          updatedStockOutFromServer.debtedAmount <= 0) {
+        // Debt cleared → no need for pending update anymore
+        await db.stockouts_offline_update.delete(stockOutId);
+      } else {
+        // Still has debt → keep the update pending with latest values
+        await db.stockouts_offline_update.put({
+          ...existingOfflineUpdate,
+          paymentStatus: updatedStockOutFromServer.paymentStatus,
+          debtedAmount: updatedStockOutFromServer.debtedAmount,
+          lastModified: new Date()
+        });
+      }
+    }
+
+    // 3. Update local state (stockOuts & filteredStockOuts) without full reload
+    setStockOuts(prevStockOuts => 
+      prevStockOuts.map(so => 
+        (so.id === stockOutId || so.localId === stockOutId)
+          ? {
+              ...so,
+              paymentStatus: updatedStockOutFromServer.paymentStatus,
+              debtedAmount: updatedStockOutFromServer.debtedAmount,
+              updatedAt: updatedStockOutFromServer.updatedAt || new Date(),
+              lastModified: new Date()
+            }
+          : so
+      )
+    );
+
+    // 4. Since filteredStockOuts is derived, it will auto-update via useEffect
+    //    but we force statistics refresh immediately
+    setStatistics(calculateStockOutStatistics(filteredStockOuts));
+
+    setNotification({
+      type: 'success',
+      message: 'Payment recorded successfully!'
+    });
+  } catch (error) {
+    console.error('Error updating payment in local state:', error);
+    setNotification({
+      type: 'error',
+      message: 'Payment recorded on server but local update failed. Please refresh.'
+    });
+    // Optional: still refresh as fallback
+    loadStockOuts();
+  }
+};
 
   const handleAddStockOut = async (stockOutData) => {
     setIsLoading(true);
@@ -801,6 +874,13 @@ const StockOutManagement = ({ role }) => {
     setIsViewModalOpen(true);
   };
 
+  const handleOpenPaymentModal = (stockOut) => {
+  if (stockOut.paymentStatus === 'DEBTED' && stockOut.debtedAmount > 0) {
+    setSelectedStockOut(stockOut);
+    setIsPaymentModalOpen(true);
+  }
+};
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -861,7 +941,7 @@ const StockOutManagement = ({ role }) => {
   };
 
   const StatisticsCards = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6 p-3 bg-white rounded-lg border border-gray-200">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4  gap-4 mb-6 p-3 bg-white rounded-lg border border-gray-200">
       {/* Classic stats */}
       <div className="p-4 bg-gradient-to-br from-blue-50 to-white rounded-lg border border-blue-100">
         <div className="flex items-center justify-between">
@@ -918,6 +998,17 @@ const StockOutManagement = ({ role }) => {
             </p>
           </div>
           <HandCoins className="w-9 h-9 text-amber-600 opacity-40" />
+        </div>
+      </div>
+      <div className="p-4 bg-gradient-to-br from-primary-50 to-white rounded-lg border border-primary-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-primary-700">CARD</p>
+            <p className="text-xl font-bold text-gray-900 mt-1">
+              {formatPrice(statistics?.byPaymentMethod?.CARD || 0)}
+            </p>
+          </div>
+          <HandCoins className="w-9 h-9 text-primary-600 opacity-40" />
         </div>
       </div>
 
@@ -1095,6 +1186,18 @@ const StockOutManagement = ({ role }) => {
                       >
                         <Eye size={16} />
                       </button>
+                        {isOnline && hasDebt && 
+                      
+                      
+                      <button
+                        onClick={() => handleOpenPaymentModal(stockOut)}
+                        disabled={isLoading}
+                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <CreditCardIcon size={14} />
+                      </button>
+                      }
                       {stockOut.transactionId && (
                         <button
                           onClick={() => handleShowInvoiceComponent(stockOut.transactionId)}
@@ -1234,6 +1337,18 @@ const StockOutManagement = ({ role }) => {
                           <Receipt size={14} />
                         </button>
                       )}
+                      {isOnline && hasDebt && 
+                      
+                      
+                      <button
+                        onClick={() => handleOpenPaymentModal(stockOut)}
+                        disabled={isLoading}
+                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <CreditCardIcon size={14} />
+                      </button>
+                      }
                       <button
                         onClick={() => openEditModal(stockOut)}
                         disabled={isLoading}
@@ -1482,6 +1597,17 @@ const StockOutManagement = ({ role }) => {
           stockOut={selectedStockOut}
           isLoading={isLoading}
         />
+       
+<UpdatePaymentModal
+  isOpen={isPaymentModalOpen}
+  onClose={() => {
+    setIsPaymentModalOpen(false);
+    setSelectedStockOut(null);
+  }}
+  stockOutId={selectedStockOut?.id}
+  currentDebtedAmount={selectedStockOut?.debtedAmount || 0}
+  onPaymentUpdated={handlePaymentUpdate}
+/>
       </div>
     </div>
   );

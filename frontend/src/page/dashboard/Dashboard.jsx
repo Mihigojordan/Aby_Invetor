@@ -19,7 +19,9 @@ import {
   Clock,
   PackageX,
   ShoppingCart,
-  RotateCcw
+  RotateCcw,
+  Smartphone,
+  CreditCard
 } from 'lucide-react';
 import {
   BarChart,
@@ -31,7 +33,6 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-
 import employeeService from "../../services/employeeService";
 import productService from "../../services/productService";
 import salesReturnService from "../../services/salesReturnService";
@@ -45,7 +46,7 @@ import { db } from '../../db/database';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null); // Add error state
+  const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState({
     employees: [],
     products: [],
@@ -55,14 +56,19 @@ const Dashboard = () => {
     salesReturns: [],
     summary: null
   });
-
-  const {isOnline} = useNetworkStatusContext()
+  const { isOnline } = useNetworkStatusContext();
   const [notification, setNotification] = useState(null);
   const [stats, setStats] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('6months');
+
+  // ── NEW FILTER STATES ────────────────────────────────────────────────
+  const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month, year, custom
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('all'); // all, CASH, MOMO, CARD
 
   // Add debugging function
   const debugData = (data, label) => {
@@ -74,22 +80,20 @@ const Dashboard = () => {
     console.groupEnd();
   };
 
-    const showNotification = (message, type = 'success') => {
+  const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
   };
-
-
 
   const fetchSummaryCounts = async () => {
     try {
       console.log('🔄 Fetching summary from:', `${API_URL}/summary`);
       const response = await fetch(`${API_URL}/summary`);
-      
+     
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+     
       const summaryData = await response.json();
       debugData(summaryData, 'Summary API Response');
       return summaryData;
@@ -100,89 +104,83 @@ const Dashboard = () => {
   };
 
   const fetchStockOuts = async () => {
-  try {
-    if (isOnline) {
-      const response = await stockOutService.getAllStockOuts();
-      for (const so of response) {
-        // Save stockout
-        await db.stockouts_all.put({
-          id: so.id,
-          stockinId: so.stockinId,
-          quantity: so.quantity,
-          soldPrice: so.soldPrice,
-          backorderId: so.backorderId,
-          clientName: so.clientName,
-          clientEmail: so.clientEmail,
-          clientPhone: so.clientPhone,
-          paymentMethod: so.paymentMethod,
-          adminId: so.adminId,
-          employeeId: so.employeeId,
-          transactionId: so.transactionId,
-          lastModified: new Date(),
-          createdAt: so.createdAt || new Date(),
-          updatedAt: so.updatedAt || new Date()
-        });
-
-        // Optional: make sure stockin exists in db
-        if (so.stockin && !(await db.stockins_all.get(so.stockin.id))) {
-          await db.stockins_all.put({
-            id: so.stockin.id,
-            productId: so.stockin.productId,
-            quantity: so.stockin.quantity,
-            price: so.stockin.price,
-            sellingPrice: so.stockin.sellingPrice,
-            supplier: so.stockin.supplier,
-            sku: so.stockin.sku,
-            barcodeUrl: so.stockin.barcodeUrl,
-            lastModified: new Date(),
-            updatedAt: new Date()
-          });
-        }
-      }
-    }
-
-    // 3. Merge local + remote (offline support)
-    const [allStockout, offlineAdds, offlineUpdates, offlineDeletes,stockIns] = await Promise.all([
-      db.stockouts_all.toArray(),
-      db.stockouts_offline_add.toArray(),
-      db.stockouts_offline_update.toArray(),
-      db.stockouts_offline_delete.toArray(),
-      fetchStockIns()
-    ]);
-
-    const deleteIds = new Set(offlineDeletes.map(d => d.id));
-    const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
-    const combinedStockout = allStockout
-      .filter(c => !deleteIds.has(c.id))
-      .map(c => ({
-        ...c,
-        ...updateMap.get(c.id),
-        synced: true,
-        stockin: stockIns.find(s => s.id == c.stockinId )
-      }))
-      .concat(offlineAdds.map(a => ({
-         ...a, 
-         synced: false,
-          stockin: stockIns.find(s => s.id == a.stockinId )
-         })))
-      .sort((a, b) => a.synced - b.synced);
-
-    console.warn('📦 COMBINED STOCK OUT:', combinedStockout);
-
-    return combinedStockout;
-  } catch (error) {
-    console.error('Error fetching stock-outs:', error);
-    if (!error.response) {
-      return await db.stockouts_all.toArray();
-    }
-  }
-};
-const fetchProducts = async () => {
     try {
       if (isOnline) {
-        // Assuming a productService.getAllProducts() exists, similar to categories
-        const response = await productService.getAllProducts(); // Adjust if needed
+        const response = await stockOutService.getAllStockOuts();
+        for (const so of response) {
+          await db.stockouts_all.put({
+            id: so.id,
+            stockinId: so.stockinId,
+            quantity: so.quantity,
+            soldPrice: so.soldPrice,
+            backorderId: so.backorderId,
+            clientName: so.clientName,
+            clientEmail: so.clientEmail,
+            clientPhone: so.clientPhone,
+            paymentMethod: so.paymentMethod,
+            adminId: so.adminId,
+            employeeId: so.employeeId,
+            transactionId: so.transactionId,
+            lastModified: new Date(),
+            createdAt: so.createdAt || new Date(),
+            updatedAt: so.updatedAt || new Date()
+          });
+          if (so.stockin && !(await db.stockins_all.get(so.stockin.id))) {
+            await db.stockins_all.put({
+              id: so.stockin.id,
+              productId: so.stockin.productId,
+              quantity: so.stockin.quantity,
+              price: so.stockin.price,
+              sellingPrice: so.stockin.sellingPrice,
+              supplier: so.stockin.supplier,
+              sku: so.stockin.sku,
+              barcodeUrl: so.stockin.barcodeUrl,
+              lastModified: new Date(),
+              updatedAt: new Date()
+            });
+          }
+        }
+      }
+      const [allStockout, offlineAdds, offlineUpdates, offlineDeletes, stockIns] = await Promise.all([
+        db.stockouts_all.toArray(),
+        db.stockouts_offline_add.toArray(),
+        db.stockouts_offline_update.toArray(),
+        db.stockouts_offline_delete.toArray(),
+        fetchStockIns()
+      ]);
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      const combinedStockout = allStockout
+        .filter(c => !deleteIds.has(c.id))
+        .map(c => ({
+          ...c,
+          ...updateMap.get(c.id),
+          synced: true,
+          stockin: stockIns.find(s => s.id == c.stockinId)
+        }))
+        .concat(offlineAdds.map(a => ({
+          ...a,
+          synced: false,
+          stockin: stockIns.find(s => s.id == a.stockinId)
+        })))
+        .sort((a, b) => {
+          if (a.synced !== b.synced) return a.synced - b.synced;
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+      console.warn('📦 COMBINED STOCK OUT:', combinedStockout);
+      return combinedStockout;
+    } catch (error) {
+      console.error('Error fetching stock-outs:', error);
+      if (!error.response) {
+        return await db.stockouts_all.toArray();
+      }
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      if (isOnline) {
+        const response = await productService.getAllProducts();
         for (const p of response.products || response) {
           await db.products_all.put({
             id: p.id,
@@ -195,84 +193,53 @@ const fetchProducts = async () => {
           });
         }
       }
-
-      // 3. Merge all data (works offline too)
       const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.products_all.toArray(),
         db.products_offline_add.toArray(),
         db.products_offline_update.toArray(),
         db.products_offline_delete.toArray()
       ]);
-
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
       const combinedProducts = allProducts
         .filter(c => !deleteIds.has(c.id))
-        .map(c => ({
-          ...c,
-          ...updateMap.get(c.id),
-          synced: true
-        }))
+        .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-
       return combinedProducts;
     } catch (error) {
       console.error('Error fetching products:', error);
       if (!error?.response) {
-
-        // 3. Merge all data (works offline too)
         const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
           db.products_all.toArray(),
           db.products_offline_add.toArray(),
           db.products_offline_update.toArray(),
           db.products_offline_delete.toArray(),
-          
         ]);
-
         const deleteIds = new Set(offlineDeletes.map(d => d.id));
         const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
         const combinedProducts = allProducts
           .filter(c => !deleteIds.has(c.id))
-          .map(c => ({
-            ...c,
-            ...updateMap.get(c.id),
-            synced: true,
-            
-          }))
-          .concat(offlineAdds.map(a => ({ 
-            ...a, 
-            synced: false,
-            
-          })))
+          .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
+          .concat(offlineAdds.map(a => ({ ...a, synced: false })))
           .sort((a, b) => a.synced - b.synced);
-
         return combinedProducts;
-
       }
-
     }
-  }; 
+  };
+
   const fetchStockIns = async () => {
     setLoading(true);
     try {
       const productData = await fetchProducts();
-    
-
-  
-
       const [allStockIns, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.stockins_all.toArray(),
         db.stockins_offline_add.toArray(),
         db.stockins_offline_update.toArray(),
         db.stockins_offline_delete.toArray()
       ]);
-
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
       const combinedStockIns = allStockIns
         .filter(s => !deleteIds.has(s.id))
         .map(s => ({
@@ -286,9 +253,7 @@ const fetchProducts = async () => {
           synced: false,
           product: productData.find(p => p.id === a.productId || p.localId === a.productId) || { productName: 'Unknown Product' }
         }))).sort((a, b) => a.synced - b.synced);
-
-      
-        return combinedStockIns;
+      return combinedStockIns;
     } catch (error) {
       console.error('Error loading stock-ins:', error);
       showNotification('Failed to load stock-ins', 'error');
@@ -296,12 +261,11 @@ const fetchProducts = async () => {
       setLoading(false);
     }
   };
+
   const fetchBackorders = async () => {
     try {
       if (isOnline) {
-        // Assuming you have a backorderService similar to productService
         const response = await backOrderService.getAllBackOrders();
-
         for (const b of response.backorders || response) {
           await db.backorders_all.put({
             id: b.id,
@@ -315,60 +279,35 @@ const fetchProducts = async () => {
             updatedAt: b.updatedAt || new Date()
           });
         }
-        // 3. Merge all data (works offline too)
-
-
       }
-
       const [allBackOrder, offlineAdds] = await Promise.all([
         db.backorders_all.toArray(),
         db.backorders_offline_add.toArray(),
-
       ]);
-
       const combinedBackOrder = allBackOrder
-
-        .map(c => ({
-          ...c,
-          synced: true
-        }))
+        .map(c => ({ ...c, synced: true }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-      console.warn('backend', combinedBackOrder);
-
       return combinedBackOrder;
-
     } catch (error) {
       console.error('Error fetching backorders:', error);
-
-      // Fallback: return local cache if API fails or offline
       if (!error?.response) {
-
         const [allBackOrder, offlineAdds] = await Promise.all([
           db.backorders_all.toArray(),
           db.backorders_offline_add.toArray(),
-
         ]);
-
         const combinedBackOrder = allBackOrder
-
-          .map(c => ({
-            ...c,
-            synced: true
-          }))
+          .map(c => ({ ...c, synced: true }))
           .concat(offlineAdds.map(a => ({ ...a, synced: false })))
           .sort((a, b) => a.synced - b.synced);
-        console.warn('backend', combinedBackOrder);
-
         return combinedBackOrder;
-
       }
     }
   };
+
   const fetchCategories = async () => {
     try {
       if (isOnline) {
-        // 1. Fetch from API
         const response = await categoryService.getAllCategories();
         if (response && response.categories) {
           for (const category of response.categories) {
@@ -381,253 +320,184 @@ const fetchProducts = async () => {
             });
           }
         }
-
-        // 2. Sync any offline adds/updates/deletes
-        // await triggerSync();
       }
-
-      // 3. Always read from IndexedDB (so offline works too)
       const allCategories = await db.categories_all.toArray();
-
-      console.log('log categories : +>', allCategories);
-
-      // setCategories(allCategories);
-      return allCategories
+      return allCategories;
     } catch (error) {
       if (!error.response) {
         const allCategories = await db.categories_all.toArray();
-        return allCategories
+        return allCategories;
       }
       console.error("Error fetching categories:", error);
     }
   };
 
-   const fetchSalesReturnData = async () => {
-     setLoading(true);
-     try {
-      
- 
-       // Load all offline data
-       const [
-         allSalesReturns,
-         offlineAdds,
-         offlineUpdates,
-         offlineDeletes,
-         allReturnItems,
-         offlineItemAdds,
-         stockOutsData
-       ] = await Promise.all([
-         db.sales_returns_all.toArray(),
-         db.sales_returns_offline_add.toArray(),
-         db.sales_returns_offline_update.toArray(),
-         db.sales_returns_offline_delete.toArray(),
-         db.sales_return_items_all.toArray(),
-         db.sales_return_items_offline_add.toArray(),
-         fetchStockOuts()
-       ]);
- 
-       // Create maps for efficient lookups
-       const deleteIds = new Set(offlineDeletes.map(d => d.id));
-       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-       const stockOutMap = new Map(stockOutsData.map(s => [s.id || s.localId, s]));
- 
-       // Combine all return items
-       const combinedReturnItems = allReturnItems
-         .concat(offlineItemAdds.map(a => ({ ...a, synced: false })))
-         .reduce((acc, item) => {
-           const key = item.salesReturnId || item.salesReturnLocalId;
-           if (!acc[key]) acc[key] = [];
-           acc[key].push({
-             ...item,
-             stockout: stockOutMap.get(item.stockoutId)
-           });
-           return acc;
-         }, {});
- 
-       // Process synced sales returns
-       const syncedReturns = allSalesReturns
-         .filter(sr => !deleteIds.has(sr.id))
-         .map(sr => ({
-           ...sr,
-           ...updateMap.get(sr.id),
-           synced: true,
-           items: combinedReturnItems[sr.id] || []
-         }));
- 
-       // Process offline sales returns
-       const offlineReturns = offlineAdds.map(sr => ({
-         ...sr,
-         synced: false,
-         items: combinedReturnItems[sr.localId] || []
-       }));
- 
-       const combinedSalesReturns = [...syncedReturns, ...offlineReturns]
-         .sort((a, b) => new Date(b.createdAt || b.lastModified) - new Date(a.createdAt || a.lastModified));
- 
-    return combinedSalesReturns
-     } catch (error) {
-       console.error('Error loading sales returns:', error);
-       showNotification('Failed to load sales returns', 'error');
-     } finally {
-       setLoading(false);
-     }
-   }; 
-
+  const fetchSalesReturnData = async () => {
+    setLoading(true);
+    try {
+      const [
+        allSalesReturns,
+        offlineAdds,
+        offlineUpdates,
+        offlineDeletes,
+        allReturnItems,
+        offlineItemAdds,
+        stockOutsData
+      ] = await Promise.all([
+        db.sales_returns_all.toArray(),
+        db.sales_returns_offline_add.toArray(),
+        db.sales_returns_offline_update.toArray(),
+        db.sales_returns_offline_delete.toArray(),
+        db.sales_return_items_all.toArray(),
+        db.sales_return_items_offline_add.toArray(),
+        fetchStockOuts()
+      ]);
+      const deleteIds = new Set(offlineDeletes.map(d => d.id));
+      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+      const stockOutMap = new Map(stockOutsData.map(s => [s.id || s.localId, s]));
+      const combinedReturnItems = allReturnItems
+        .concat(offlineItemAdds.map(a => ({ ...a, synced: false })))
+        .reduce((acc, item) => {
+          const key = item.salesReturnId || item.salesReturnLocalId;
+          if (!acc[key]) acc[key] = [];
+          acc[key].push({
+            ...item,
+            stockout: stockOutMap.get(item.stockoutId)
+          });
+          return acc;
+        }, {});
+      const syncedReturns = allSalesReturns
+        .filter(sr => !deleteIds.has(sr.id))
+        .map(sr => ({
+          ...sr,
+          ...updateMap.get(sr.id),
+          synced: true,
+          items: combinedReturnItems[sr.id] || []
+        }));
+      const offlineReturns = offlineAdds.map(sr => ({
+        ...sr,
+        synced: false,
+        items: combinedReturnItems[sr.localId] || []
+      }));
+      const combinedSalesReturns = [...syncedReturns, ...offlineReturns]
+        .sort((a, b) => new Date(b.createdAt || b.lastModified) - new Date(a.createdAt || a.lastModified));
+      return combinedSalesReturns;
+    } catch (error) {
+      console.error('Error loading sales returns:', error);
+      showNotification('Failed to load sales returns', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getSummaryFrontend = async () => {
-  try {
-    // 1. Fetch all required data from IndexedDB (using your fetchers)
-    const [categories, products, stockIns, stockOuts] = await Promise.all([
-      fetchCategories(),
-      fetchProducts(),
-      fetchStockIns(),
-      fetchStockOuts(),
-    ]);
-
-    // 2. Totals
-    const totalCategories = categories.length;
-    const totalProducts = products.length;
-    const totalEmployees = 0; // You’ll need fetchEmployees() if you track employees in IndexedDB
-
-    // 3. Most used category (by number of products)
-    const categoryCountMap = products.reduce((acc, p) => {
-      acc[p.categoryId] = (acc[p.categoryId] || 0) + 1;
-      return acc;
-    }, {});
-    const mostUsedCategoryId = Object.keys(categoryCountMap).sort(
-      (a, b) => categoryCountMap[b] - categoryCountMap[a]
-    )[0];
-    const mostUsedCategory = mostUsedCategoryId
-      ? {
-          name:
-            categories.find((c) => c.id === mostUsedCategoryId)?.name ||
-            "Unknown Category",
-          usageCount: categoryCountMap[mostUsedCategoryId],
-        }
-      : null;
-
-    // 4. Total stockIn quantity
-    const totalStockIn = stockIns.reduce(
-      (sum, si) => sum + (si.quantity || 0),
-      0
-    );
-
-    // 5. Total stockOut quantity
-    const totalStockOut = stockOuts.reduce(
-      (sum, so) => sum + (so.quantity || 0),
-      0
-    );
-
-    // 6. Product with most stockIn quantity
-    const stockInByProduct = stockIns.reduce((acc, si) => {
-      acc[si.productId] = (acc[si.productId] || 0) + (si.quantity || 0);
-      return acc;
-    }, {});
-    const mostStockedInProductId = Object.keys(stockInByProduct).sort(
-      (a, b) => stockInByProduct[b] - stockInByProduct[a]
-    )[0];
-    const mostStockedInProduct = mostStockedInProductId
-      ? {
-          id: parseInt(mostStockedInProductId),
-          name:
-            products.find((p) => p.id === mostStockedInProductId)
-              ?.productName || "Unknown Product",
-        }
-      : null;
-
-    // 7. Calculate stock levels (stockIn - stockOut)
-    const stockOutByStockIn = stockOuts.reduce((acc, so) => {
-      acc[so.stockinId] = (acc[so.stockinId] || 0) + (so.quantity || 0);
-      return acc;
-    }, {});
-
-    const stockLevels = products.map((product) => {
-      // total stockIn for this product
-      const productStockIns = stockIns.filter(
-        (si) => si.productId === product.id
-      );
-      const totalIn = productStockIns.reduce(
-        (sum, si) => sum + (si.quantity || 0),
-        0
-      );
-
-      // total stockOut linked to this product's stockIns
-      const totalOut = productStockIns.reduce((sum, si) => {
-        return sum + (stockOutByStockIn[si.id] || 0);
-      }, 0);
-
+    try {
+      const [categories, products, stockIns, stockOuts] = await Promise.all([
+        fetchCategories(),
+        fetchProducts(),
+        fetchStockIns(),
+        fetchStockOuts(),
+      ]);
+      const totalCategories = categories.length;
+      const totalProducts = products.length;
+      const totalEmployees = 0;
+      const categoryCountMap = products.reduce((acc, p) => {
+        acc[p.categoryId] = (acc[p.categoryId] || 0) + 1;
+        return acc;
+      }, {});
+      const mostUsedCategoryId = Object.keys(categoryCountMap).sort(
+        (a, b) => categoryCountMap[b] - categoryCountMap[a]
+      )[0];
+      const mostUsedCategory = mostUsedCategoryId
+        ? {
+            name: categories.find((c) => c.id === mostUsedCategoryId)?.name || "Unknown Category",
+            usageCount: categoryCountMap[mostUsedCategoryId],
+          }
+        : null;
+      const totalStockIn = stockIns.reduce((sum, si) => sum + (si.quantity || 0), 0);
+      const totalStockOut = stockOuts.reduce((sum, so) => sum + (so.quantity || 0), 0);
+      const stockInByProduct = stockIns.reduce((acc, si) => {
+        acc[si.productId] = (acc[si.productId] || 0) + (si.quantity || 0);
+        return acc;
+      }, {});
+      const mostStockedInProductId = Object.keys(stockInByProduct).sort(
+        (a, b) => stockInByProduct[b] - stockInByProduct[a]
+      )[0];
+      const mostStockedInProduct = mostStockedInProductId
+        ? {
+            id: parseInt(mostStockedInProductId),
+            name: products.find((p) => p.id === mostStockedInProductId)?.productName || "Unknown Product",
+          }
+        : null;
+      const stockOutByStockIn = stockOuts.reduce((acc, so) => {
+        acc[so.stockinId] = (acc[so.stockinId] || 0) + (so.quantity || 0);
+        return acc;
+      }, {});
+      const stockLevels = products.map((product) => {
+        const productStockIns = stockIns.filter((si) => si.productId === product.id);
+        const totalIn = productStockIns.reduce((sum, si) => sum + (si.quantity || 0), 0);
+        const totalOut = productStockIns.reduce((sum, si) => {
+          return sum + (stockOutByStockIn[si.id] || 0);
+        }, 0);
+        return {
+          productId: product.id,
+          productName: product.productName,
+          stock: totalIn - totalOut,
+        };
+      });
+      const sortedStock = [...stockLevels].sort((a, b) => a.stock - b.stock);
+      const lowStock = sortedStock.slice(0, 5);
+      const highStock = sortedStock.slice(-5).reverse();
       return {
-        productId: product.id,
-        productName: product.productName,
-        stock: totalIn - totalOut,
+        totalCategories,
+        totalProducts,
+        totalEmployees,
+        totalStockIn,
+        totalStockOut,
+        mostUsedCategory,
+        mostStockedInProduct,
+        lowStock,
+        highStock,
       };
-    });
-
-    // 8. Low stock (lowest 5) and high stock (highest 5)
-    const sortedStock = [...stockLevels].sort((a, b) => a.stock - b.stock);
-    const lowStock = sortedStock.slice(0, 5);
-    const highStock = sortedStock.slice(-5).reverse();
-
-    // ✅ Return same shape as backend
-    return {
-      totalCategories,
-      totalProducts,
-      totalEmployees,
-
-      totalStockIn,
-      totalStockOut,
-      mostUsedCategory,
-      mostStockedInProduct,
-      lowStock,
-      highStock,
-    };
-  } catch (error) {
-    console.error("Error building summary frontend:", error);
-    return null;
-  }
-};
-
+    } catch (error) {
+      console.error("Error building summary frontend:", error);
+      return null;
+    }
+  };
 
   const loadDashboardData = async () => {
     setLoading(true);
     try {
       setError(null);
       console.log('🚀 Starting dashboard data load...');
-
-      // First try to get summary
-      let summary ;
-      if(isOnline){
-        summary = await fetchSummaryCounts()
-      }else{
-        summary = await getSummaryFrontend()
+      let summary;
+      if (isOnline) {
+        summary = await fetchSummaryCounts();
+      } else {
+        summary = await getSummaryFrontend();
       }
-
-      // Then load all other data with error handling for each service
-      let results ;
-
-      if(isOnline){
-        results  = await Promise.allSettled([
-        employeeService.getAllEmployees(),
-        productService.getAllProducts(),
-        stockinService.getAllStockIns(),
-        stockOutService.getAllStockOuts(),
-        categoryService.getAllCategories(),
-        salesReturnService.getAllSalesReturns(),
-        backOrderService.getAllBackOrders()
-      ]);
+      let results;
+      if (isOnline) {
+        results = await Promise.allSettled([
+          employeeService.getAllEmployees(),
+          productService.getAllProducts(),
+          stockinService.getAllStockIns(),
+          stockOutService.getAllStockOuts(),
+          categoryService.getAllCategories(),
+          salesReturnService.getAllSalesReturns(),
+          backOrderService.getAllBackOrders()
+        ]);
+      } else {
+        results = await Promise.allSettled([
+          employeeService.getAllEmployees(),
+          fetchProducts(),
+          fetchStockIns(),
+          fetchStockOuts(),
+          fetchCategories(),
+          fetchSalesReturnData(),
+          fetchBackorders(),
+        ]);
       }
-else{
-  results = await Promise.allSettled([
- employeeService.getAllEmployees(),
- fetchProducts(),
- fetchStockIns(),
- fetchStockOuts(),
- fetchCategories(),
-fetchSalesReturnData(),
- fetchBackorders(),
-])
-}
-      // Process results and handle any failed requests
       const [
         employeesResult,
         productsResult,
@@ -635,41 +505,33 @@ fetchSalesReturnData(),
         stockOutsResult,
         categoriesResult,
         salesReturnsResult,
-       backOrderResult,
+        backOrderResult,
       ] = results;
-
       const data = {
         employees: employeesResult.status === 'fulfilled' ? employeesResult.value : [],
         products: productsResult.status === 'fulfilled' ? productsResult.value : [],
         stockIns: stockInsResult.status === 'fulfilled' ? stockInsResult.value : [],
         stockOuts: stockOutsResult.status === 'fulfilled' ? stockOutsResult.value : [],
         categories: categoriesResult.status === 'fulfilled' ? categoriesResult.value : [],
-        salesReturns: salesReturnsResult.status === 'fulfilled' ? 
+        salesReturns: salesReturnsResult.status === 'fulfilled' ?
           (salesReturnsResult.value?.data || salesReturnsResult.value) : [],
-        backOrders: backOrderResult.status === 'fulfilled' ? 
+        backOrders: backOrderResult.status === 'fulfilled' ?
           (backOrderResult.value?.data || backOrderResult.value) : [],
         summary
       };
-
-      // Debug each data type
       Object.entries(data).forEach(([key, value]) => {
         debugData(value, `${key} data`);
       });
-
       setDashboardData(data);
-
       if (summary) {
-        calculateStats(summary,data);
+        calculateStats(summary, data);
       } else {
         calculateStatsFromData(data);
       }
-
       prepareInventoryData(data);
       prepareRecentActivities(data);
       prepareChartData(data, selectedPeriod);
-
       console.log('✅ Dashboard data loaded successfully');
-
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error);
       setError(error.message);
@@ -678,32 +540,46 @@ fetchSalesReturnData(),
     }
   };
 
-    const formatPrice = (price) => {
+  const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'RWF'
     }).format(price);
   };
 
-const calculateStats = (summary, data) => {
-  console.log('📊 Calculating stats from summary:', summary);
+  const calculateStats = (summary, data) => {
+    console.log('📊 Calculating stats from summary:', summary);
+    const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
+    const filteredStockOuts = filterStockOutsByDateAndPayment(stockOuts);
 
-  const backOrders = Array.isArray(data.backOrders) ? data.backOrders : [];
-  const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
+    const totalBackOrders = filteredStockOuts
+      .filter((b) => b.backorderId != null)
+      .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const totalSoldPriceBackOrders = filteredStockOuts
+      .filter((b) => b.backorderId != null)
+      .reduce((sum, item) => sum + (Number(item.soldPrice) || 0), 0);
 
-  const totalBackOrders = stockOuts
-    .filter((b) => b.backorderId != null)
-    .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const salesReturnStats = calculateSalesReturnStats(data.salesReturns);
 
-  const totalSoldPriceBackOrders = stockOuts
-    .filter((b) => b.backorderId != null)
-    .reduce((sum, item) => sum + (Number(item.soldPrice) || 0), 0);
+    const paymentTotals = {
+      CASH: 0,
+      MOMO: 0,
+      CARD: 0
+    };
 
-  // ✅ Sales Return Stats
-  const salesReturnStats = calculateSalesReturnStats(data.salesReturns);
+    filteredStockOuts.forEach(so => {
+      const totalAmount = (so.quantity || 0) * (so.soldPrice || 0);
+      const paidAmount = so.paymentStatus === 'DEBTED' && so.debtedAmount > 0
+        ? totalAmount - so.debtedAmount
+        : totalAmount;
 
-  const newStats = [
-    {
+      if (so.paymentMethod && ['CASH', 'MOMO', 'CARD'].includes(so.paymentMethod)) {
+        paymentTotals[so.paymentMethod] += paidAmount;
+      }
+    });
+
+    const newStats = [
+      {
         title: 'Total Products',
         value: (summary.totalProducts || 0).toString(),
         icon: Package,
@@ -743,207 +619,223 @@ const calculateStats = (summary, data) => {
         color: 'text-emerald-600',
         bgColor: 'bg-emerald-50'
       },
-
-        {
-      title: 'Non-Stock Quantity Sold',
-      value: totalBackOrders.toString(),
-      icon: ShoppingCart , 
-      change:  `Sales : ${formatPrice(totalSoldPriceBackOrders?.toString())}  `,
-      color: 'text-red-600',
-      bgColor: 'bg-red-50'
-    }
-,
-    {
-      title: "Sales Returns",
-      value: (salesReturnStats.totalReturns || 0).toString(),
-      icon: RotateCcw, // e.g. from lucide-react
-      change: `${salesReturnStats.totalReturnedItems} items returned`,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-    },
-    {
-      title: "Refunded Amount",
-      value: formatPrice(salesReturnStats.totalRefundAmount || 0),
-      icon: DollarSign,
-      change: `Top returned: ${
-        salesReturnStats.mostReturnedProduct?.name || "N/A"
-      } (${salesReturnStats.mostReturnedProduct?.returnedQty || 0})`,
-      color: "text-teal-600",
-      bgColor: "bg-teal-50",
-    },
-  ];
-
-  console.log("📊 Stats calculated:", newStats);
-  setStats(newStats);
-};
-const calculateSalesReturnStats = (salesReturns = []) => {
-  let totalReturns = salesReturns.length;
-  let totalReturnedItems = 0;
-  let totalRefundAmount = 0;
-
-  // count by product
-  const productReturnCount = {};
-
-  salesReturns.forEach((sr) => {
-    sr.items.forEach((item) => {
-      console.warn('item :',item);
-      
-      const qty = item.quantity || 0;
-      const stockout = item.stockout;
-
-      totalReturnedItems += qty;
-
-      if (stockout?.soldPrice) {
-        totalRefundAmount += qty * stockout.soldPrice;
+      {
+        title: 'Non-Stock Quantity Sold',
+        value: totalBackOrders.toString(),
+        icon: ShoppingCart,
+        change: `Sales : ${formatPrice(totalSoldPriceBackOrders)} `,
+        color: 'text-red-600',
+        bgColor: 'bg-red-50'
+      },
+      {
+        title: "Sales Returns",
+        value: (salesReturnStats.totalReturns || 0).toString(),
+        icon: RotateCcw,
+        change: `${salesReturnStats.totalReturnedItems} items returned`,
+        color: "text-orange-600",
+        bgColor: "bg-orange-50",
+      },
+      {
+        title: "Refunded Amount",
+        value: formatPrice(salesReturnStats.totalRefundAmount || 0),
+        icon: DollarSign,
+        change: `Top returned: ${salesReturnStats.mostReturnedProduct?.name || "N/A"} (${salesReturnStats.mostReturnedProduct?.returnedQty || 0})`,
+        color: "text-teal-600",
+        bgColor: "bg-teal-50",
+      },
+      // NEW PAYMENT METHOD STATS CARDS
+      {
+        title: "CASH Sales",
+        value: formatPrice(paymentTotals.CASH),
+        icon: DollarSign,
+        change: "Cash payments",
+        color: "text-amber-600",
+        bgColor: "bg-amber-50",
+      },
+      {
+        title: "MOMO Sales",
+        value: formatPrice(paymentTotals.MOMO),
+        icon: Smartphone,
+        change: "Mobile money",
+        color: "text-purple-600",
+        bgColor: "bg-purple-50",
+      },
+      {
+        title: "CARD Sales",
+        value: formatPrice(paymentTotals.CARD),
+        icon: CreditCard,
+        change: "Card payments",
+        color: "text-blue-600",
+        bgColor: "bg-blue-50",
       }
+    ];
 
-      const product = stockout?.stockin?.product;
-      console.warn(product);
-      
-      if (product) {
-        productReturnCount[product.id] =
-          (productReturnCount[product.id] || 0) + qty;
+    setStats(newStats);
+  };
+
+  const calculateSalesReturnStats = (salesReturns = []) => {
+    let totalReturns = salesReturns.length;
+    let totalReturnedItems = 0;
+    let totalRefundAmount = 0;
+    const productReturnCount = {};
+    salesReturns.forEach((sr) => {
+      sr.items.forEach((item) => {
+        const qty = item.quantity || 0;
+        const stockout = item.stockout;
+        totalReturnedItems += qty;
+        if (stockout?.soldPrice) {
+          totalRefundAmount += qty * stockout.soldPrice;
+        }
+        const product = stockout?.stockin?.product;
+        if (product) {
+          productReturnCount[product.id] = (productReturnCount[product.id] || 0) + qty;
+        }
+      });
+    });
+    const mostReturnedProductId = Object.keys(productReturnCount).sort(
+      (a, b) => productReturnCount[b] - productReturnCount[a]
+    )[0];
+    const mostReturnedProduct = mostReturnedProductId
+      ? {
+          id: mostReturnedProductId,
+          name: salesReturns
+            .flatMap((sr) => sr.items.map((it) => it.stockout?.stockin?.product))
+            .find((p) => p?.id === mostReturnedProductId)?.productName || "Unknown Product",
+          returnedQty: productReturnCount[mostReturnedProductId],
+        }
+      : null;
+    return {
+      totalReturns,
+      totalReturnedItems,
+      totalRefundAmount,
+      mostReturnedProduct,
+    };
+  };
+
+  const calculateStatsFromData = (data) => {
+    console.log('📊 Calculating stats from raw data...');
+    const employees = Array.isArray(data.employees) ? data.employees : [];
+    const products = Array.isArray(data.products) ? data.products : [];
+    const categories = Array.isArray(data.categories) ? data.categories : [];
+    const stockIns = Array.isArray(data.stockIns) ? data.stockIns : [];
+    const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
+    const salesReturns = Array.isArray(data.salesReturns) ? data.salesReturns : [];
+    const backOrders = Array.isArray(data.backOrders) ? data.backOrders : [];
+
+    const filteredStockOuts = filterStockOutsByDateAndPayment(stockOuts);
+
+    const totalProducts = products.length;
+    const totalEmployees = employees.length;
+    const totalCategories = categories.length;
+    const totalStockIn = stockIns.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const totalStockOut = stockOuts.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const totalBackOrders = backOrders.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const totalSalesReturns = salesReturns.length;
+
+    const paymentTotals = {
+      CASH: 0,
+      MOMO: 0,
+      CARD: 0
+    };
+
+    filteredStockOuts.forEach(so => {
+      const totalAmount = (so.quantity || 0) * (so.soldPrice || 0);
+      const paidAmount = so.paymentStatus === 'DEBTED' && so.debtedAmount > 0
+        ? totalAmount - so.debtedAmount
+        : totalAmount;
+
+      if (so.paymentMethod && ['CASH', 'MOMO', 'CARD'].includes(so.paymentMethod)) {
+        paymentTotals[so.paymentMethod] += paidAmount;
       }
     });
-  });
 
-  // most returned product
-  const mostReturnedProductId = Object.keys(productReturnCount).sort(
-    (a, b) => productReturnCount[b] - productReturnCount[a]
-  )[0];
+    const lowStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 5);
+    const outOfStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 0);
 
-  console.warn('product id :',mostReturnedProductId);
-  
-
-  const mostReturnedProduct = mostReturnedProductId
-    ? {
-        id: mostReturnedProductId,
-        name:
-          salesReturns
-            .flatMap((sr) =>{
-console.warn('sale:',sr);
-
-             return sr.items.map((it) => it.stockout?.stockin?.product)
-            }
-            )
-            .find((p) => p?.id === mostReturnedProductId)?.productName ||
-          "Unknown Product",
-        returnedQty: productReturnCount[mostReturnedProductId],
+    const newStats = [
+      {
+        title: 'Total Products',
+        value: totalProducts.toString(),
+        icon: Package,
+        change: `${totalStockIn} total stock in`,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50'
+      },
+      {
+        title: 'Low Stock Items',
+        value: lowStock.length.toString(),
+        icon: AlertTriangle,
+        change: `${outOfStock.length} out of stock`,
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-50'
+      },
+      {
+        title: 'Total Stock Out',
+        value: totalStockOut.toString(),
+        icon: ArrowDownRight,
+        change: `${totalSalesReturns} sales returns`,
+        color: 'text-green-600',
+        bgColor: 'bg-green-50'
+      },
+      {
+        title: 'Total Employees',
+        value: totalEmployees.toString(),
+        icon: UserCheck,
+        change: `${totalCategories} categories`,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-50'
+      },
+      {
+        title: 'Non-Stock Sale',
+        value: totalBackOrders.toString(),
+        icon: Clock,
+        change: `${totalBackOrders} pending`,
+        color: 'text-red-600',
+        bgColor: 'bg-red-50'
+      },
+      {
+        title: 'CASH Sales',
+        value: formatPrice(paymentTotals.CASH),
+        icon: DollarSign,
+        change: "Cash payments",
+        color: "text-amber-600",
+        bgColor: "bg-amber-50",
+      },
+      {
+        title: 'MOMO Sales',
+        value: formatPrice(paymentTotals.MOMO),
+        icon: Smartphone,
+        change: "Mobile money",
+        color: "text-purple-600",
+        bgColor: "bg-purple-50",
+      },
+      {
+        title: 'CARD Sales',
+        value: formatPrice(paymentTotals.CARD),
+        icon: CreditCard,
+        change: "Card payments",
+        color: "text-blue-600",
+        bgColor: "bg-blue-50",
       }
-    : null;
+    ];
 
-  return {
-    totalReturns,
-    totalReturnedItems,
-    totalRefundAmount,
-    mostReturnedProduct,
+    setStats(newStats);
   };
-};
-
-const calculateStatsFromData = (data) => {
-  console.log('📊 Calculating stats from raw data...');
-  
-  // Ensure data is arrays
-  const employees = Array.isArray(data.employees) ? data.employees : [];
-  const products = Array.isArray(data.products) ? data.products : [];
-  const categories = Array.isArray(data.categories) ? data.categories : [];
-  const stockIns = Array.isArray(data.stockIns) ? data.stockIns : [];
-  const stockOuts = Array.isArray(data.stockOuts) ? data.stockOuts : [];
-  const salesReturns = Array.isArray(data.salesReturns) ? data.salesReturns : [];
-
-    const backOrders = Array.isArray(data.backOrders) ? data.backOrders : [];
-    
-    
-    
-  const totalProducts = products.length;
-  const totalEmployees = employees.length;
-  const totalCategories = categories.length;
-  const totalStockIn = stockIns.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  const totalStockOut = stockOuts.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-    const totalBackOrders = backOrders.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  const totalSalesReturns = salesReturns.length;
- 
-  // Fix lowStock calculation - should be based on products with current stock
-  const lowStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 5);
-  const outOfStock = stockIns.filter(item => (Number(item.quantity) || 0) <= 0);
-
-  console.log('📊 Calculated values:', {
-    totalProducts,
-    totalEmployees,
-    totalCategories,
-    totalStockIn,
-    totalStockOut,
-    totalSalesReturns,
-    totalBackOrders,
-    lowStockCount: lowStock.length,
-    outOfStockCount: outOfStock.length
-  });
-
-  const newStats = [
-    {
-      title: 'Total Products',
-      value: totalProducts.toString(),
-      icon: Package,
-      change: `${totalStockIn} total stock in`,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50'
-    },
-    {
-      title: 'Low Stock Items',
-      value: lowStock.length.toString(),
-      icon: AlertTriangle,
-      change: `${outOfStock.length} out of stock`,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50'
-    },
-    {
-      title: 'Total Stock Out',
-      value: totalStockOut.toString(),
-      icon: ArrowDownRight,
-      change: `${totalSalesReturns} sales returns`,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50'
-    },
-    {
-      title: 'Total Employees',
-      value: totalEmployees.toString(),
-      icon: UserCheck,
-      change: `${totalCategories} categories`,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50'
-    },
-    {
-      title: 'Non-Stock Sale',
-      value: totalBackOrders.toString(),
-      icon: Clock, // ⏰ or use another icon from lucide-react
-      change: `${totalBackOrders} pending`,
-      color: 'text-red-600',
-      bgColor: 'bg-red-50'
-    }
-  ];
-
-  setStats(newStats);
-};
-
 
   const prepareInventoryData = (data) => {
     console.log('📦 Preparing inventory data...');
-    
     if (!Array.isArray(data.stockIns)) {
       console.warn('⚠️ StockIns is not an array:', data.stockIns);
       setInventoryData([]);
       return;
     }
-
     const inventory = data.stockIns.map(stockIn => {
       const product = data.products?.find(p => p.id === stockIn.productId);
       const category = data.categories?.find(c => c.id === product?.categoryId);
       const quantity = Number(stockIn.quantity) || 0;
-      
       let status = 'In Stock';
       if (quantity === 0) status = 'Out of Stock';
       else if (quantity <= 5) status = 'Low Stock';
-
       return {
         id: stockIn.id,
         name: product?.productName || product?.name || 'Unknown Product',
@@ -957,7 +849,6 @@ const calculateStatsFromData = (data) => {
         createdAt: stockIn.createdAt
       };
     });
-
     console.log('📦 Inventory prepared:', inventory.slice(0, 3));
     setInventoryData(inventory);
   };
@@ -965,13 +856,10 @@ const calculateStatsFromData = (data) => {
   const prepareRecentActivities = (data) => {
     console.log('🔄 Preparing recent activities...');
     const activities = [];
-
-    // Handle stock ins
     if (Array.isArray(data.stockIns) && data.stockIns.length > 0) {
       const recentStockIns = [...data.stockIns]
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
         .slice(0, 3);
-
       recentStockIns.forEach(stockIn => {
         const product = data.products?.find(p => p.id === stockIn.productId);
         activities.push({
@@ -985,13 +873,10 @@ const calculateStatsFromData = (data) => {
         });
       });
     }
-
-    // Handle stock outs
     if (Array.isArray(data.stockOuts) && data.stockOuts.length > 0) {
       const recentStockOuts = [...data.stockOuts]
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
         .slice(0, 3);
-
       recentStockOuts.forEach(stockOut => {
         activities.push({
           id: `stockout-${stockOut.id}`,
@@ -1004,13 +889,10 @@ const calculateStatsFromData = (data) => {
         });
       });
     }
-
-    // Handle returns
     if (Array.isArray(data.salesReturns) && data.salesReturns.length > 0) {
       const recentReturns = [...data.salesReturns]
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
         .slice(0, 2);
-
       recentReturns.forEach(returnItem => {
         activities.push({
           id: `return-${returnItem.id}`,
@@ -1023,55 +905,34 @@ const calculateStatsFromData = (data) => {
         });
       });
     }
-
     const sortedActivities = activities
       .sort((a, b) => new Date(b.time) - new Date(a.time))
       .slice(0, 8);
-
     console.log('🔄 Activities prepared:', sortedActivities.length, 'activities');
     setRecentActivities(sortedActivities);
   };
 
   const prepareChartData = (data, period = '6months') => {
     console.log('📈 Preparing chart data for period:', period);
-    
     if (!data || !Array.isArray(data.stockIns) || !Array.isArray(data.stockOuts)) {
       console.warn('⚠️ Invalid data for chart preparation');
       setChartData([]);
       return;
     }
-
     const now = new Date();
     let periods = [];
-    
+
     if (period === '30days') {
       for (let i = 29; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
         const dayName = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        
         const stockInThisDay = data.stockIns
-          .filter(item => {
-            console.log('hiroshima',item);
-            //
-
-            const itemDate = new Date(item.createdAt || item.lastModified);
-            
-            return itemDate.toDateString() === date.toDateString();
-          })
+          .filter(item => new Date(item.createdAt || item.lastModified).toDateString() === date.toDateString())
           .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-
-          console.warn('kanye',stockInThisDay);
-          
-        
         const stockOutThisDay = data.stockOuts
-          .filter(item => {
-           
-            const itemDate = new Date(item.createdAt || item.lastModified);
-            return itemDate.toDateString() === date.toDateString();
-          })
+          .filter(item => new Date(item.createdAt || item.lastModified).toDateString() === date.toDateString())
           .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-        
         periods.push({
           period: dayName,
           stockIn: stockInThisDay,
@@ -1082,25 +943,18 @@ const calculateStatsFromData = (data) => {
       for (let i = 5; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        
         const stockInThisMonth = data.stockIns
           .filter(item => {
-           
             const itemDate = new Date(item.createdAt ?? item.lastModified);
-            return itemDate.getMonth() === date.getMonth() && 
-                   itemDate.getFullYear() === date.getFullYear();
+            return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
           })
           .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-        
         const stockOutThisMonth = data.stockOuts
           .filter(item => {
-           
             const itemDate = new Date(item.createdAt || item.lastModified);
-            return itemDate.getMonth() === date.getMonth() && 
-                   itemDate.getFullYear() === date.getFullYear();
+            return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
           })
           .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-        
         periods.push({
           period: monthName,
           stockIn: stockInThisMonth,
@@ -1111,25 +965,18 @@ const calculateStatsFromData = (data) => {
       for (let i = 11; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        
         const stockInThisMonth = data.stockIns
           .filter(item => {
-           
             const itemDate = new Date(item.createdAt || item.lastModified);
-            return itemDate.getMonth() === date.getMonth() && 
-                   itemDate.getFullYear() === date.getFullYear();
+            return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
           })
           .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-        
         const stockOutThisMonth = data.stockOuts
           .filter(item => {
-           
             const itemDate = new Date(item.createdAt || item.lastModified);
-            return itemDate.getMonth() === date.getMonth() && 
-                   itemDate.getFullYear() === date.getFullYear();
+            return itemDate.getMonth() === date.getMonth() && itemDate.getFullYear() === date.getFullYear();
           })
           .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-        
         periods.push({
           period: monthName,
           stockIn: stockInThisMonth,
@@ -1137,7 +984,7 @@ const calculateStatsFromData = (data) => {
         });
       }
     }
-    
+
     console.log('📈 Chart data prepared:', periods);
     setChartData(periods);
   };
@@ -1156,22 +1003,64 @@ const calculateStatsFromData = (data) => {
     }
   };
 
+  const filterStockOutsByDateAndPayment = (stockOuts) => {
+    const now = new Date();
+    let filtered = [...stockOuts];
+
+    // Date filtering
+    if (dateFilter === 'today') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      filtered = filtered.filter(so => new Date(so.createdAt || so.lastModified) >= todayStart);
+    } else if (dateFilter === 'week') {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      filtered = filtered.filter(so => new Date(so.createdAt || so.lastModified) >= weekStart);
+    } else if (dateFilter === 'month') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      filtered = filtered.filter(so => new Date(so.createdAt || so.lastModified) >= monthStart);
+    } else if (dateFilter === 'year') {
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      filtered = filtered.filter(so => new Date(so.createdAt || so.lastModified) >= yearStart);
+    } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
+      const start = new Date(customStartDate);
+      const end = new Date(customEndDate);
+      end.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(so => {
+        const date = new Date(so.createdAt || so.lastModified);
+        return date >= start && date <= end;
+      });
+    }
+
+    // Payment method filtering
+    if (selectedPaymentMethod !== 'all') {
+      filtered = filtered.filter(so => so.paymentMethod === selectedPaymentMethod);
+    }
+
+    return filtered;
+  };
+
   useEffect(() => {
     loadDashboardData();
   }, []);
 
   useEffect(() => {
-    if (dashboardData.stockIns.length > 0 || dashboardData.stockOuts.length > 0) {
-      prepareChartData(dashboardData, selectedPeriod);
+    if (dashboardData.stockOuts.length > 0) {
+      const filtered = filterStockOutsByDateAndPayment(dashboardData.stockOuts);
+      prepareChartData({ ...dashboardData, stockOuts: filtered }, selectedPeriod);
+      // Re-calculate stats with filtered data
+      if (dashboardData.summary) {
+        calculateStats(dashboardData.summary, { ...dashboardData, stockOuts: filtered });
+      } else {
+        calculateStatsFromData({ ...dashboardData, stockOuts: filtered });
+      }
     }
-  }, [selectedPeriod, dashboardData]);
+  }, [dateFilter, customStartDate, customEndDate, selectedPaymentMethod, selectedPeriod, dashboardData]);
 
   const formatTimeAgo = (date) => {
     const now = new Date();
     const diffMs = now - new Date(date);
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
-
     if (diffDays > 0) return `${diffDays}d ago`;
     if (diffHours > 0) return `${diffHours}h ago`;
     return 'Just now';
@@ -1195,7 +1084,7 @@ const calculateStatsFromData = (data) => {
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <button 
+          <button
             onClick={loadDashboardData}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
@@ -1208,30 +1097,138 @@ const calculateStatsFromData = (data) => {
 
   return (
     <div className="max-h-[90vh] overflow-y-auto bg-gray-50">
-          {notification && (
+      {notification && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'} animate-in slide-in-from-top-2 duration-300`}>
           {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           {notification.message}
         </div>
       )}
+
       <div className="bg-white border-b border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Umusingi Hardware Inventory Management</h1>
             <p className="text-gray-600">Real-time inventory management and analytics</p>
           </div>
-          {/* Debug info in development */}
-          {/* {process.env.NODE_ENV === 'development' && (
-            <div className="text-sm text-gray-500">
-              Products: {dashboardData.products.length} | 
-              Stock Ins: {dashboardData.stockIns.length} | 
-              Stock Outs: {dashboardData.stockOuts.length}
-            </div>
-          )} */}
         </div>
       </div>
 
       <main className="p-6">
+        {/* Date Filter Buttons */}
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={() => setDateFilter('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                dateFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              All Time
+            </button>
+            <button
+              onClick={() => setDateFilter('today')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                dateFilter === 'today' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setDateFilter('week')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                dateFilter === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => setDateFilter('month')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                dateFilter === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setDateFilter('year')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                dateFilter === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              This Year
+            </button>
+            <button
+              onClick={() => setDateFilter('custom')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                dateFilter === 'custom' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+
+          {dateFilter === 'custom' && (
+            <div className="flex flex-wrap gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Payment Method Filter Buttons */}
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedPaymentMethod('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedPaymentMethod === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              All Payments
+            </button>
+            <button
+              onClick={() => setSelectedPaymentMethod('CASH')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedPaymentMethod === 'CASH' ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              CASH
+            </button>
+            <button
+              onClick={() => setSelectedPaymentMethod('MOMO')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedPaymentMethod === 'MOMO' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              MOMO
+            </button>
+            <button
+              onClick={() => setSelectedPaymentMethod('CARD')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedPaymentMethod === 'CARD' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              CARD
+            </button>
+          </div>
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {stats.map((stat, index) => (
@@ -1250,11 +1247,10 @@ const calculateStatsFromData = (data) => {
           ))}
         </div>
 
-        {/* Rest of your existing JSX remains the same */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory Overview</h3>
-            
+           
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {/* Most Used Category Card */}
               <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
@@ -1273,7 +1269,6 @@ const calculateStatsFromData = (data) => {
                   </div>
                 </div>
               </div>
-
               {/* Most Stocked Product Card */}
               <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
@@ -1291,7 +1286,6 @@ const calculateStatsFromData = (data) => {
                   </div>
                 </div>
               </div>
-
               {/* Low Stock Alert Card */}
               <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
@@ -1309,7 +1303,6 @@ const calculateStatsFromData = (data) => {
                   </div>
                 </div>
               </div>
-
               {/* High Stock Summary Card */}
               <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
@@ -1328,7 +1321,6 @@ const calculateStatsFromData = (data) => {
                 </div>
               </div>
             </div>
-
             <div className="mt-6">
               <h4 className="text-md font-medium text-gray-700 mb-3">Recent Stock Movements</h4>
               <div className="overflow-x-auto">
@@ -1350,10 +1342,10 @@ const calculateStatsFromData = (data) => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            item.status === 'Out of Stock' 
-                              ? 'bg-red-100 text-red-800' 
-                              : item.status === 'Low Stock' 
-                                ? 'bg-yellow-100 text-yellow-800' 
+                            item.status === 'Out of Stock'
+                              ? 'bg-red-100 text-red-800'
+                              : item.status === 'Low Stock'
+                                ? 'bg-yellow-100 text-yellow-800'
                                 : 'bg-green-100 text-green-800'
                           }`}>
                             {item.status}
@@ -1372,7 +1364,7 @@ const calculateStatsFromData = (data) => {
               </div>
             </div>
           </div>
-          
+         
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -1419,7 +1411,7 @@ const calculateStatsFromData = (data) => {
               </h3>
               <p className="text-sm text-gray-500 mt-1">{getPeriodLabel()} comparison of stock movements</p>
             </div>
-            
+           
             {/* Period Selector */}
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button
@@ -1454,7 +1446,7 @@ const calculateStatsFromData = (data) => {
               </button>
             </div>
           </div>
-          
+         
           <div className="h-80">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -1468,19 +1460,19 @@ const calculateStatsFromData = (data) => {
                   }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis 
-                    dataKey="period" 
+                  <XAxis
+                    dataKey="period"
                     stroke="#6b7280"
                     fontSize={12}
                     angle={selectedPeriod === '30days' ? -45 : 0}
                     textAnchor={selectedPeriod === '30days' ? 'end' : 'middle'}
                     height={selectedPeriod === '30days' ? 80 : 60}
                   />
-                  <YAxis 
+                  <YAxis
                     stroke="#6b7280"
                     fontSize={12}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e5e7eb',
@@ -1490,15 +1482,15 @@ const calculateStatsFromData = (data) => {
                     labelStyle={{ color: '#374151' }}
                   />
                   <Legend />
-                  <Bar 
-                    dataKey="stockIn" 
-                    fill="#10b981" 
+                  <Bar
+                    dataKey="stockIn"
+                    fill="#10b981"
                     name="Stock In"
                     radius={[2, 2, 0, 0]}
                   />
-                  <Bar 
-                    dataKey="stockOut" 
-                    fill="#3b82f6" 
+                  <Bar
+                    dataKey="stockOut"
+                    fill="#3b82f6"
                     name="Stock Out"
                     radius={[2, 2, 0, 0]}
                   />
@@ -1514,7 +1506,7 @@ const calculateStatsFromData = (data) => {
               </div>
             )}
           </div>
-          
+         
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">

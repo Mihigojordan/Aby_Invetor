@@ -35,6 +35,7 @@ import {
   Award,
   Star,
   CreditCard,
+  Smartphone,
 } from 'lucide-react';
 import stockOutService from '../../services/stockoutService';
 import Swal from 'sweetalert2';
@@ -45,7 +46,7 @@ import stockInService from '../../services/stockinService';
 import backOrderService from '../../services/backOrderService';
 import productService from '../../services/productService';
 
-const SalesReportPage = ({role}) => {
+const SalesReportPage = ({ role }) => {
   const [salesData, setSalesData] = useState([]);
   const [filteredSalesData, setFilteredSalesData] = useState([]);
   const { isOnline } = useNetworkStatusContext();
@@ -59,14 +60,17 @@ const SalesReportPage = ({role}) => {
   const [periodStats, setPeriodStats] = useState({
     totalSales: 0,
     totalQuantity: 0,
-    totalProfit: 0
+    totalProfit: 0,
+    totalDebt: 0,
+    totalCollected: 0,
+    byPaymentMethod: { CASH: 0, MOMO: 0, CARD: 0 }
   });
   const [viewMode, setViewMode] = useState('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-
   const navigate = useNavigate();
+
   const [stats, setStats] = useState([
     {
       title: 'Total Sales',
@@ -87,22 +91,40 @@ const SalesReportPage = ({role}) => {
       color: 'text-blue-600'
     },
     {
-      title: 'Lowest Stock Out',
-      value: 'Loading...',
-      change: 'Product with minimum sales',
-      icon: TrendingDown,
+      title: 'Outstanding Debt',
+      value: 'RWF 0',
+      change: 'Amount customers owe',
+      icon: AlertTriangle,
       bgColor: 'bg-red-50',
       path: null,
       color: 'text-red-600'
     },
     {
-      title: 'Highest Stock Out',
-      value: 'Loading...',
-      change: 'Product with maximum sales',
-      icon: TrendingUp,
+      title: 'Total Collected',
+      value: 'RWF 0',
+      change: 'Successfully received',
+      icon: Check,
       bgColor: 'bg-green-50',
       path: null,
       color: 'text-green-600'
+    },
+    {
+      title: 'CASH Sales',
+      value: 'RWF 0',
+      change: 'Cash payments',
+      icon: CreditCard,
+      bgColor: 'bg-amber-50',
+      path: null,
+      color: 'text-amber-600'
+    },
+    {
+      title: 'MOMO Sales',
+      value: 'RWF 0',
+      change: 'Mobile money',
+      icon: Smartphone,
+      bgColor: 'bg-purple-50',
+      path: null,
+      color: 'text-purple-600'
     },
     {
       title: 'Non-Stock Sales',
@@ -168,13 +190,11 @@ const SalesReportPage = ({role}) => {
         fetchProducts(),
         fetchBackorders()
       ]);
-
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
       const backOrderMap = new Map(backOrderData.map(b => [b.id || b.localId, b]));
       const productMap = new Map(productsData.map(p => [p.id || p.localId, p]));
       const stockinMap = new Map(stockinsData.map(s => [s.id || s.localId, { ...s, product: productMap.get(s.productId) }]));
-
       const combinedStockOuts = allStockOuts
         .filter(so => !deleteIds.has(so.id))
         .map(so => ({
@@ -191,18 +211,15 @@ const SalesReportPage = ({role}) => {
           stockin: stockinMap.get(a.stockinId)
         })))
         .sort((a, b) => a.synced - b.synced);
-
       setSalesData(combinedStockOuts);
       calculateStats(combinedStockOuts);
       setError(null);
-
       if (showRefreshLoader) {
         setNotification({
           type: 'success',
           message: 'Sales data refreshed successfully!'
         });
       }
-
       if (!isOnline && combinedStockOuts.length === 0) {
         setNotification({
           type: 'warning',
@@ -229,10 +246,8 @@ const SalesReportPage = ({role}) => {
         db.stockins_offline_update.toArray(),
         db.stockins_offline_delete.toArray()
       ]);
-
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
       const combinedStockin = allStockin
         .filter(c => !deleteIds.has(c.id))
         .map(c => ({
@@ -242,7 +257,6 @@ const SalesReportPage = ({role}) => {
         }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-
       return combinedStockin;
     } catch (error) {
       console.error('Error fetching stock-ins:', error);
@@ -256,7 +270,6 @@ const SalesReportPage = ({role}) => {
         db.backorders_all.toArray(),
         db.backorders_offline_add.toArray(),
       ]);
-
       const combinedBackOrder = allBackOrder
         .map(c => ({
           ...c,
@@ -264,7 +277,6 @@ const SalesReportPage = ({role}) => {
         }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-
       return combinedBackOrder;
     } catch (error) {
       console.error('Error fetching backorders:', error);
@@ -280,10 +292,8 @@ const SalesReportPage = ({role}) => {
         db.products_offline_update.toArray(),
         db.products_offline_delete.toArray()
       ]);
-
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
       const combinedProducts = allProducts
         .filter(c => !deleteIds.has(c.id))
         .map(c => ({
@@ -293,7 +303,6 @@ const SalesReportPage = ({role}) => {
         }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-
       return combinedProducts;
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -304,7 +313,6 @@ const SalesReportPage = ({role}) => {
   const filterDataByPeriod = () => {
     const now = new Date();
     let periodStartDate;
-
     switch (currentPeriod) {
       case 'today':
         periodStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -318,27 +326,21 @@ const SalesReportPage = ({role}) => {
       default:
         periodStartDate = new Date(0);
     }
-
     const filtered = salesData.filter(item => {
       const itemDate = new Date(item.createdAt);
       
-      // Filter by period
       const matchesPeriod = itemDate >= periodStartDate;
       
-      // Filter by custom date range
       const matchesDateRange = (!startDate || itemDate >= new Date(startDate)) &&
-                             (!endDate || itemDate <= new Date(endDate));
+                               (!endDate || itemDate <= new Date(endDate));
       
-      // Filter by search term
       const matchesSearch = !searchTerm ||
         item.stockin?.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.backorder?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.transactionId?.toLowerCase().includes(searchTerm.toLowerCase());
-
       return matchesPeriod && matchesDateRange && matchesSearch;
     });
-
     setFilteredSalesData(filtered);
     calculatePeriodStats(filtered);
     setCurrentPage(1);
@@ -354,10 +356,37 @@ const SalesReportPage = ({role}) => {
       return sum + ((soldPrice - costPrice) * quantity);
     }, 0);
 
+    let totalDebt = 0;
+    let totalCollected = 0;
+    const paymentMethodTotals = { CASH: 0, MOMO: 0, CARD: 0 };
+
+    data.forEach(item => {
+      const quantity = item.offlineQuantity ?? item.quantity ?? 0;
+      const soldPrice = item.soldPrice ?? 0;
+      const totalAmount = quantity * soldPrice;
+
+      if (item.paymentStatus === 'DEBTED' && (item.debtedAmount ?? 0) > 0) {
+        totalDebt += item.debtedAmount;
+        totalCollected += totalAmount - item.debtedAmount;
+      } else {
+        totalCollected += totalAmount;
+      }
+
+      if (item.paymentMethod && ['CASH', 'MOMO', 'CARD'].includes(item.paymentMethod)) {
+        const amountToAdd = item.paymentStatus === 'DEBTED' && (item.debtedAmount ?? 0) > 0
+          ? totalAmount - item.debtedAmount
+          : totalAmount;
+        paymentMethodTotals[item.paymentMethod] += amountToAdd;
+      }
+    });
+
     setPeriodStats({
       totalSales,
       totalQuantity,
-      totalProfit
+      totalProfit,
+      totalDebt,
+      totalCollected,
+      byPaymentMethod: paymentMethodTotals
     });
   };
 
@@ -424,6 +453,29 @@ const SalesReportPage = ({role}) => {
 
     const totalSalesAmount = data.reduce((sum, item) => sum + ((item.soldPrice || 0) * ((item.offlineQuantity ?? item.quantity) || 0)), 0);
     const totalQuantitySold = data.reduce((sum, item) => sum + ((item.offlineQuantity ?? item.quantity) || 0), 0);
+
+    let totalDebt = 0;
+    let totalCollected = 0;
+    const paymentMethodTotals = { CASH: 0, MOMO: 0, CARD: 0 };
+
+    data.forEach(item => {
+      const totalAmount = ((item.offlineQuantity ?? item.quantity) || 0) * (item.soldPrice || 0);
+
+      if (item.paymentStatus === 'DEBTED' && (item.debtedAmount ?? 0) > 0) {
+        totalDebt += item.debtedAmount;
+        totalCollected += totalAmount - item.debtedAmount;
+      } else {
+        totalCollected += totalAmount;
+      }
+
+      if (item.paymentMethod && ['CASH', 'MOMO', 'CARD'].includes(item.paymentMethod)) {
+        const amountToAdd = item.paymentStatus === 'DEBTED' && (item.debtedAmount ?? 0) > 0
+          ? totalAmount - item.debtedAmount
+          : totalAmount;
+        paymentMethodTotals[item.paymentMethod] += amountToAdd;
+      }
+    });
+
     const backorderSales = data.filter(item => item.backorderId);
     const totalBackorderSalesAmount = backorderSales.reduce((sum, item) => sum + ((item.soldPrice || 0) * ((item.offlineQuantity ?? item.quantity) || 0)), 0);
 
@@ -498,22 +550,49 @@ const SalesReportPage = ({role}) => {
         path: role == 'admin' ? '/admin/dashboard/stockout' : '/employee/dashboard/stockout',
       },
       {
-        title: 'Lowest Stock Out',
-        value: lowestProduct ? `${lowestProduct.totalQuantity} units` : 'No data',
-        change: lowestProduct ? lowestProduct.name : 'No products sold',
-        icon: TrendingDown,
+        title: 'Outstanding Debt',
+        value: formatCurrency(totalDebt),
+        change: totalDebt > 0 ? 'Customers owe this amount' : 'No outstanding debt',
+        icon: AlertTriangle,
         bgColor: 'bg-red-50',
         color: 'text-red-600',
-        path: role == 'admin' ? '/admin/dashboard/sales-report/stockout-analysis' :  '/employee/dashboard/sales-report/stockout-analysis',
+        path: null,
       },
       {
-        title: 'Highest Stock Out',
-        value: highestProduct ? `${highestProduct.totalQuantity} units` : 'No data',
-        change: highestProduct ? highestProduct.name : 'No products sold',
-        icon: TrendingUp,
+        title: 'Total Collected',
+        value: formatCurrency(totalCollected),
+        change: 'Successfully received',
+        icon: Check,
         bgColor: 'bg-green-50',
         color: 'text-green-600',
-        path: role == 'admin' ?  '/admin/dashboard/sales-report/stockout-analysis' : '/employee/dashboard/sales-report/stockout-analysis',
+        path: null,
+      },
+      {
+        title: 'CASH Sales',
+        value: formatCurrency(paymentMethodTotals.CASH),
+        change: 'Cash payments',
+        icon: CreditCard,
+        bgColor: 'bg-amber-50',
+        color: 'text-amber-600',
+        path: null,
+      },
+      {
+        title: 'Card Sales',
+        value: formatCurrency(paymentMethodTotals.CARD),
+        change: 'Card payments',
+        icon: CreditCard,
+        bgColor: 'bg-amber-50',
+        color: 'text-amber-600',
+        path: null,
+      },
+      {
+        title: 'MOMO Sales',
+        value: formatCurrency(paymentMethodTotals.MOMO),
+        change: 'Mobile money',
+        icon: Smartphone,
+        bgColor: 'bg-purple-50',
+        color: 'text-purple-600',
+        path: null,
       },
       {
         title: 'Non-Stock Sales',
@@ -521,9 +600,9 @@ const SalesReportPage = ({role}) => {
         change: highestBackorder
           ? `${highestBackorder.name} (${highestBackorder.totalQuantity} units)`
           : 'No Non-stock sales',
-        icon: ShoppingCart,
+        icon: TrendingUp,
         bgColor: 'bg-red-50',
-        color: 'text-red-600',
+        color: 'text-green-600',
         path: role == 'admin' ? '/admin/dashboard/sales-report/non-stock-analysis' : '/employee/dashboard/sales-report/non-stock-analysis',
       },
     ]);
@@ -583,7 +662,7 @@ const SalesReportPage = ({role}) => {
   };
 
   const StatisticsCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-2 p-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-2 p-3">
       {stats.map((stat, index) => (
         <div
           key={index}
@@ -695,65 +774,34 @@ const SalesReportPage = ({role}) => {
   );
 
   const GridView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-      {(currentItems || []).map((stockOut, index) => {
-        const profit = calculateProfit(stockOut);
-        const isProfit = profit > 0;
+    <div className="">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        {(currentItems || []).map((stockOut, index) => {
+          const profit = calculateProfit(stockOut);
+          const isProfit = profit > 0;
+          const hasDebt = stockOut.paymentStatus === 'DEBTED' && (stockOut.debtedAmount ?? 0) > 0;
+          const totalAmount = ((stockOut.offlineQuantity ?? stockOut.quantity) || 0) * (stockOut.soldPrice || 0);
 
-        return (
-          <div
-            key={stockOut.id || stockOut.localId}
-            className={`bg-white rounded-lg border hover:shadow-md transition-all duration-200 ${stockOut.synced ? 'border-gray-200' : 'border-yellow-200'}`}
-          >
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <ShoppingCart size={16} className="text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm text-gray-900 truncate">
-                      {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
-                    </h3>
-                    <div className="flex items-center gap-1 mt-1">
-                      <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                      <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
+          return (
+            <div
+              key={stockOut.localId || stockOut.id}
+              className={`bg-white rounded-lg border hover:shadow-md transition-shadow ${stockOut.synced ? 'border-gray-200' : 'border-yellow-200'}`}
+            >
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                      <ShoppingCart size={16} className="text-blue-600" />
                     </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2 mb-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-600">Quantity:</span>
-                  <span className="text-xs font-bold text-primary-600">{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-600">Unit Price:</span>
-                  <span className="text-xs text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-600">Total Price:</span>
-                  <span className="text-xs font-bold text-green-600">
-                    {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-600">Profit/Loss:</span>
-                  <span className={`text-xs font-bold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                    {formatPrice(Math.abs(profit))}
-                    {profit !== 0 && (
-                      <span className="ml-1">{isProfit ? '↗' : '↘'}</span>
-                    )}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="pt-3 border-t border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Calendar size={12} />
-                    <span>{formatDate(stockOut.createdAt)}</span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm text-gray-900 truncate">
+                        {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
+                      </h3>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                        <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
+                      </div>
+                    </div>
                   </div>
                   <button
                     onClick={() => handleViewMoreDetails(stockOut.id)}
@@ -764,11 +812,61 @@ const SalesReportPage = ({role}) => {
                     <Eye size={14} />
                   </button>
                 </div>
+
+                {hasDebt && (
+                  <div className="mb-3 p-2 bg-red-50 rounded">
+                    <div className="text-xs">
+                      <span className="font-medium text-red-700">Debt remaining: </span>
+                      <span className="font-bold text-red-700">{formatPrice(stockOut.debtedAmount)}</span>
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      Paid: {formatPrice(totalAmount - (stockOut.debtedAmount || 0))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Quantity:</span>
+                    <span className="font-bold text-primary-600">{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
+                  </div>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Unit Price:</span>
+                    <span className="text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
+                  </div>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Total Price:</span>
+                    <span className="font-bold text-green-600">
+                      {formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between text-xs">
+                    <span className="font-medium text-gray-600">Profit/Loss:</span>
+                    <span className={`font-bold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {formatPrice(Math.abs(profit))}
+                      {profit !== 0 && (
+                        <span className="ml-1">{isProfit ? '↗' : '↘'}</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Calendar size={12} />
+                      <span>{formatDate(stockOut.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      <div className="bg-white rounded-lg border border-gray-200">
+        <PaginationComponent />
+      </div>
     </div>
   );
 
@@ -784,6 +882,7 @@ const SalesReportPage = ({role}) => {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Unit Price</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Total Price</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Profit/Loss</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Debt</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Date</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Actions</th>
@@ -793,6 +892,8 @@ const SalesReportPage = ({role}) => {
             {(currentItems || []).map((stockOut, index) => {
               const profit = calculateProfit(stockOut);
               const isProfit = profit > 0;
+              const hasDebt = stockOut.paymentStatus === 'DEBTED' && (stockOut.debtedAmount ?? 0) > 0;
+              const totalAmount = (stockOut.offlineQuantity ?? stockOut.quantity ?? 0) * (stockOut.soldPrice ?? 0);
 
               return (
                 <tr key={stockOut.localId || stockOut.id} className="hover:bg-gray-50 transition-colors">
@@ -839,6 +940,21 @@ const SalesReportPage = ({role}) => {
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
+                    {hasDebt ? (
+                      <div>
+                        <span className="text-xs text-red-600 font-medium">
+                          Debt: {formatPrice(stockOut.debtedAmount)}
+                        </span>
+                        <br />
+                        <span className="text-xs text-gray-500">
+                          Paid: {formatPrice(totalAmount - (stockOut.debtedAmount || 0))}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-green-600">Paid</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stockOut.synced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                       <div className={`w-2 h-2 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                       {stockOut.synced ? 'Synced' : 'Pending'}
@@ -872,85 +988,6 @@ const SalesReportPage = ({role}) => {
     </div>
   );
 
-  const CardView = () => (
-    <div className="md:hidden">
-      <div className="grid grid-cols-1 gap-4 mb-6">
-        {(currentItems || []).map((stockOut, index) => {
-          const profit = calculateProfit(stockOut);
-          const isProfit = profit > 0;
-
-          return (
-            <div
-              key={stockOut.localId || stockOut.id}
-              className={`bg-white rounded-lg border hover:shadow-md transition-shadow ${stockOut.synced ? 'border-gray-200' : 'border-yellow-200'}`}
-            >
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <ShoppingCart size={16} className="text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm text-gray-900 truncate">
-                        {stockOut.stockin?.product?.productName || stockOut.backorder?.productName || 'Sale Transaction'}
-                      </h3>
-                      <div className="flex items-center gap-1 mt-1">
-                        <div className={`w-1.5 h-1.5 rounded-full ${stockOut.synced ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                        <span className="text-xs text-gray-500">{stockOut.synced ? 'Synced' : 'Pending Sync'}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleViewMoreDetails(stockOut.id)}
-                    disabled={loading}
-                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 rounded-lg transition-colors"
-                    title="View Details"
-                  >
-                    <Eye size={14} />
-                  </button>
-                </div>
-                <div className="space-y-2 mb-3">
-                  <div className="flex items-start justify-between text-xs">
-                    <span className="font-medium text-gray-600">Quantity:</span>
-                    <span className="font-bold text-primary-600">{stockOut.offlineQuantity ?? stockOut.quantity ?? 'N/A'}</span>
-                  </div>
-                  <div className="flex items-start justify-between text-xs">
-                    <span className="font-medium text-gray-600">Unit Price:</span>
-                    <span className="text-gray-900">{formatPrice(stockOut.soldPrice)}</span>
-                  </div>
-                  <div className="flex items-start justify-between text-xs">
-                    <span className="font-medium text-gray-600">Total Price:</span>
-                    <span className="font-bold text-green-600">{formatPrice(((stockOut.offlineQuantity ?? stockOut.quantity) || 1) * stockOut.soldPrice)}</span>
-                  </div>
-                  <div className="flex items-start justify-between text-xs">
-                    <span className="font-medium text-gray-600">Profit/Loss:</span>
-                    <span className={`font-bold ${isProfit ? 'text-green-600' : profit < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                      {formatPrice(Math.abs(profit))}
-                      {profit !== 0 && (
-                        <span className="ml-1">{isProfit ? '↗' : '↘'}</span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-                <div className="pt-3 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Calendar size={12} />
-                      <span>{formatDate(stockOut.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="bg-white rounded-lg border border-gray-200">
-        <PaginationComponent />
-      </div>
-    </div>
-  );
-
   if (loading && !isRefreshing) {
     return (
       <div className="bg-gray-50 min-h-[90vh]">
@@ -971,9 +1008,9 @@ const SalesReportPage = ({role}) => {
   }
 
   return (
-     <div className=" border w-[99%]  bg-gray-50 h-[90vh]"> {/* Reduced padding */}
+    <div className=" border w-[99%]  bg-gray-50 max-h-[90vh] overflow-y-auto"> {/* Reduced padding */}
       {/* Notification Toast */}
-     {notification && (
+      {notification && (
         <div
           className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm ${
             notification.type === 'success' ? 'bg-green-500 text-white' :
@@ -998,7 +1035,6 @@ const SalesReportPage = ({role}) => {
                 </div>
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               {/* Sync and Refresh buttons */}
               <div className="flex gap-2">
@@ -1047,10 +1083,8 @@ const SalesReportPage = ({role}) => {
             </div>
           </div>
         </div>
-
         {/* Statistics Cards */}
         {stats && <StatisticsCards />}
-
         {/* Search and Filter Bar */}
         <div className="bg-white rounded-lg border border-gray-200 mb-6 p-2 ml-3 mr-3">
           <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
@@ -1089,7 +1123,6 @@ const SalesReportPage = ({role}) => {
                 </div>
               </div>
             </div>
-
             {/* View mode toggle in filter section */}
             <div className="flex items-center gap-2">
               <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
@@ -1111,10 +1144,8 @@ const SalesReportPage = ({role}) => {
             </div>
           </div>
         </div>
-
         {/* Period Cards */}
         <PeriodCards />
-
         {/* Main Content */}
         {filteredSalesData.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
@@ -1136,7 +1167,7 @@ const SalesReportPage = ({role}) => {
               <GridView />
             ) : (
               <>
-                <CardView />
+                
                 <TableView />
               </>
             )}
@@ -1146,5 +1177,4 @@ const SalesReportPage = ({role}) => {
     </div>
   );
 };
-
 export default SalesReportPage;

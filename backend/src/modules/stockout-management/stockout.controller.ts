@@ -52,6 +52,14 @@ export class StockoutController{
       throw new HttpException(error.message, error.status || HttpStatus.BAD_REQUEST);
     }
   }
+  @Put('update-payment/:id')
+  async updatePayment(@Param('id') id: string, @Body() body: any) {
+    try {
+      return await this.stockoutService.updatePayment(id, body.amount);
+    } catch (error) {
+      throw new HttpException(error.message, error.status || HttpStatus.BAD_REQUEST);
+    }
+  }
 
   @Delete('delete/:id')
   async delete(@Param('id') id: string, @Body() data ) {
