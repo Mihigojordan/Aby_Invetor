@@ -92,7 +92,7 @@ async function bootstrap() {
     // --------------------
     // Start server
     // --------------------
-    const port = process.env.PORT ?? 4000;
+    const port = process.env.PORT ?? 6000;
     await app.listen(port);
     console.log(`✅ SERVER RUNNING ON PORT ${port}`);
   } catch (err) {
