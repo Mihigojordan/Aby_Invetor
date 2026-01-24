@@ -23,6 +23,15 @@ export class StockoutController{
     }
   }
 
+  @Get('debt-all')
+  async getDebtAll() {
+    try {
+      return await this.stockoutService.getAllDebted();
+    } catch (error) {
+      throw new HttpException(error.message, error.status || HttpStatus.BAD_REQUEST);
+    }
+  }
+
 
   @Get('transaction/:id')
   async getStockoutBytransactionId(@Param('id') id:string){

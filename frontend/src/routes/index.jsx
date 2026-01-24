@@ -67,6 +67,9 @@ import ReceiveStockRequisition from "../components/dashboard/stock-requisition/R
 import ViewStockRequisition from "../components/dashboard/stock-requisition/RequisitionDetailView";
 import PushNotificationPage from "../page/dashboard/PushNotificationPage";
 import NotificationsPage from "../page/dashboard/NotificationPage";
+import DebtManagementPage from "../page/dashboard/DebtManagementPage";
+import ExpenseManagementPage from "../page/dashboard/ExpenseManagement";
+import CreditManagementPage from "../page/dashboard/CreditManagementPage";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -398,6 +401,33 @@ const routes = createBrowserRouter([
                                 )
 
                             },
+                             {
+                                path: "debt-management",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <DebtManagementPage  role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "expense-management",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ExpenseManagementPage  role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "credit-management",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <CreditManagementPage  role={'admin'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
                         ]
                     }
                 ]
@@ -720,6 +750,34 @@ const routes = createBrowserRouter([
                                 element: (
                                     <SuspenseWrapper>
                                         <NotificationsPage role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+
+                             {
+                                path: "debt-management",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <DebtManagementPage  role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "expense-management",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ExpenseManagementPage  role={'employee'} />
+                                    </SuspenseWrapper>
+                                )
+
+                            },
+                             {
+                                path: "credit-management",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <CreditManagementPage  role={'employee'} />
                                     </SuspenseWrapper>
                                 )
 

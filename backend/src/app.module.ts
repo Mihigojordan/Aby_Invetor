@@ -22,6 +22,8 @@ import { NotificationModule } from './modules/notifications/notification.module'
 import { PushNotificationsModule } from './modules/push-notification/push-notification.module';
 import { RequisitionModule } from './modules/requisition-management/requisition.module';
 import { StockRequisitionModule } from './modules/stock-requisition/stock-requisition.module';
+import { ExpenseModule } from './modules/expense-management/expense.module';
+import { CreditModule } from './modules/credit-management/credit.module';
 
 @Module({
   imports: [
@@ -53,6 +55,8 @@ import { StockRequisitionModule } from './modules/stock-requisition/stock-requis
     NotificationModule,
     RequisitionModule,
     StockRequisitionModule,
+    ExpenseModule,
+    CreditModule,
   ],
   controllers: [AppController],
   providers: [],

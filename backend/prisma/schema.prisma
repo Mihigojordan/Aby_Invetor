@@ -55,6 +55,8 @@ model Employee {
   approvedItems         RequisitionItem[]           @relation("ItemApprover")
   deliveriesCreated     RequisitionItemDelivery[]   @relation("DeliveryCreator")
 
+  expense    Expense[]
+  credit    Credit[]
 
   stockRequisition StockRequisition[]
    receivingLogs   ReceivingLog[]
@@ -221,6 +223,7 @@ model Report {
 
   // Credit & Debit records
   transactions   Transaction[]
+  credits   Credit[]
   
   // Money records
   cashAtHand     Float          @default(0.0)
@@ -233,12 +236,32 @@ model Report {
 
 model Expense {
   id          String   @id @default(cuid())
-  reportId    String
-  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  
-  description String
-  amount      Float
+
+  reportId    String?
+  report      Report?   @relation(fields: [reportId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  description String?
+  amount      Float?
+
+  reason      String?
+  expenseDate DateTime?
+
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  // ✅ NEW: approval workflow
+  status      ExpenseStatus @default(PENDING)
+
+  createdAt   DateTime @default(now())
 }
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
 
 model Transaction {
   id          String   @id @default(cuid())
@@ -532,4 +555,35 @@ model ReceivingLog {
   // Relations
   requisitionItem   StockRequisitionItem @relation(fields: [requisitionItemId], references: [id], onDelete: Cascade)
   receivedBy        Employee        @relation(fields: [receivedById], references: [id])
+}
+
+
+enum CreditStatus {
+  PENDING     // Credit created, no payment yet
+  PARTIAL     // Some payments have been made
+  COMPLETED   // Fully paid
+}
+
+model Credit {
+  id          String   @id @default(cuid())
+
+  description String?  // What this credit is for
+  totalAmount Float    // Total amount that must be paid
+
+    reportId    String?
+  report      Report?   @relation(fields: [reportId], references: [id])
+
+  // JSON array that stores all payments made
+  // Example:
+  // [
+  //   { "amount": 3000, "paidAt": "2026-01-23T10:00:00.000Z" }
+  // ]
+  payments    Json?
+
+  status      CreditStatus @default(PENDING)
+
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
 }

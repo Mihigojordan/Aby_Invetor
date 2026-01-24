@@ -23,6 +23,7 @@ import {
   BarChart3,
   Clipboard,
   ClipboardList,
+  DollarSign,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -93,6 +94,13 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: "/admin/dashboard/stockout",
     },
     {
+      key: "debt-movement",
+      label: "Debt Management",
+      icon: DollarSign,
+      path: "/admin/dashboard/debt-management",
+     
+    },
+    {
       key: "sales-returns",
       label: "Sales Returns",
       icon: RotateCcw,
@@ -110,6 +118,18 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           path: "/admin/dashboard/stock-requisition",
           icon: ClipboardList,
         },
+            {
+      key: "expense-movement",
+      label: "Expense Management",
+      icon: ReceiptPoundSterling,
+      path: "/admin/dashboard/expense-management",
+            },
+            {
+      key: "credit-movement",
+      label: "Credit Management",
+      icon: ReceiptPoundSterling,
+      path: "/admin/dashboard/credit-management",
+            },
     {
       key: "sales-report",
       label: "Sales Report",
@@ -163,12 +183,37 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       taskname: ["saling", "selling", "sales", "stockout"],
     },
     {
+      key: "debt-movement",
+      label: "Debt Management",
+      icon: DollarSign,
+      path: "/employee/dashboard/debt-management",
+           taskname: ["saling", "selling", "sales", "stockout"],
+    
+    },
+
+    {
       key: "sales-returns",
       label: "Sales Returns Management",
       icon: RotateCcw,
       path: "/employee/dashboard/sales-return",
       taskname: ["returning", "return"],
     },
+
+                {
+      key: "expense-movement",
+      label: "Expense Management",
+      icon: ReceiptPoundSterling,
+      path: "/employee/dashboard/expense-management",
+        taskname: ["saling", "selling", "sales", "stockout"],
+            },
+            {
+      key: "credit-movement",
+      label: "Credit Management",
+      icon: ReceiptPoundSterling,
+      path: "/employee/dashboard/credit-management",
+        taskname: ["saling", "selling", "sales", "stockout"],
+            },
+    
     {
       key: "sales-report",
       label: "Sales Report Management",
@@ -176,6 +221,8 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       path: "/employee/dashboard/sales-report",
       taskname: ["saling", "selling", "sales", "stockout"],
     },
+
+  
        {
           key: "requisition-management",
           label: "Requisition Management",
@@ -190,6 +237,8 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
           icon: ClipboardList,
         },
+
+
     {
       key: "employee_reports",
       label: "Report Management",

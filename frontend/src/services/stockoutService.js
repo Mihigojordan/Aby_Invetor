@@ -173,7 +173,16 @@ const formattedSales = salesArray.map(sale => {
             return response.data;
         } catch (error) {
             console.error('Error fetching all stock-outs:', error);
-            throw new Error(error.response.data.message || error.message || 'Failed to fetch stock-outs');
+            throw new Error(error?.response?.data?.message || error?.message || 'Failed to fetch stock-outs');
+        }
+    }
+    async getAllDebtedStockOuts() {
+        try {
+            const response = await api.get('/stockout/debt-all');
+            return response?.data;
+        } catch (error) {
+            console.error('Error fetching all stock-outs:', error);
+            throw new Error(error?.response?.data?.message || error?.message || 'Failed to fetch stock-outs');
         }
     }
 

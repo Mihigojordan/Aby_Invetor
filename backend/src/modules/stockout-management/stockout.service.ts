@@ -348,7 +348,48 @@ export class StockoutService {
       throw new BadRequestException(error.message);
     }
   }
-
+  async getAllDebted() {
+    try {
+      return await this.prisma.stockOut.findMany({
+        include: {
+          stockin: {
+            include: {
+              product: true
+            }
+          },
+          backorder: true,
+          admin: true,
+          employee: true,
+        },
+        where: {
+          OR: [
+            {
+              paymentStatus: 'DEBTED'
+            },
+            {
+              AND: [
+                {
+                  debtedAmount: {
+                    not: null
+                  }
+                },
+                {
+                  debtedAmount: {
+                    gt: 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
   async getOne(id: string) {
     try {
       const stockout = await this.prisma.stockOut.findUnique({

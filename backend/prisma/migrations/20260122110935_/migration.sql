@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE `expense` ADD COLUMN `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    ADD COLUMN `employeeId` VARCHAR(191) NULL,
+    ADD COLUMN `expenseDate` DATETIME(3) NULL,
+    ADD COLUMN `reason` VARCHAR(191) NULL;
+
+-- AddForeignKey
+ALTER TABLE `Expense` ADD CONSTRAINT `Expense_employeeId_fkey` FOREIGN KEY (`employeeId`) REFERENCES `Employee`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
