@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -35,9 +36,10 @@ export class ProductManagmentController {
     });
   }
 
+  // Supports ?updatedAfter=<ISO> for delta sync
   @Get('all')
-  async findAll() {
-    return this.productService.getAllProducts();
+  async findAll(@Query('updatedAfter') updatedAfter?: string) {
+    return this.productService.getAllProducts(updatedAfter);
   }
 
   @Get('getone/:id')

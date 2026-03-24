@@ -98,15 +98,35 @@ export class StockinManagmentService {
     };
   }
 
-  async getAll() {
-    return this.prisma.stockIn.findMany({
-      include: {
-        product: true,
-      },
+  // Delta sync support: accepts optional updatedAfter timestamp
+  // Returns { data: StockIn[], deletedIds: string[] }
+  async getAll(updatedAfter?: string) {
+    const where: any = { deletedAt: null };
+
+    if (updatedAfter) {
+      where.updatedAt = { gte: new Date(updatedAfter) };
+    }
+
+    const records = await this.prisma.stockIn.findMany({
+      where,
+      include: { product: true },
     });
+
+    let deletedIds: string[] = [];
+    if (updatedAfter) {
+      const deletedRecords = await this.prisma.stockIn.findMany({
+        where: { deletedAt: { gte: new Date(updatedAfter) } },
+        select: { id: true },
+      });
+      deletedIds = deletedRecords.map((r) => r.id);
+    }
+
+    return { data: records, deletedIds };
   }
+
   async getAllWithCategories() {
     return this.prisma.stockIn.findMany({
+      where: { deletedAt: null },
       include: {
         product: {
           include:{
@@ -202,7 +222,9 @@ export class StockinManagmentService {
     });
     if (!stock) throw new NotFoundException('Stock not found');
 
-    const deletedStock = await this.prisma.stockIn.delete({ where: { id } });
+    // Soft delete: mark as deleted so the delta sync endpoint can return this ID
+    // in deletedIds, allowing clients to purge it from IndexedDB incrementally.
+    const deletedStock = await this.prisma.stockIn.update({ where: { id }, data: { deletedAt: new Date() } });
 
     // Activity tracking
     if (data?.adminId) {

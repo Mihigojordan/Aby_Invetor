@@ -5,7 +5,7 @@ export class AppDatabase extends Dexie {
   constructor() {
     super('AppDatabase');
 
-    // Define schema version
+    // Version 15 — keep unchanged so existing users don't lose data
     this.version(15).stores({
       // product
       products_all: 'id, productName, brand, categoryId, lastModified, updatedAt',
@@ -85,6 +85,55 @@ export class AppDatabase extends Dexie {
       safeMove(trans.sales_return_items_offline_add, trans.sales_return_items_offline_update);
     });
 
+    // Version 16 — adds sync_metadata table for delta sync timestamps.
+    // Dexie applies this upgrade non-destructively: no existing data is touched.
+    // When a user upgrades, sync_metadata starts empty → the first sync after
+    // upgrade performs a full fetch (lastSyncedAt = null path), exactly like today.
+    // Every subsequent sync uses the saved timestamp and fetches only changed records.
+    this.version(16).stores({
+      // All existing tables unchanged (Dexie preserves them automatically):
+      products_all: 'id, productName, brand, categoryId, lastModified, updatedAt',
+      products_offline_add: '++localId, productName, brand, categoryId, description, adminId, employeeId, lastModified, createdAt, updatedAt',
+      products_offline_update: 'id, productName, brand, categoryId, description, adminId, employeeId, lastModified, updatedAt',
+      products_offline_delete: 'id, deletedAt, adminId, employeeId',
+      product_images: '++localId, [entityId+entityType], [entityLocalId+entityType], entityType, synced, imageData, from, createdAt, updatedAt',
+      synced_product_ids: 'localId, serverId, syncedAt',
+      categories_all: 'id, name, description, lastModified, updatedAt',
+      categories_offline_add: '++localId, name, description, adminId, employeeId, lastModified, createdAt, updatedAt',
+      categories_offline_update: 'id, name, description, adminId, employeeId, lastModified, updatedAt',
+      categories_offline_delete: 'id, deletedAt, adminId, employeeId',
+      synced_category_ids: 'localId, serverId, syncedAt',
+      stockins_all: 'id, productId, quantity, price, sellingPrice, supplier, sku, barcodeUrl, lastModified, updatedAt',
+      stockins_offline_add: '++localId, productId, quantity, offlineQuantity, price, sellingPrice, supplier, adminId, employeeId, lastModified, createdAt, updatedAt',
+      stockins_offline_update: 'id, productId, quantity, price, sellingPrice, supplier, adminId, employeeId, lastModified, updatedAt',
+      stockins_offline_delete: 'id, deletedAt, adminId, employeeId',
+      synced_stockin_ids: 'localId, serverId, syncedAt',
+      stockouts_all: 'id, stockinId, quantity, soldPrice, backorderId, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
+      stockouts_offline_add: '++localId, stockinId, quantity, offlineQuantity, backorderLocalId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
+      stockouts_offline_update: 'id, stockinId, quantity, backorderUpdateId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, updatedAt',
+      stockouts_offline_delete: 'id, deletedAt, adminId, employeeId',
+      synced_stockout_ids: 'localId, serverId, syncedAt',
+      backorders_all: 'id, quantity, soldPrice, productName, adminId, employeeId, lastModified, createdAt, updatedAt',
+      backorders_offline_add: '++localId, quantity, soldPrice, productName, adminId, employeeId, lastModified, createdAt, updatedAt',
+      sales_returns_all: 'id, transactionId, creditnoteId, reason, createdAt',
+      sales_returns_offline_add: '++localId, transactionId, creditnoteId, reason, adminId, employeeId, createdAt',
+      sales_returns_offline_update: 'id, transactionId, creditnoteId, reason, adminId, employeeId, updatedAt',
+      sales_returns_offline_delete: 'id, deletedAt, adminId, employeeId',
+      synced_sales_return_ids: 'localId, serverId, syncedAt',
+      sales_return_items_all: 'id, salesReturnId, stockoutId, quantity',
+      sales_return_items_offline_add: '++localId, salesReturnId, stockoutId, quantity, adminId, employeeId, createdAt',
+      sales_return_items_offline_update: 'id, salesReturnId, stockoutId, quantity, adminId, employeeId, updatedAt',
+      sales_return_items_offline_delete: 'id, deletedAt, adminId, employeeId',
+      synced_sales_return_item_ids: 'localId, serverId, syncedAt',
+      employees_all: "id, firstname, lastname, email, phoneNumber, address, status, profileImg, cv, identityCard, password, encryptedPassword, isLocked, createdAt, updatedAt",
+      admins_all: "id, adminName, adminEmail, password, encryptedPassword, isLocked, createdAt, updatedAt",
+
+      // NEW in v16: per-entity sync timestamps for delta sync.
+      // Record shape: { entity: 'categories', lastSyncedAt: ISO string, lastFullSyncAt: ISO string }
+      // When lastSyncedAt is null/absent: full fetch is performed (safe fallback for new users)
+      sync_metadata: 'entity',
+    });
+
     // Assign tables
     this.products_all = this.table('products_all');
     this.products_offline_add = this.table('products_offline_add');
@@ -128,6 +177,9 @@ export class AppDatabase extends Dexie {
 
     this.admins_all = this.table('admins_all');
     this.employees_all = this.table('employees_all');
+
+    // Delta sync metadata — tracks lastSyncedAt per entity
+    this.sync_metadata = this.table('sync_metadata');
   }
 }
 

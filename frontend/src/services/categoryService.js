@@ -17,9 +17,10 @@ class CategoryService {
         }
     }
 
-    async getAllCategories() {
+    async getAllCategories(updatedAfter = null) {
         try {
-            const response = await api.get('/category/all');
+            const params = updatedAfter ? { updatedAfter } : {};
+            const response = await api.get('/category/all', { params });
             return response.data;
         } catch (error) {
             console.error('Error fetching categories:', error);

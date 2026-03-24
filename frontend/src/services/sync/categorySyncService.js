@@ -8,6 +8,22 @@ class CategorySyncService {
     this.processingLocalIds = new Set(); // Track items being processed
     this.lastSyncTime = null;
     this.syncLock = null;
+
+    // Store bound handler references once in the constructor.
+    // Pre-bound references kept for handleOnline/handleFocus (standalone safety net)
+    // so removeEventListener actually removes the correct listener (Issue 7 fix).
+    this._boundHandleOnline = this.handleOnline.bind(this);
+    this._boundHandleFocus = this.handleFocus.bind(this);
+  }
+
+  // ─── Exponential backoff helper ────────────────────────────────────────────
+  // Prevents hammering a downed server by spacing out retries (Issue 6 fix).
+  // Schedule: 1st retry after 30s, 2nd after 2m, 3rd after 8m, 4th after 32m.
+  shouldRetryNow(item) {
+    if (!item.syncRetryCount || item.syncRetryCount === 0) return true;
+    if (!item.lastSyncAttempt) return true;
+    const backoffMs = Math.min(30_000 * Math.pow(4, item.syncRetryCount - 1), 32 * 60 * 1000);
+    return (Date.now() - new Date(item.lastSyncAttempt).getTime()) >= backoffMs;
   }
 
   async syncCategories() {
@@ -38,16 +54,8 @@ class CategorySyncService {
         deletes: await this.syncDeletedCategories()
       };
 
-      // Only fetch if we made changes or it's been a while
-      const shouldFetchFresh = results.adds.processed > 0 || 
-                              results.updates.processed > 0 || 
-                              results.deletes.processed > 0 ||
-                              !this.lastSyncTime ||
-                              (Date.now() - this.lastSyncTime) > 10000; // 5 minutes
-
-      if (shouldFetchFresh) {
-        await this.fetchAndUpdateLocal();
-      }
+      // Always fetch — fetchAndUpdateLocal() handles delta vs full internally
+      await this.fetchAndUpdateLocal();
 
       this.lastSyncTime = Date.now();
       console.log('✅ Category sync completed successfully', results);
@@ -74,6 +82,13 @@ class CategorySyncService {
       // 🔒 Skip if already being processed
       if (this.processingLocalIds.has(category.localId)) {
         console.log(`⏭️ Skipping category ${category.localId} - already processing`);
+        skipped++;
+        continue;
+      }
+
+      // ⏳ Exponential backoff: skip items that haven't waited long enough since last failure
+      if (!this.shouldRetryNow(category)) {
+        console.log(`⏳ Skipping category ${category.localId} - backoff not elapsed (retry ${category.syncRetryCount})`);
         skipped++;
         continue;
       }
@@ -313,36 +328,68 @@ class CategorySyncService {
   }
 
   async fetchAndUpdateLocal() {
+    // Read last sync timestamp from sync_metadata
+    const meta = await db.sync_metadata.get('categories');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+
+    // Fetch from server outside any transaction — bail on error without touching DB
+    let result;
     try {
-      const serverCategories = await categoryService.getAllCategories();
-      console.log('******** => + FETCHING AND UPDATING CATEGORY DATA ', serverCategories.length);
+      result = await categoryService.getAllCategories(lastSyncedAt);
+    } catch (fetchError) {
+      console.error('[categories] Fetch failed — local data preserved:', fetchError);
+      return;
+    }
 
-      await db.transaction('rw', db.categories_all, db.synced_category_ids, async () => {
-        // Don't clear all - merge instead to preserve offline additions
-          await db.categories_all.clear();
-        console.log('✨ Cleared local categories, replacing with server data');
+    const { data: updatedRecords, deletedIds = [] } = result;
+    console.log(`[categories] Delta sync: ${updatedRecords?.length ?? 0} updated, ${deletedIds.length} deleted`);
 
-        for (const serverCategory of serverCategories) {
+    // Guard: if first-time full fetch returns nothing, don't wipe
+    if (!lastSyncedAt && (!Array.isArray(updatedRecords) || updatedRecords.length === 0)) {
+      console.warn('[categories] Empty full-fetch response — skipping to preserve local data');
+      return;
+    }
+
+    // Apply changes atomically
+    await db.transaction('rw', db.categories_all, db.synced_category_ids, db.sync_metadata, async () => {
+      if (!lastSyncedAt) {
+        // First-ever sync: replace all
+        await db.categories_all.clear();
+        await db.categories_all.bulkPut(
+          updatedRecords.map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            updatedAt: c.updatedAt,
+            lastModified: new Date()
+          }))
+        );
+      } else {
+        // Delta sync: upsert changed records
+        for (const record of updatedRecords) {
           await db.categories_all.put({
-            id: serverCategory.id,
-            name: serverCategory.name,
-            description: serverCategory.description,
-            lastModified: new Date(),
-            updatedAt: serverCategory.updatedAt || new Date()
+            id: record.id,
+            name: record.name,
+            description: record.description,
+            updatedAt: record.updatedAt,
+            lastModified: new Date()
           });
         }
+        // Remove server-deleted records
+        for (const id of deletedIds) {
+          await db.categories_all.delete(id);
+          const mapping = await db.synced_category_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_category_ids.delete(mapping.localId);
+        }
+      }
 
-        // Clean up synced_category_ids for items no longer on server
-        const serverIds = new Set(serverCategories.map(c => c.id));
-        await db.synced_category_ids
-          .where('serverId')
-          .noneOf(Array.from(serverIds))
-          .delete();
+      // Update per-entity sync timestamp
+      await db.sync_metadata.put({
+        entity: 'categories',
+        lastSyncedAt: new Date().toISOString(),
+        lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
       });
-    } catch (error) {
-      console.error('Error fetching server category data:', error);
-      // Don't throw - sync can continue without fresh server data
-    }
+    });
   }
 
   // 🔍 Check for content-based duplicates
@@ -416,16 +463,6 @@ class CategorySyncService {
       .delete();
   }
 
-  setupAutoSync() {
-    window.addEventListener('online', this.handleOnline.bind(this));
-    window.addEventListener('focus', this.handleFocus.bind(this));
-    
-    // Periodic cleanup
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupFailedSyncs();
-    }, 30 * 60 * 1000); // Every 30 minutes
-  }
-
   async handleOnline() {
     console.log('🌐 Network is back online, starting category sync...');
     setTimeout(() => this.syncCategories(), 1000);
@@ -437,13 +474,6 @@ class CategorySyncService {
     }
   }
 
-  cleanup() {
-    window.removeEventListener('online', this.handleOnline);
-    window.removeEventListener('focus', this.handleFocus);
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-  }
 }
 
 export const categorySyncService = new CategorySyncService();

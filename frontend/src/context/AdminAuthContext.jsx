@@ -362,6 +362,9 @@ export const AdminAuthContextProvider = ({ children }) => {
                     isLocked: false,
                     isOfflineMode: false
                 });
+
+                // Resume sync after successful re-auth (SyncContext listens for this event)
+                window.dispatchEvent(new CustomEvent('sync:resume'));
             }
         } catch (error) {
             console.error("Error in reAuthWhenOnline:", error);

@@ -95,13 +95,16 @@ class SalesReturnService {
    * @param {Object} [filters] - Optional filtering parameters
    * @returns {Promise<Object>} Object containing array of sales return entries
    */
-  async getAllSalesReturns(filters = {}) {
+  async getAllSalesReturns(updatedAfter = null, filters = {}) {
     try {
       let url = '/sales-return';
-      
+
       // Add query parameters if filters are provided
       const queryParams = new URLSearchParams();
-      
+
+      if (updatedAfter) {
+        queryParams.append('updatedAfter', updatedAfter);
+      }
       if (filters.transactionId) {
         queryParams.append('transactionId', filters.transactionId);
       }
@@ -157,7 +160,7 @@ class SalesReturnService {
         throw new Error('Transaction ID is required');
       }
 
-      return await this.getAllSalesReturns({ transactionId });
+      return await this.getAllSalesReturns(null, { transactionId });
     } catch (error) {
       console.error('Error fetching sales returns by transaction ID:', error);
       throw new Error(error.message || 'Failed to fetch sales returns by transaction ID');
@@ -181,7 +184,7 @@ class SalesReturnService {
         createdBefore: new Date(endDate).toISOString()
       };
 
-      return await this.getAllSalesReturns(filters);
+      return await this.getAllSalesReturns(null, filters);
     } catch (error) {
       console.error('Error fetching sales returns by date range:', error);
       throw new Error(error.message || 'Failed to fetch sales returns by date range');

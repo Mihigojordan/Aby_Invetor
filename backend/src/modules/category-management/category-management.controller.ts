@@ -24,14 +24,15 @@ export class CategoryManagementController {
     return this.categoryService.createCategory(data);
   }
 
-  // ✅ CACHED
+  // ✅ CACHED — supports ?updatedAfter=<ISO> for delta sync
+  // When updatedAfter is omitted: full fetch (first launch / manual reset)
+  // When updatedAfter is set: returns only records changed since that time + deletedIds
   @Get('all')
-  @CacheTTL(120) // 2 minutes
+  @CacheTTL(120) // 2 minutes — safe because delta responses are keyed by URL (includes updatedAfter)
   getAllCategories(
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('updatedAfter') updatedAfter?: string,
   ) {
-    return this.categoryService.getAllCategories(+page, +limit);
+    return this.categoryService.getAllCategories(updatedAfter);
   }
 
   // ✅ CACHED

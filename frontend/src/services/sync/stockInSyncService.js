@@ -9,6 +9,18 @@ class StockInSyncService {
     this.processingLocalIds = new Set(); // Track items being processed
     this.lastSyncTime = null;
     this.syncLock = null;
+
+    // Pre-bound references kept for handleOnline/handleFocus (standalone safety net)
+    this._boundHandleOnline = this.handleOnline.bind(this);
+    this._boundHandleFocus = this.handleFocus.bind(this);
+  }
+
+  // Exponential backoff: skip items that haven't waited long enough since their last failure (Issue 6 fix)
+  shouldRetryNow(item) {
+    if (!item.syncRetryCount || item.syncRetryCount === 0) return true;
+    if (!item.lastSyncAttempt) return true;
+    const backoffMs = Math.min(30_000 * Math.pow(4, item.syncRetryCount - 1), 32 * 60 * 1000);
+    return (Date.now() - new Date(item.lastSyncAttempt).getTime()) >= backoffMs;
   }
 
 async syncStockIns(skipLocalFetch) {
@@ -91,6 +103,12 @@ async syncStockIns(skipLocalFetch) {
     // 🔒 Skip if already being processed
     if (this.processingLocalIds.has(stockIn.localId)) {
       console.log(`⏭️ Skipping stockin ${stockIn.localId} - already processing`);
+      skipped++;
+      continue;
+    }
+
+    // Exponential backoff: skip if not enough time has passed since last failure
+    if (!this.shouldRetryNow(stockIn)) {
       skipped++;
       continue;
     }
@@ -430,45 +448,68 @@ async syncStockIns(skipLocalFetch) {
   }
 
   async fetchAndUpdateLocal() {
+    // Read last sync timestamp from sync_metadata
+    const meta = await db.sync_metadata.get('stockIns');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+
+    // Fetch from server outside any transaction — bail on error without touching DB
+    let result;
     try {
-      const serverStockIns = await stockInService.getAllStockIns();
-      console.log('******** => + FETCHING AND UPDATING STOCK-IN DATA ', serverStockIns.length);
-
-      await db.transaction('rw', db.stockins_all, db.synced_stockin_ids, async () => {
-        // 🔥 Clear all local data - server is the source of truth
-        await db.stockins_all.clear();
-        console.log('✨ Cleared local stockins, replacing with server data');
-
-        // 📥 Replace with fresh server data including all columns
-        for (const serverStockIn of serverStockIns) {
-          await db.stockins_all.put({
-            id: serverStockIn.id,
-            productId: serverStockIn.productId,
-            quantity: serverStockIn.quantity,
-            price: serverStockIn.price,
-            sellingPrice: serverStockIn.sellingPrice,
-            supplier: serverStockIn.supplier,
-            sku: serverStockIn.sku,
-            barcodeUrl: serverStockIn.barcodeUrl,
-            lastModified: serverStockIn.createdAt,
-            createdAt: serverStockIn.createdAt,
-            updatedAt: serverStockIn.updatedAt || new Date()
-          });
-        }
-
-        // 🧹 Clean up sync tracking for stockins no longer on server
-        const serverIds = new Set(serverStockIns.map(s => s.id));
-        await db.synced_stockin_ids
-          .where('serverId')
-          .noneOf(Array.from(serverIds))
-          .delete();
-
-        console.log(`✅ Successfully replaced local data with ${serverStockIns.length} stockins from server`);
-      });
-    } catch (error) {
-      console.error('Error fetching server stockin data:', error);
-      // Don't throw - sync can continue without fresh server data
+      result = await stockInService.getAllStockIns(lastSyncedAt);
+    } catch (fetchError) {
+      console.error('[stockIns] Fetch failed — local data preserved:', fetchError);
+      return;
     }
+
+    const { data: updatedRecords, deletedIds = [] } = result;
+    console.log(`[stockIns] Delta sync: ${updatedRecords?.length ?? 0} updated, ${deletedIds.length} deleted`);
+
+    // Guard: if first-time full fetch returns nothing, don't wipe
+    if (!lastSyncedAt && (!Array.isArray(updatedRecords) || updatedRecords.length === 0)) {
+      console.warn('[stockIns] Empty full-fetch response — skipping to preserve local data');
+      return;
+    }
+
+    const toRecord = s => ({
+      id: s.id,
+      productId: s.productId,
+      quantity: s.quantity,
+      price: s.price,
+      sellingPrice: s.sellingPrice,
+      supplier: s.supplier,
+      sku: s.sku,
+      barcodeUrl: s.barcodeUrl,
+      lastModified: s.createdAt,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt || new Date()
+    });
+
+    // Apply changes atomically
+    await db.transaction('rw', db.stockins_all, db.synced_stockin_ids, db.sync_metadata, async () => {
+      if (!lastSyncedAt) {
+        // First-ever sync: replace all
+        await db.stockins_all.clear();
+        await db.stockins_all.bulkPut(updatedRecords.map(toRecord));
+      } else {
+        // Delta sync: upsert changed records
+        for (const record of updatedRecords) {
+          await db.stockins_all.put(toRecord(record));
+        }
+        // Remove server-deleted records
+        for (const id of deletedIds) {
+          await db.stockins_all.delete(id);
+          const mapping = await db.synced_stockin_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_stockin_ids.delete(mapping.localId);
+        }
+      }
+
+      // Update per-entity sync timestamp
+      await db.sync_metadata.put({
+        entity: 'stockIns',
+        lastSyncedAt: new Date().toISOString(),
+        lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+      });
+    });
   }
 
   // 🔍 Check for content-based duplicates
@@ -544,16 +585,6 @@ async syncStockIns(skipLocalFetch) {
       .delete();
   }
 
-  setupAutoSync() {
-    window.addEventListener('online', this.handleOnline.bind(this));
-    window.addEventListener('focus', this.handleFocus.bind(this));
-
-    // Periodic cleanup
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupFailedSyncs();
-    }, 30 * 60 * 1000); // Every 30 minutes
-  }
-
   async handleOnline() {
     console.log('🌐 Network is back online, starting stockin sync...');
     setTimeout(() => this.syncStockIns(), 1000);
@@ -565,13 +596,6 @@ async syncStockIns(skipLocalFetch) {
     }
   }
 
-  cleanup() {
-    window.removeEventListener('online', this.handleOnline);
-    window.removeEventListener('focus', this.handleFocus);
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-  }
 }
 
 export const stockInSyncService = new StockInSyncService();

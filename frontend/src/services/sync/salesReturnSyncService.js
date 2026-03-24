@@ -10,6 +10,18 @@ class SalesReturnSyncService {
     this.processingTransactionIds = new Set();
     this.lastSyncTime = null;
     this.syncLock = null;
+
+    // Pre-bound references kept for handleOnline/handleFocus (standalone safety net)
+    this._boundHandleOnline = this.handleOnline.bind(this);
+    this._boundHandleFocus = this.handleFocus.bind(this);
+  }
+
+  // Exponential backoff: skip items that haven't waited long enough since their last failure (Issue 6 fix)
+  shouldRetryNow(item) {
+    if (!item.syncRetryCount || item.syncRetryCount === 0) return true;
+    if (!item.lastSyncAttempt) return true;
+    const backoffMs = Math.min(30_000 * Math.pow(4, item.syncRetryCount - 1), 32 * 60 * 1000);
+    return (Date.now() - new Date(item.lastSyncAttempt).getTime()) >= backoffMs;
   }
 
   /**
@@ -107,6 +119,12 @@ class SalesReturnSyncService {
       if (syncedRecord) {
         console.log(`✓ Sales return ${salesReturn.localId} already synced to server ID ${syncedRecord.serverId}`);
         await db.sales_returns_offline_add.delete(salesReturn.localId);
+        skipped++;
+        continue;
+      }
+
+      // Exponential backoff: skip if not enough time has passed since last failure
+      if (!this.shouldRetryNow(salesReturn)) {
         skipped++;
         continue;
       }
@@ -465,45 +483,73 @@ class SalesReturnSyncService {
    * Fetch and update local data from server
    */
   async fetchAndUpdateLocal() {
-    try {
-      const serverSalesReturns = await salesReturnService.getAllSalesReturns();
-      const salesReturnsData = serverSalesReturns.data || serverSalesReturns;
-      
-      console.log('******** => + FETCHING AND UPDATING SALES RETURN DATA ', salesReturnsData.length);
+    // Read last sync timestamp from sync_metadata
+    const meta = await db.sync_metadata.get('salesReturns');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
 
-      await db.transaction('rw', db.sales_returns_all, db.sales_return_items_all, async () => {
+    // Fetch from server outside any transaction — bail on error without touching DB
+    let result;
+    try {
+      result = await salesReturnService.getAllSalesReturns(lastSyncedAt);
+    } catch (fetchError) {
+      console.error('[salesReturns] Fetch failed — local data preserved:', fetchError);
+      return;
+    }
+
+    const { data: updatedRecords, deletedIds = [] } = result;
+    console.log(`[salesReturns] Delta sync: ${updatedRecords?.length ?? 0} updated, ${deletedIds.length} deleted`);
+
+    // Guard: if first-time full fetch returns nothing, don't wipe
+    if (!lastSyncedAt && (!Array.isArray(updatedRecords) || updatedRecords.length === 0)) {
+      console.warn('[salesReturns] Empty full-fetch response — skipping to preserve local data');
+      return;
+    }
+
+    // Apply changes atomically
+    await db.transaction('rw', db.sales_returns_all, db.sales_return_items_all, db.synced_sales_return_ids, db.sync_metadata, async () => {
+      if (!lastSyncedAt) {
+        // First-ever sync: replace all
         await db.sales_returns_all.clear();
         await db.sales_return_items_all.clear();
-        console.log('✨ Cleared local sales returns, replacing with server data');
+      } else {
+        // Remove server-deleted records
+        for (const id of deletedIds) {
+          await db.sales_returns_all.delete(id);
+          await db.sales_return_items_all.where('salesReturnId').equals(id).delete();
+          const mapping = await db.synced_sales_return_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_sales_return_ids.delete(mapping.localId);
+        }
+      }
 
-        for (const serverReturn of salesReturnsData) {
-          await db.sales_returns_all.put({
-            id: serverReturn.id,
-            transactionId: serverReturn.transactionId,
-            creditnoteId: serverReturn.creditnoteId,
-            reason: serverReturn.reason,
-            createdAt: serverReturn.createdAt
-          });
-
-          // Save items if present
-          if (serverReturn.items && Array.isArray(serverReturn.items)) {
-            for (const item of serverReturn.items) {
-              await db.sales_return_items_all.put({
-                id: item.id,
-                salesReturnId: serverReturn.id,
-                stockoutId: item.stockoutId,
-                quantity: item.quantity
-              });
-            }
+      // Upsert updated/new records
+      for (const serverReturn of updatedRecords) {
+        await db.sales_returns_all.put({
+          id: serverReturn.id,
+          transactionId: serverReturn.transactionId,
+          creditnoteId: serverReturn.creditnoteId,
+          reason: serverReturn.reason,
+          createdAt: serverReturn.createdAt,
+          updatedAt: serverReturn.updatedAt
+        });
+        if (serverReturn.items && Array.isArray(serverReturn.items)) {
+          for (const item of serverReturn.items) {
+            await db.sales_return_items_all.put({
+              id: item.id,
+              salesReturnId: serverReturn.id,
+              stockoutId: item.stockoutId,
+              quantity: item.quantity
+            });
           }
         }
+      }
 
-        console.log(`✅ Replaced local data with ${salesReturnsData.length} sales returns`);
+      // Update per-entity sync timestamp
+      await db.sync_metadata.put({
+        entity: 'salesReturns',
+        lastSyncedAt: new Date().toISOString(),
+        lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
       });
-
-    } catch (error) {
-      console.error('Error fetching server sales return data:', error);
-    }
+    });
   }
 
   // Helper methods
@@ -625,18 +671,6 @@ class SalesReturnSyncService {
     return this.syncSalesReturns();
   }
 
-  /**
-   * Setup auto sync
-   */
-  setupAutoSync() {
-    window.addEventListener('online', this.handleOnline.bind(this));
-    window.addEventListener('focus', this.handleFocus.bind(this));
-
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupFailedSyncs();
-    }, 30 * 60 * 1000); // Every 30 minutes
-  }
-
   async handleOnline() {
     console.log('🌐 Network is back online, starting sales return sync...');
     setTimeout(() => this.syncSalesReturns(), 1000);
@@ -667,13 +701,6 @@ class SalesReturnSyncService {
       .delete();
   }
 
-  cleanup() {
-    window.removeEventListener('online', this.handleOnline);
-    window.removeEventListener('focus', this.handleFocus);
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-  }
 }
 
 export const salesReturnSyncService = new SalesReturnSyncService();

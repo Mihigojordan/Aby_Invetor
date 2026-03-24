@@ -1,0 +1,530 @@
+(Previous plan content below — kept for reference)
+Sync System Redesign Plan — Delta Sync + Unified SyncContext
+Context
+The current sync system calls fetchAndUpdateLocal() which hits getAll* on the server
+and wipes + replaces the entire local IndexedDB table every sync cycle. With growing data
+this is slow, wastes bandwidth, and risks data loss. The 5 separate sync hooks each run their
+own interval, lock, and listener — causing race conditions and redundant re-renders.
+
+This plan redesigns the sync system with two major architectural improvements:
+
+Delta sync — only fetch records created/updated since the last sync
+Unified SyncContext — one central orchestrator replaces 5 fragmented hooks
+All 8 bugs from the previous analysis are folded in and fixed as part of this redesign.
+
+Part 1 — What Currently Exists (confirmed by code reading)
+Backend gap analysis
+Entity	updatedAt field	deletedAt (soft delete)	Delta endpoint
+Category	❌ Missing	❌ None	❌ None
+Product	❌ Missing	❌ None	❌ None
+StockIn	✅ Present	❌ None	❌ None
+StockOut	✅ Present	❌ None	❌ None
+SalesReturn	❌ Missing	❌ None	❌ None
+Without updatedAt on Category, Product, and SalesReturn, delta sync cannot know which
+records changed. Without soft delete, deleted records disappear without a trace.
+
+Frontend gap analysis
+fetchAndUpdateLocal() in ALL 5 services calls .clear() then re-inserts everything
+No lastSyncedAt tracking per entity — every fetch is a full fetch
+5 hooks each register their own window.addEventListener('online', ...) — 5x listeners
+5 hooks each run a setInterval — 5 independent timers firing at different phases
+Stale closure in interval → isSyncing guard never fires → overlapping syncs
+Event listener leak in cleanup() — removeEventListener uses wrong reference
+Part 2 — Delta Sync API Contract
+2.1 Backend changes needed
+Step A: Add updatedAt and deletedAt to Prisma schema
+
+File: backend/prisma/schema.prisma
+
+
+model Category {
+  // existing fields...
+  updatedAt  DateTime  @updatedAt   // ADD
+  deletedAt  DateTime?              // ADD (soft delete)
+}
+
+model Product {
+  // existing fields...
+  updatedAt  DateTime  @updatedAt   // ADD
+  deletedAt  DateTime?              // ADD
+}
+
+model SalesReturn {
+  // existing fields...
+  updatedAt  DateTime  @updatedAt   // ADD
+  deletedAt  DateTime?              // ADD
+}
+
+// StockIn and StockOut already have updatedAt — only add deletedAt:
+model StockIn {
+  deletedAt  DateTime?              // ADD
+}
+
+model StockOut {
+  deletedAt  DateTime?              // ADD
+}
+Run npx prisma migrate dev --name add-delta-sync-fields after schema changes.
+
+Step B: Add ?updatedAfter query param to each GET-all endpoint
+
+Add to each controller's getAll method. Example for Category:
+
+
+// category-management.controller.ts
+@Get('all')
+async getAllCategories(
+  @Query('updatedAfter') updatedAfter?: string,   // ADD
+) {
+  return this.categoryService.getAllCategories(updatedAfter);
+}
+Step C: Add delta query logic to each service
+
+
+// category-management.service.ts
+async getAllCategories(updatedAfter?: string) {
+  const where: Prisma.CategoryWhereInput = {
+    deletedAt: null,  // always exclude soft-deleted
+  };
+
+  if (updatedAfter) {
+    where.updatedAt = { gte: new Date(updatedAfter) };
+  }
+
+  const categories = await this.prisma.category.findMany({ where });
+
+  // Also return IDs of records deleted since updatedAfter
+  let deletedIds: string[] = [];
+  if (updatedAfter) {
+    const deleted = await this.prisma.category.findMany({
+      where: { deletedAt: { gte: new Date(updatedAfter) } },
+      select: { id: true },
+    });
+    deletedIds = deleted.map(d => d.id);
+  }
+
+  return { data: categories, deletedIds };
+}
+Step D: Update delete methods to soft-delete
+
+
+// BEFORE (hard delete):
+async deleteCategory(id: string) {
+  await this.prisma.category.delete({ where: { id } });
+}
+
+// AFTER (soft delete):
+async deleteCategory(id: string) {
+  await this.prisma.category.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
+}
+Same pattern applies to Product, StockIn, StockOut, SalesReturn services.
+
+Note on Category caching: Category GET endpoint uses @UseInterceptors(CacheInterceptor).
+The cache key must include the updatedAfter param — NestJS does this automatically by URL.
+No extra work needed. But when delta sync is used, the cache TTL of 120s is fine since
+incremental responses are small.
+
+2.2 Response shape (standard for all entities)
+
+// Full fetch (no updatedAfter):
+{ data: T[], deletedIds: [] }
+
+// Delta fetch (with updatedAfter):
+{ data: T[],  deletedIds: string[] }
+All existing API service files in frontend/src/services/ (categoryService.js, etc.)
+already wrap responses — they just need to forward updatedAfter as a query param and
+return the deletedIds alongside the data.
+
+Part 3 — New IndexedDB Schema
+File: frontend/src/db/database.js
+Bump version from 15 → 16
+
+Add one new table:
+
+
+// New table for tracking per-entity sync timestamps:
+.stores({
+  // ... all existing tables unchanged ...
+  sync_metadata: 'entity',   // entity name → lastSyncedAt, lastFullSyncAt
+})
+Record shape:
+
+
+{
+  entity: 'categories',          // primary key
+  lastSyncedAt: '2025-03-24T...',
+  lastFullSyncAt: '2025-03-24T...',
+}
+No other schema changes needed. The _offline_add / _offline_update / _offline_delete
+tables are unchanged — they still hold the local change queue.
+
+Part 4 — Unified SyncContext Architecture
+4.1 New file: frontend/src/context/SyncContext.jsx
+State shape:
+
+
+{
+  isSyncing: false,
+  syncPaused: false,          // true when 401 interceptor fires
+  lastSyncedAt: {             // per entity, from sync_metadata table
+    categories: null,
+    products: null,
+    stockIns: null,
+    stockOuts: null,
+    salesReturns: null,
+  },
+  pendingCounts: {            // how many items are waiting to upload
+    categories: 0,
+    products: 0,
+    stockIns: 0,
+    stockOuts: 0,
+    salesReturns: 0,
+  },
+  errors: {                   // per entity error message
+    categories: null,
+    products: null,
+    stockIns: null,
+    stockOuts: null,
+    salesReturns: null,
+  },
+  lastSyncCompleted: null,    // Date of last full successful sync
+}
+Exposed via useSyncContext():
+
+
+{
+  // state fields above, plus:
+  triggerSync,        // () => Promise — run full sync cycle (respects lock)
+  forceSync,          // () => Promise — bypass lock, run immediately
+  pauseSync,          // () => void   — called by auth contexts on 401
+  resumeSync,         // () => void   — called by auth contexts after re-auth
+  refreshCounts,      // () => Promise — update pendingCounts without syncing
+}
+Internal implementation outline:
+
+
+export const SyncProvider = ({ children }) => {
+  const { isOnline } = useNetworkStatusContext();
+  const isSyncingRef = useRef(false);      // ref for stale-closure-safe interval
+  const syncLockRef = useRef(null);        // master promise lock
+  const intervalRef = useRef(null);
+
+  const [state, setState] = useState({ /* shape above */ });
+
+  // ----- Orchestration order (respects dependency chain) -----
+  const runFullSyncCycle = async () => {
+    try {
+      await categorySyncService.syncCategories();
+      await productSyncService.syncProducts();
+      await stockInSyncService.syncStockIns();
+      await stockOutSyncService.syncStockOuts();
+      await salesReturnSyncService.syncSalesReturns();
+      await refreshCounts();
+      await loadLastSyncedTimestamps();
+    } catch (err) {
+      // per-entity errors already stored by services
+    }
+  };
+
+  // ----- Sync lock (single lock for all entities) -----
+  const triggerSync = useCallback(async () => {
+    if (!isOnline || isSyncingRef.current || state.syncPaused) return;
+    if (syncLockRef.current) { await syncLockRef.current; return; }
+
+    let unlock;
+    syncLockRef.current = new Promise(res => { unlock = res; });
+    isSyncingRef.current = true;
+    setState(s => ({ ...s, isSyncing: true }));
+
+    try {
+      await runFullSyncCycle();
+      setState(s => ({ ...s, lastSyncCompleted: new Date() }));
+    } finally {
+      isSyncingRef.current = false;
+      syncLockRef.current = null;
+      unlock();
+      setState(s => ({ ...s, isSyncing: false }));
+    }
+  }, [isOnline, state.syncPaused]);
+
+  // ----- Online event + interval (only ONE of each, not 5) -----
+  useEffect(() => {
+    if (isOnline) triggerSync();
+
+    intervalRef.current = setInterval(() => {
+      if (isOnline && !isSyncingRef.current) triggerSync();
+    }, 30_000);
+
+    return () => clearInterval(intervalRef.current);
+  }, [isOnline]);  // re-registers when online status changes
+
+  // ----- 401 pause/resume -----
+  const pauseSync  = useCallback(() => setState(s => ({ ...s, syncPaused: true })), []);
+  const resumeSync = useCallback(() => {
+    setState(s => ({ ...s, syncPaused: false }));
+    triggerSync();  // immediately retry after re-auth
+  }, [triggerSync]);
+
+  return (
+    <SyncContext.Provider value={{ ...state, triggerSync, forceSync, pauseSync, resumeSync, refreshCounts }}>
+      {children}
+    </SyncContext.Provider>
+  );
+};
+4.2 Where SyncProvider lives in the component tree
+File: frontend/src/main.jsx or frontend/src/App.jsx
+
+
+<NetworkStatusProvider>
+  <AdminAuthProvider>
+    <EmployeeAuthProvider>
+      <SyncProvider>          {/* ← NEW: wraps everything below */}
+        <RouterProvider ... />
+      </SyncProvider>
+    </EmployeeAuthProvider>
+  </AdminAuthProvider>
+</NetworkStatusProvider>
+SyncProvider must be inside auth providers because it reads auth state to determine
+if re-auth is needed, and inside NetworkStatusProvider because it reads isOnline.
+
+4.3 Auth context integration
+In both AdminAuthContext.jsx and EmployeeAuthContext.jsx:
+
+
+// Import from SyncContext (not from api.js directly):
+const { pauseSync, resumeSync } = useSyncContext();
+
+// In reAuthWhenOnline(), after successful re-login:
+if (loginResponse.authenticated) {
+  updateAuthState({ ... });
+  resumeSync();   // ← replaces resetSyncPause() from old plan
+}
+And in api.js, the 401 interceptor calls pauseSync via an event rather than a module-level flag:
+
+
+// api.js — emit a custom event that SyncContext listens to:
+api.interceptors.response.use(
+  res => res,
+  error => {
+    if (error.response?.status === 401) {
+      window.dispatchEvent(new CustomEvent('sync:pause'));
+    }
+    return Promise.reject(error);
+  }
+);
+In SyncContext.jsx:
+
+
+useEffect(() => {
+  const handler = () => pauseSync();
+  window.addEventListener('sync:pause', handler);
+  return () => window.removeEventListener('sync:pause', handler);
+}, [pauseSync]);
+This avoids a circular import between api.js and SyncContext.jsx.
+
+Part 5 — Modified fetchAndUpdateLocal() (Delta Sync Core)
+The key change in all 5 sync services. Pattern shown for categorySyncService.js:
+
+
+async fetchAndUpdateLocal() {
+  // Read last sync timestamp from IndexedDB metadata table
+  const meta = await db.sync_metadata.get('categories');
+  const lastSyncedAt = meta?.lastSyncedAt || null;
+
+  // --- Fetch from server (outside any transaction) ---
+  let result;
+  try {
+    result = await categoryService.getAllCategories(lastSyncedAt);
+    // result = { data: [...], deletedIds: [...] }
+  } catch (fetchError) {
+    console.error('[categories] Fetch failed — local data preserved:', fetchError);
+    return;  // bail: never touch IndexedDB on network failure
+  }
+
+  const { data: updatedRecords, deletedIds = [] } = result;
+
+  // Guard: if first-time full fetch returned nothing, don't wipe
+  if (!lastSyncedAt && (!Array.isArray(updatedRecords) || updatedRecords.length === 0)) {
+    console.warn('[categories] Empty full-fetch response — skipping to preserve local data');
+    return;
+  }
+
+  // --- Apply changes atomically ---
+  await db.transaction('rw', db.categories_all, db.synced_category_ids, db.sync_metadata, async () => {
+    if (!lastSyncedAt) {
+      // First-ever sync: replace all
+      await db.categories_all.clear();
+      await db.categories_all.bulkPut(
+        updatedRecords.map(c => ({ id: c.id, name: c.name, description: c.description, updatedAt: c.updatedAt, lastModified: new Date() }))
+      );
+    } else {
+      // Delta sync: upsert changed records
+      for (const record of updatedRecords) {
+        await db.categories_all.put({ id: record.id, name: record.name, description: record.description, updatedAt: record.updatedAt, lastModified: new Date() });
+      }
+      // Remove server-deleted records from local DB
+      for (const id of deletedIds) {
+        await db.categories_all.delete(id);
+        const mapping = await db.synced_category_ids.where('serverId').equals(id).first();
+        if (mapping) await db.synced_category_ids.delete(mapping.localId);
+      }
+    }
+
+    // Update last-synced timestamp
+    await db.sync_metadata.put({
+      entity: 'categories',
+      lastSyncedAt: new Date().toISOString(),
+      lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+    });
+  });
+}
+This single pattern change:
+
+Fixes Bug 1 (data wipe) — no .clear() on delta path
+Fixes Bug 3 (shouldFetchFresh) — naturally replaced by timestamp check
+Fixes the core performance problem — fetches only changed data
+The same pattern applies identically to all 5 services, adjusted for their fields.
+
+API service layer changes (e.g., categoryService.js):
+
+
+// Add updatedAfter param forwarding:
+async getAllCategories(updatedAfter = null) {
+  const params = updatedAfter ? { updatedAfter } : {};
+  const response = await api.get('/category/all', { params });
+  return response.data;  // { data: [...], deletedIds: [...] }
+}
+Part 6 — What Happens to the 5 Existing Sync Services
+The 5 services (categorySyncService.js, etc.) are kept and modified, not replaced.
+
+Changes per service:
+
+Remove setupAutoSync() — SyncContext handles scheduling now
+Remove cleanup() — SyncContext handles teardown
+Keep syncCategories(), syncUnsyncedAdds(), syncUnsyncedUpdates(), syncDeletedCategories()
+Keep syncLock and processingLocalIds — services still guard themselves internally
+Update fetchAndUpdateLocal() to delta pattern (see Part 5)
+Add shouldRetryNow(item) helper (exponential backoff — Issue 6)
+Add _boundHandleOnline / _boundHandleFocus in constructor (Issue 7 — but these are now unused since SyncContext handles events; keep for safety in standalone mode)
+Add syncPaused check in catch blocks (Bug 2 — via window event in api.js)
+Services still call each other in dependency order — SyncContext calls them sequentially,
+but the services' own dependency guards remain as a safety net.
+
+Part 7 — What Happens to the 5 Existing Hooks
+The 5 hooks (useStockOutOfflineSync.jsx, etc.) become thin pass-through wrappers
+that read from SyncContext. This preserves backward compatibility with the 5 pages that
+currently import them.
+
+
+// useStockOutOfflineSync.jsx — new implementation (thin wrapper)
+import { useSyncContext } from '../context/SyncContext';
+
+export const useStockOutOfflineSync = () => {
+  const { triggerSync, isSyncing, errors, pendingCounts, lastSyncedAt } = useSyncContext();
+  return {
+    triggerSync,
+    isSyncing,
+    syncError: errors.stockOuts,
+    unsyncedStockOuts: pendingCounts.stockOuts,
+    lastSync: lastSyncedAt.stockOuts,
+  };
+};
+Pages (StockOutManagement.jsx, etc.) need zero changes — they still call
+const { triggerSync, syncError } = useStockOutOfflineSync() exactly as today.
+
+Part 8 — All 8 Previous Issues: How They're Resolved
+#	Issue	Resolution in This Plan
+Bug 1	fetchAndUpdateLocal() data wipe	Naturally fixed — delta path uses upsert, never clears. Full-fetch path has empty-guard.
+Bug 2	401 drops queue items	api.js 401 interceptor emits sync:pause event → SyncContext pauses → resumeSync() after re-auth
+Bug 3	shouldFetchFresh ignored	Naturally fixed — timestamp-based delta replaces the conditional entirely
+Bug 4	Stale closure in interval	SyncContext uses isSyncingRef.current in the single interval
+Issue 5	Hardcoded 2-second wait	Replace with waitForIdPropagation() polling helper in stockIn + salesReturn services
+Issue 6	No exponential backoff	shouldRetryNow(item) added to all 5 services
+Issue 7	Listener leak in cleanup	Bound refs stored in constructor: this._boundHandleOnline = this.handleOnline.bind(this)
+Issue 8	Only Google in network test	Add 2 more URLs to testUrls in networkUtils.js
+Part 9 — Migration Strategy (handles users with stale data)
+Existing users already have data in IndexedDB from full fetches.
+The sync_metadata table won't exist yet — db.sync_metadata.get('categories') returns undefined.
+When lastSyncedAt is null/undefined, the code falls into the "first-time full fetch" path.
+
+So for existing users, the first sync after deploy behaves exactly like today (full replace)
+but with the empty-array guard. After that, the metadata timestamp is written and all future
+syncs are incremental. Zero user impact.
+
+Dexie version bump (15 → 16):
+Dexie runs its upgrade hook automatically. No data is lost when adding a new table.
+The sync_metadata table starts empty, which triggers the full-fetch fallback.
+
+Part 10 — Complete File Map
+New files (create):
+File	Purpose
+frontend/src/context/SyncContext.jsx	Unified sync orchestrator + state
+Modified files (frontend):
+File	Changes
+frontend/src/db/database.js	Bump version 15→16, add sync_metadata table
+frontend/src/api/api.js	Add 401 interceptor that emits sync:pause event
+frontend/src/utils/networkUtils.js	Add 2 more URLs to testUrls
+frontend/src/services/sync/categorySyncService.js	Delta fetchAndUpdateLocal(), backoff helper, bound listeners, remove setupAutoSync/cleanup
+frontend/src/services/sync/productSyncService.js	Same pattern
+frontend/src/services/sync/stockInSyncService.js	Same + replace 2s wait with poll helper
+frontend/src/services/sync/stockOutSyncService.js	Same
+frontend/src/services/sync/salesReturnSyncService.js	Same + replace 2s wait
+frontend/src/services/categoryService.js	Forward updatedAfter param
+frontend/src/services/productService.js	Forward updatedAfter param
+frontend/src/services/stockinService.js	Forward updatedAfter param
+frontend/src/services/stockoutService.js	Forward updatedAfter param
+frontend/src/services/salesReturnService.js	Forward updatedAfter param
+frontend/src/hooks/useStockOutOfflineSync.jsx	Thin wrapper around SyncContext
+frontend/src/hooks/useStockInOfflineSync.jsx	Thin wrapper
+frontend/src/hooks/useCategoryOffline.jsx	Thin wrapper
+frontend/src/hooks/useProductOfflineSync.jsx	Thin wrapper
+frontend/src/hooks/useSalesReturnOfflineSync.jsx	Thin wrapper
+frontend/src/context/AdminAuthContext.jsx	Call resumeSync() after re-auth
+frontend/src/context/EmployeeAuthContext.jsx	Call resumeSync() after re-auth
+frontend/src/main.jsx or App.jsx	Wrap with <SyncProvider>
+Modified files (backend):
+File	Changes
+backend/prisma/schema.prisma	Add updatedAt to Category, Product, SalesReturn; add deletedAt to all 5 entities
+backend/src/modules/category-management/category-management.controller.ts	Add updatedAfter query param
+backend/src/modules/category-management/category-management.service.ts	Delta query + soft delete
+backend/src/modules/product-managment/product-managment.controller.ts	Add updatedAfter query param
+backend/src/modules/product-managment/product-managment.service.ts	Delta query + soft delete
+backend/src/modules/stockin-managment/stockin-managment.controller.ts	Add updatedAfter query param
+backend/src/modules/stockin-managment/stockin-managment.service.ts	Delta query + soft delete
+backend/src/modules/stockout-management/stockout.controller.ts	Add updatedAfter query param
+backend/src/modules/stockout-management/stockout.service.ts	Delta query + soft delete
+backend/src/modules/salesReturn-management/salesReturn.controller.ts	Add updatedAfter query param
+backend/src/modules/salesReturn-management/salesReturn.service.ts	Delta query + soft delete
+Deleted files:
+None. Keeping all existing files (hooks become thin wrappers, not deleted).
+
+Part 11 — Implementation Order (lowest risk first)
+Step	Action	Files Touched	Risk
+1	Backend: Add updatedAt + deletedAt to schema + migrate	schema.prisma	Low — additive migration
+2	Backend: Update all 5 services to soft-delete + delta query	5 service files	Low — additive
+3	Backend: Add updatedAfter param to all 5 controllers	5 controller files	Low
+4	Frontend: Add URLs to networkUtils.js	networkUtils.js	Trivial
+5	Frontend: Add 401 interceptor to api.js	api.js	Low
+6	Frontend: Bump DB version + add sync_metadata table	database.js	Low — additive
+7	Frontend: Add shouldRetryNow() + bound listener fixes to all 5 services	5 service files	Low
+8	Frontend: Update all 5 API service files to forward updatedAfter	5 service files	Low
+9	Frontend: Update fetchAndUpdateLocal() in all 5 sync services to delta pattern	5 service files	Medium — core change
+10	Frontend: Remove setupAutoSync/cleanup from all 5 sync services	5 service files	Low after step 11
+11	Frontend: Create SyncContext.jsx	New file	Medium
+12	Frontend: Add <SyncProvider> to App.jsx/main.jsx	App.jsx	Low
+13	Frontend: Update auth contexts to call resumeSync()	2 context files	Low
+14	Frontend: Convert 5 hooks to thin wrappers	5 hook files	Low (pages unchanged)
+15	QA: Full end-to-end verification	—	—
+Part 12 — Verification Checklist
+ Delta sync works: Add a category online. Go offline. Sync from another device. Come back online and sync — confirm ONLY the new category is fetched (not all), confirmed by Network tab showing ?updatedAfter=... in the request URL.
+ First-time seed: Clear IndexedDB. Reload. Confirm full fetch runs (no updatedAfter param). Confirm sync_metadata is written after.
+ Soft delete propagates: Delete a category on the server. Trigger sync on client. Confirm it disappears from IndexedDB without requiring a full table clear.
+ Data preservation on error: Kill the network mid-sync. Confirm IndexedDB tables are intact (Bug 1).
+ 401 pause/resume: Expire JWT (clear cookie). Trigger sync. Confirm sync:pause event fires, SyncContext sets syncPaused: true, no items deleted from queue. Log in. Confirm resumeSync() fires and sync resumes (Bug 2).
+ No overlapping syncs: Set the interval short (3s). Confirm only one sync runs at a time (Bug 4 / isSyncingRef).
+ No listener leak: Mount/unmount a page 5 times. getEventListeners(window).online should show 1 entry, not 5 (Issue 7 / SyncContext has the sole listener).
+ Backoff respected: Force API errors. Confirm items are not retried on every interval tick (Issue 6).
+ Fallback connectivity: Block Google in DevTools. Confirm isOnline() still returns true via fallback URLs (Issue 8).
+ Pages unaffected: All 5 management pages still show correct data, sync badges, and error toasts — because hooks are thin wrappers (backward compat).

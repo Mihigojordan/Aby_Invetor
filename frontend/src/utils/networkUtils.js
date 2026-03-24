@@ -4,7 +4,8 @@
 
     const testUrls = [
       "https://www.google.com/favicon.ico",
-
+      "https://www.cloudflare.com/favicon.ico",   // Different CDN/jurisdiction — works even if Google is blocked
+      "https://httpbin.org/get",                  // Simple API endpoint as third fallback
     ];
 
     // Test multiple URLs in parallel for faster response

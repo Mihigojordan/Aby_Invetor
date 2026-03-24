@@ -8,6 +8,7 @@ import { NetworkStatusProvider } from './context/useNetworkContext.jsx'
 import { PartnerAuthProvider } from './context/PartnerAuthContext.jsx'
 import { SocketProvider } from './context/SocketContext.jsx'
 import NotificationProvider from './context/NotificationContext.jsx'
+import { SyncProvider } from './context/SyncContext.jsx'
 
 
 // // PWA Auto-Update Registration
@@ -118,9 +119,9 @@ createRoot(document.getElementById('root')).render(
     <AdminAuthContextProvider>
       <EmployeeAuthContextProvider>
         <PartnerAuthProvider>
-
-        
+        <SyncProvider>
         <App />
+        </SyncProvider>
         </PartnerAuthProvider>
       </EmployeeAuthContextProvider>
     </AdminAuthContextProvider>

@@ -329,21 +329,36 @@ export class StockoutService {
     });
   }
 
-  async getAll() {
+  // Delta sync support: accepts optional updatedAfter timestamp
+  // Returns { data: StockOut[], deletedIds: string[] }
+  async getAll(updatedAfter?: string) {
     try {
-      return await this.prisma.stockOut.findMany({
+      const where: any = { deletedAt: null };
+
+      if (updatedAfter) {
+        where.updatedAt = { gte: new Date(updatedAfter) };
+      }
+
+      const records = await this.prisma.stockOut.findMany({
+        where,
         include: {
-          stockin: {
-            include: {
-              product: true
-            }
-          },
+          stockin: { include: { product: true } },
           backorder: true,
           admin: true,
           employee: true,
-
         },
       });
+
+      let deletedIds: string[] = [];
+      if (updatedAfter) {
+        const deletedRecords = await this.prisma.stockOut.findMany({
+          where: { deletedAt: { gte: new Date(updatedAfter) } },
+          select: { id: true },
+        });
+        deletedIds = deletedRecords.map((r) => r.id);
+      }
+
+      return { data: records, deletedIds };
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -543,7 +558,8 @@ export class StockoutService {
     try {
       const stockout = await this.prisma.stockOut.findUnique({ where: { id } });
       if (!stockout) throw new NotFoundException('StockOut not found');
-      const deletedStock = await this.prisma.stockOut.delete({ where: { id } });
+      // Soft delete: mark as deleted so delta sync can return this ID in deletedIds
+      const deletedStock = await this.prisma.stockOut.update({ where: { id }, data: { deletedAt: new Date() } });
       if (data?.adminId) {
         const admin = await this.prisma.admin.findUnique({
           where: { id: data.adminId },

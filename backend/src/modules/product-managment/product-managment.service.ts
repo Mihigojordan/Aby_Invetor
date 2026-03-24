@@ -101,10 +101,31 @@ export class ProductManagmentService {
     }
   }
 
-  async getAllProducts() {
-    return this.prisma.product.findMany({
+  // Delta sync support: accepts optional updatedAfter timestamp
+  // Returns { data: Product[], deletedIds: string[] }
+  async getAllProducts(updatedAfter?: string) {
+    // Always exclude soft-deleted records
+    const where: any = { deletedAt: null };
+
+    if (updatedAfter) {
+      where.updatedAt = { gte: new Date(updatedAfter) };
+    }
+
+    const products = await this.prisma.product.findMany({
+      where,
       include: { category: true },
     });
+
+    let deletedIds: string[] = [];
+    if (updatedAfter) {
+      const deletedRecords = await this.prisma.product.findMany({
+        where: { deletedAt: { gte: new Date(updatedAfter) } },
+        select: { id: true },
+      });
+      deletedIds = deletedRecords.map((r) => r.id);
+    }
+
+    return { data: products, deletedIds };
   }
 
   async getProductById(id: string) {
@@ -273,7 +294,10 @@ export class ProductManagmentService {
       }
     }
 
-    await this.prisma.product.delete({ where: { id } });
+    // Soft delete: mark as deleted instead of removing the row.
+    // This allows the delta sync endpoint to return this ID in deletedIds
+    // so clients can remove it from IndexedDB without a full re-fetch.
+    await this.prisma.product.update({ where: { id }, data: { deletedAt: new Date() } });
 
     // 🔍 Log activity
     if (data?.adminId) {

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpException, Param, Post, Put } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpException, Param, Post, Put, Query } from '@nestjs/common';
 import { StockinManagmentService } from './stockin-managment.service';
 
 @Controller('stockin')
@@ -16,9 +16,10 @@ export class StockinManagmentController {
     };
   }
 
+  // Supports ?updatedAfter=<ISO> for delta sync
   @Get('all')
-  async getAllStockIns() {
-    return await this.stockInService.getAll();
+  async getAllStockIns(@Query('updatedAfter') updatedAfter?: string) {
+    return await this.stockInService.getAll(updatedAfter);
   }
   @Get('all/categories')
   async getAllWithCategories() {

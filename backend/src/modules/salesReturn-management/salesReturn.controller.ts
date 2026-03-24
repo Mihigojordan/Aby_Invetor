@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
 import { SalesReturnService } from './salesReturn.service';
 
 @Controller('sales-return')
@@ -10,9 +10,10 @@ export class SalesReturnController {
     return this.salesReturnService.create(data);
   }
 
+  // Supports ?updatedAfter=<ISO> for delta sync
   @Get()
-  async findAll() {
-    return this.salesReturnService.findAll();
+  async findAll(@Query('updatedAfter') updatedAfter?: string) {
+    return this.salesReturnService.findAll(updatedAfter);
   }
 
   @Get(':id')

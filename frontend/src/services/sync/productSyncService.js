@@ -8,6 +8,18 @@ class ProductSyncService {
     this.processingLocalIds = new Set(); // Track items being processed
     this.lastSyncTime = null;
     this.syncLock = null;
+
+    // Pre-bound references kept for handleOnline/handleFocus (standalone safety net)
+    this._boundHandleOnline = this.handleOnline.bind(this);
+    this._boundHandleFocus = this.handleFocus.bind(this);
+  }
+
+  // Exponential backoff: skip items that haven't waited long enough since their last failure (Issue 6 fix)
+  shouldRetryNow(item) {
+    if (!item.syncRetryCount || item.syncRetryCount === 0) return true;
+    if (!item.lastSyncAttempt) return true;
+    const backoffMs = Math.min(30_000 * Math.pow(4, item.syncRetryCount - 1), 32 * 60 * 1000);
+    return (Date.now() - new Date(item.lastSyncAttempt).getTime()) >= backoffMs;
   }
 
   async syncProducts() {
@@ -38,16 +50,8 @@ class ProductSyncService {
         deletes: await this.syncDeletedProducts()
       };
 
-      // Only fetch if we made changes or it's been a while
-      const shouldFetchFresh = results.adds.processed > 0 ||
-        results.updates.processed > 0 ||
-        results.deletes.processed > 0 ||
-        !this.lastSyncTime ||
-        (Date.now() - this.lastSyncTime) > 120000; // 5 minutes
-
-      if (shouldFetchFresh) {
-        await this.fetchAndUpdateLocal();
-      }
+      // Always fetch — fetchAndUpdateLocal() handles delta vs full internally
+      await this.fetchAndUpdateLocal();
 
       this.lastSyncTime = Date.now();
       console.log('✅ Product sync completed successfully', results);
@@ -78,7 +82,11 @@ class ProductSyncService {
         continue;
       }
 
-
+      // Exponential backoff: skip if not enough time has passed since last failure
+      if (!this.shouldRetryNow(product)) {
+        skipped++;
+        continue;
+      }
 
       this.processingLocalIds.add(product.localId);
 
@@ -435,17 +443,34 @@ class ProductSyncService {
   }
 
   async fetchAndUpdateLocal() {
+    // Read last sync timestamp from sync_metadata
+    const meta = await db.sync_metadata.get('products');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+
+    // Fetch from server outside any transaction — bail on error without touching DB
+    let result;
     try {
-      const serverProducts = await productService.getAllProducts();
-      console.log('******** => + FETCHING UPDATING THE UI DATA ', serverProducts.length);
+      result = await productService.getAllProducts(lastSyncedAt);
+    } catch (fetchError) {
+      console.error('[products] Fetch failed — local data preserved:', fetchError);
+      return;
+    }
 
-      await db.transaction('rw', db.products_all, db.product_images, db.synced_product_ids, async () => {
-        // Merge strategy instead of clearing all data
+    const { data: updatedRecords, deletedIds = [] } = result;
+    console.log(`[products] Delta sync: ${updatedRecords?.length ?? 0} updated, ${deletedIds.length} deleted`);
+
+    // Guard: if first-time full fetch returns nothing, don't wipe
+    if (!lastSyncedAt && (!Array.isArray(updatedRecords) || updatedRecords.length === 0)) {
+      console.warn('[products] Empty full-fetch response — skipping to preserve local data');
+      return;
+    }
+
+    // Apply changes atomically
+    await db.transaction('rw', db.products_all, db.product_images, db.synced_product_ids, db.sync_metadata, async () => {
+      if (!lastSyncedAt) {
+        // First-ever sync: replace all
         await db.products_all.clear();
-        console.log('✨ Cleared local products, replacing with server data');;
-
-        // Update/add products from server
-        for (const serverProduct of serverProducts) {
+        for (const serverProduct of updatedRecords) {
           await db.products_all.put({
             id: serverProduct.id,
             productName: serverProduct.productName,
@@ -455,43 +480,48 @@ class ProductSyncService {
             lastModified: serverProduct.createdAt || new Date(),
             updatedAt: serverProduct.updatedAt || new Date()
           });
-
-          // Handle images for this product
           if (serverProduct.imageUrls?.length > 0) {
-            // Remove existing server images for this product
-            await db.product_images
-              .where('[entityId+entityType]')
-              .equals([serverProduct.id, 'product'])
-              .and(img => img.from === 'server')
-              .delete();
-
-            // Add fresh server images
+            await db.product_images.where('[entityId+entityType]').equals([serverProduct.id, 'product']).and(img => img.from === 'server').delete();
             for (const url of serverProduct.imageUrls) {
-              await db.product_images.add({
-                entityId: serverProduct.id,
-                entityLocalId: null,
-                entityType: 'product',
-                imageData: productService.getFullImageUrl(url),
-                synced: true,
-                from: 'server',
-                createdAt: new Date(),
-                updatedAt: new Date()
-              });
+              await db.product_images.add({ entityId: serverProduct.id, entityLocalId: null, entityType: 'product', imageData: productService.getFullImageUrl(url), synced: true, from: 'server', createdAt: new Date(), updatedAt: new Date() });
             }
           }
         }
+      } else {
+        // Delta sync: upsert changed records
+        for (const serverProduct of updatedRecords) {
+          await db.products_all.put({
+            id: serverProduct.id,
+            productName: serverProduct.productName,
+            brand: serverProduct.brand,
+            categoryId: serverProduct.categoryId,
+            description: serverProduct.description,
+            lastModified: serverProduct.createdAt || new Date(),
+            updatedAt: serverProduct.updatedAt || new Date()
+          });
+          if (serverProduct.imageUrls?.length > 0) {
+            await db.product_images.where('[entityId+entityType]').equals([serverProduct.id, 'product']).and(img => img.from === 'server').delete();
+            for (const url of serverProduct.imageUrls) {
+              await db.product_images.add({ entityId: serverProduct.id, entityLocalId: null, entityType: 'product', imageData: productService.getFullImageUrl(url), synced: true, from: 'server', createdAt: new Date(), updatedAt: new Date() });
+            }
+          }
+        }
+        // Remove server-deleted records
+        for (const id of deletedIds) {
+          await db.products_all.delete(id);
+          await db.product_images.where('[entityId+entityType]').equals([id, 'product']).delete();
+          const mapping = await db.synced_product_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_product_ids.delete(mapping.localId);
+        }
+      }
 
-        // Clean up sync tracking for products no longer on server
-        const serverIds = new Set(serverProducts.map(p => p.id));
-        await db.synced_product_ids
-          .where('serverId')
-          .noneOf(Array.from(serverIds))
-          .delete();
+      // Update per-entity sync timestamp
+      await db.sync_metadata.put({
+        entity: 'products',
+        lastSyncedAt: new Date().toISOString(),
+        lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
       });
-    } catch (error) {
-      console.error('Error fetching server products:', error);
-      // Don't throw - sync can continue without fresh server data
-    }
+    });
   }
 
   // 🔍 Check for content-based duplicates
@@ -586,16 +616,6 @@ class ProductSyncService {
       .delete();
   }
 
-  setupAutoSync() {
-    window.addEventListener('online', this.handleOnline.bind(this));
-    window.addEventListener('focus', this.handleFocus.bind(this));
-
-    // Periodic cleanup
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupFailedSyncs();
-    }, 30 * 60 * 1000); // Every 30 minutes
-  }
-
   async handleOnline() {
     console.log('🌐 Network is back online, starting product sync...');
     setTimeout(() => this.syncProducts(), 1000);
@@ -607,13 +627,6 @@ class ProductSyncService {
     }
   }
 
-  cleanup() {
-    window.removeEventListener('online', this.handleOnline);
-    window.removeEventListener('focus', this.handleFocus);
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-  }
 }
 
 export const productSyncService = new ProductSyncService();

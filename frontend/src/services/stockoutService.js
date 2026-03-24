@@ -167,9 +167,10 @@ const formattedSales = salesArray.map(sale => {
      * Get all stock-out entries
      * @returns {Promise<Array>} Array of stock-out entries with related details
      */
-    async getAllStockOuts() {
+    async getAllStockOuts(updatedAfter = null) {
         try {
-            const response = await api.get('/stockout/all');
+            const params = updatedAfter ? { updatedAfter } : {};
+            const response = await api.get('/stockout/all', { params });
             return response.data;
         } catch (error) {
             console.error('Error fetching all stock-outs:', error);

@@ -1,0 +1,267 @@
+Ready for review
+Select text to add comments on the plan
+Offline Sync System Improvement Plan — Aby Inventor PWA
+Context
+The app already has a well-built offline-first sync system with 5 entity-specific sync services (category, product, stockIn, stockOut, salesReturn), promise-based locks, idempotency keys, dependency chaining, and a three-tier IndexedDB schema (_offline_add/update/delete per entity). This plan does NOT rewrite anything. It targets 4 critical bugs and 4 important issues confirmed by direct code inspection, patching existing files with minimal, surgical changes.
+
+CRITICAL Fixes (implement first)
+Bug 1 — fetchAndUpdateLocal() Data Wipe Risk
+Why needed: Every sync service calls db.*_all.clear() inside its fetchAndUpdateLocal(). The code comment even says "Don't clear all - merge instead" but the line below does clear() anyway. If the network fetch returns an empty array (due to 401, server 500, or timeout), all local data is silently wiped. This is a data-loss bug.
+
+What it fixes: Prevents local IndexedDB tables from being emptied when a network fetch fails or returns an empty/partial response.
+
+How to fix — "Fetch-First, Validate, Then Replace Atomically":
+
+In all 5 sync services, restructure fetchAndUpdateLocal():
+
+Perform the network fetch outside and before opening any Dexie transaction.
+Add a guard: if the fetched array is empty (length === 0), bail out immediately — do NOT touch IndexedDB.
+Only then open the 'rw' transaction, call .clear(), and bulk-insert the validated data.
+// BEFORE (vulnerable):
+async fetchAndUpdateLocal() {
+  const serverData = await service.getAll();          // fetch
+  await db.transaction('rw', db.items_all, async () => {
+    await db.items_all.clear();                        // wipe
+    for (const item of serverData) { ... }            // re-insert
+  });
+}
+
+// AFTER (safe):
+async fetchAndUpdateLocal() {
+  let serverData;
+  try {
+    serverData = await service.getAll();               // fetch OUTSIDE transaction
+  } catch (fetchError) {
+    console.error('Fetch failed — local data preserved:', fetchError);
+    return;                                            // bail, never touch IndexedDB
+  }
+
+  if (!Array.isArray(serverData) || serverData.length === 0) {
+    console.warn('Server returned empty — skipping replacement to preserve local data');
+    return;
+  }
+
+  await db.transaction('rw', db.items_all, async () => {
+    await db.items_all.clear();                        // safe: we have valid data
+    for (const item of serverData) { ... }
+  });
+}
+Files:
+
+categorySyncService.js:315-346 — fetchAndUpdateLocal()
+productSyncService.js:437-495 — fetchAndUpdateLocal()
+stockInSyncService.js:432-472 — fetchAndUpdateLocal()
+stockOutSyncService.js — its equivalent
+salesReturnSyncService.js — its equivalent
+Bug 2 — 401 Auth Expiry Permanently Drops Queue Items
+Why needed: api.js has NO interceptors. When a JWT cookie expires mid-sync, every API call returns 401. Sync services catch the error, increment syncRetryCount, and after 5 retries permanently delete the item from the offline queue. Users silently lose data. The existing reAuthWhenOnline() in the auth contexts is completely decoupled from the sync pipeline.
+
+What it fixes: Prevents permanent data loss when auth expires during sync. Pauses all retry-count-based deletions on 401, resumes after successful re-auth.
+
+Part A — Add a 401 interceptor to api.js:
+
+// api.js additions
+export let syncPausedDueTo401 = false;
+export const resetSyncPause = () => { syncPausedDueTo401 = false; };
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      syncPausedDueTo401 = true;
+      console.warn('[api] 401 received — sync paused until re-auth.');
+    }
+    return Promise.reject(error);
+  }
+);
+Part B — Guard the deletion path in all 5 sync services:
+
+In every catch block where retryCount >= maxRetries triggers db.[table].delete(...):
+
+import { syncPausedDueTo401 } from '../../api/api';
+
+// ...
+} catch (error) {
+  const retryCount = (item.syncRetryCount || 0) + 1;
+  if (syncPausedDueTo401) {
+    // Preserve item — don't delete, wait for re-auth to clear the flag
+    console.warn(`Sync paused (401). Preserving ${item.localId} in queue.`);
+  } else if (retryCount >= maxRetries) {
+    await db.[table].delete(item.localId);
+  } else {
+    await db.[table].update(item.localId, { syncError: error.message, syncRetryCount: retryCount, lastSyncAttempt: new Date() });
+  }
+}
+Part C — Call resetSyncPause() after successful re-auth:
+
+In AdminAuthContext.jsx:353-365 and the equivalent in EmployeeAuthContext.jsx, after updateAuthState(...) in reAuthWhenOnline():
+
+import { resetSyncPause } from '../api/api';
+// ...
+if (loginResponse.authenticated) {
+  updateAuthState({ ... });   // existing
+  resetSyncPause();           // ← NEW: re-enable sync deletions
+}
+Files:
+
+api.js — add interceptor + exports (Part A)
+All 5 sync services — guard in catch blocks (Part B)
+AdminAuthContext.jsx — reAuthWhenOnline() (Part C)
+EmployeeAuthContext.jsx — reAuthWhenOnline() (Part C)
+Bug 3 — shouldFetchFresh Condition Ignored (Unnecessary API Calls)
+Why needed: In stockInSyncService.js:56-66, shouldFetchFresh is computed but the surrounding if was apparently removed during debugging and never restored. fetchAndUpdateLocal() runs unconditionally on every sync, making unnecessary API calls and triggering the data wipe risk from Bug 1 more often.
+
+What it fixes: Eliminates redundant getAllStockIns API calls. After Bug 1 is fixed, this gate further reduces risk.
+
+Fix — restore the condition guard (2-line change):
+
+// BEFORE (in stockInSyncService.syncStockIns()):
+console.warn(' REFRESHING   ');   // debug artifact
+await this.fetchAndUpdateLocal(); // always runs
+
+// AFTER:
+if (shouldFetchFresh) {
+  await this.fetchAndUpdateLocal();
+}
+Same fix in salesReturnSyncService.js where the if (shouldFetchFreshData) block is commented out.
+
+Files:
+
+stockInSyncService.js:56-66
+salesReturnSyncService.js — uncomment the shouldFetchFreshData guard
+Bug 4 — Stale Closure in Sync Interval (All Hooks)
+Why needed: In useStockOutOfflineSync.jsx:77, the setInterval callback captures syncStatus from the closure at mount time. syncStatus.isSyncing is always false (the initial state), so the duplicate-sync guard never fires. Multiple concurrent syncs can start from the interval.
+
+What it fixes: Prevents multiple overlapping sync calls from the interval timer.
+
+Fix — use a useRef for live isSyncing access:
+
+const syncingRef = useRef(false);
+
+// Keep ref in sync with state:
+useEffect(() => {
+  syncingRef.current = syncStatus.isSyncing;
+}, [syncStatus.isSyncing]);
+
+// In the interval useEffect:
+intervalRef.current = setInterval(() => {
+  if (isOnline && !syncingRef.current) triggerSync(); // ← ref, not stale closure
+}, syncInterval);
+Files (identical fix in all 5 hooks):
+
+useStockOutOfflineSync.jsx:77
+useStockInOfflineSync.jsx
+useCategoryOffline.jsx
+useProductOfflineSync.jsx
+useSalesReturnOfflineSync.jsx
+IMPORTANT Issues
+Issue 5 — Hardcoded 2-Second Wait for ID Propagation
+Why needed: stockInSyncService.js:44 uses setTimeout(resolve, 2000) to "wait for product ID propagation". The comment even says "1 second delay" while the value is 2000ms. On a slow device 2s may not be enough; on a fast one it's wasted. Same issue in salesReturnSyncService.js.
+
+What it fixes: Makes ID propagation waiting reliable and responsive rather than arbitrary.
+
+Fix — poll products_offline_add.count() instead of sleeping:
+
+async waitForProductIdPropagation(productResults, timeoutMs = 5000) {
+  if (!productResults?.processed || productResults.processed === 0) return;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const pending = await db.products_offline_add.count();
+    if (pending === 0) return; // all product IDs mapped
+    await new Promise(r => setTimeout(r, 200)); // short poll interval
+  }
+  console.warn('Product ID propagation timeout — proceeding anyway');
+}
+
+// Replace the 2-second wait:
+await this.waitForProductIdPropagation(productResults);
+Apply the equivalent using db.stockouts_offline_add.count() in salesReturnSyncService.js.
+
+Files:
+
+stockInSyncService.js:42-45
+salesReturnSyncService.js — equivalent wait
+Issue 6 — Linear Retry Without Exponential Backoff
+Why needed: After a failure, items are retried on the very next sync call (30s interval or network-online trigger). With 5 retries, a 30-minute server outage causes 5 waves of retries in rapid succession, permanently dropping items that would have succeeded after the server recovered.
+
+What it fixes: Respects transient server failures; items survive brief outages instead of being permanently deleted after exhausting retries.
+
+Fix — add shouldRetryNow() helper to each service:
+
+shouldRetryNow(item) {
+  if (!item.syncRetryCount || item.syncRetryCount === 0) return true;
+  if (!item.lastSyncAttempt) return true;
+  // Backoff schedule: 30s → 2m → 8m → 32m (capped)
+  const backoffMs = Math.min(30_000 * Math.pow(4, item.syncRetryCount - 1), 32 * 60 * 1000);
+  return (Date.now() - new Date(item.lastSyncAttempt).getTime()) >= backoffMs;
+}
+
+// In each syncUnsyncedAdds for loop, after the processingLocalIds check:
+if (!this.shouldRetryNow(item)) {
+  skipped++;
+  continue;
+}
+Files: All 5 sync services — add helper + call in each syncUnsyncedAdds() loop.
+
+Issue 7 — Event Listener Leak in cleanup() (All Services)
+Why needed: setupAutoSync() calls this.handleOnline.bind(this) which creates a new function reference. cleanup() calls removeEventListener(this.handleOnline) with the unbound method — a different reference. So removeEventListener silently does nothing. Every mount/unmount cycle adds one more online listener. stockOutSyncService.cleanup() is even worse — it calls .bind(this) in the remove call, creating yet another unique reference.
+
+What it fixes: Eliminates accumulating event listener registrations on window.
+
+Fix — store bound references in the constructor:
+
+constructor() {
+  // ... existing fields ...
+  this._boundHandleOnline = this.handleOnline.bind(this);
+  this._boundHandleFocus = this.handleFocus.bind(this);
+}
+
+setupAutoSync() {
+  window.addEventListener('online', this._boundHandleOnline);
+  window.addEventListener('focus', this._boundHandleFocus);
+}
+
+cleanup() {
+  window.removeEventListener('online', this._boundHandleOnline);
+  window.removeEventListener('focus', this._boundHandleFocus);
+}
+Files: All 5 sync services — constructor + setupAutoSync() + cleanup().
+
+Issue 8 — Only Google Tested for Connectivity
+Why needed: networkUtils.js:5-8 has a comment "Test multiple URLs in parallel" but testUrls contains only https://www.google.com/favicon.ico. Google is blocked on corporate networks, certain regions, and occasionally has CDN issues. A false "offline" reading aborts all syncs.
+
+What it fixes: Improves reliability of network detection by using independent, geographically diverse endpoints.
+
+Fix — add 2 diverse fallback URLs:
+
+const testUrls = [
+  "https://www.google.com/favicon.ico",
+  "https://www.cloudflare.com/favicon.ico",
+  "https://httpbin.org/get",
+];
+The existing Promise.allSettled + some() logic already handles this correctly — any one success returns true.
+
+File: networkUtils.js:5-8
+
+Nice-to-Have (out of scope, document only)
+Cross-tab sync coordination: Use localStorage lease key (tabId + timestamp) checked before each sync*() call to prevent two tabs hammering the server simultaneously.
+synced_*_ids table bloat: Verify all syncDeleted*() paths include synced_*_ids.where('serverId').equals(id).delete(). fetchAndUpdateLocal() already does a cleanup via noneOf(serverIds) but only when shouldFetchFresh is true.
+Implementation Order
+Step	Fix	Risk	Files Changed
+1	Bug 4 — stale closure (hooks)	Low	5 hook files
+2	Issue 7 — listener leak	Low	5 service files
+3	Bug 1 — data wipe	Medium	5 service files
+4	Bug 2 — 401 handling	Medium	api.js, 5 services, 2 contexts
+5	Bug 3 — shouldFetchFresh ignored	Low	2 service files
+6	Issue 5 — hardcoded wait	Low	2 service files
+7	Issue 6 — no backoff	Low	5 service files
+8	Issue 8 — single URL	Low	networkUtils.js
+Verification Checklist
+ Bug 1: Throttle to Offline in DevTools mid-sync. Confirm *_all tables are intact. Console shows "Fetch failed — local data preserved".
+ Bug 2: Clear the JWT cookie. Trigger sync. Confirm queue items are NOT deleted (still in IndexedDB). Log in again. Confirm sync resumes and items upload.
+ Bug 3: Network tab open. Trigger sync when nothing changed and lastSyncTime is fresh. Confirm no getAll* API call is made.
+ Bug 4: Set syncInterval: 3000. Add a slow artificial delay to triggerSync. Confirm interval does NOT start a second sync while one is running.
+ Issue 5: Console log the poll iteration count. Confirm it resolves in < 400ms on local dev instead of always waiting 2000ms.
+ Issue 6: Force an API error. Trigger syncs 3x quickly. Confirm the item is retried only after the backoff interval, not on every trigger.
+ Issue 7: Mount/unmount a page with a sync hook 5 times. Run getEventListeners(window).online.length in console. Should be 1, not 5.
+ Issue 8: Block google.com via DevTools Network conditions. Confirm isOnline() still returns true via fallback URLs.

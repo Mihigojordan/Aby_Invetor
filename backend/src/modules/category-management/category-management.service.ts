@@ -77,11 +77,30 @@ export class CategoryManagementService {
     }
   }
 
-  // ================= GET ALL =================
-  async getAllCategories(p0: number, p1: number) {
+  // ================= GET ALL (supports delta sync via updatedAfter) =================
+  async getAllCategories(updatedAfter?: string) {
     try {
-      const categories = await this.prismaService.category.findMany();
-      return categories;
+      // Build where clause: always exclude soft-deleted records
+      const where: any = { deletedAt: null };
+
+      // Delta sync: if updatedAfter provided, only return records changed since that time
+      if (updatedAfter) {
+        where.updatedAt = { gte: new Date(updatedAfter) };
+      }
+
+      const categories = await this.prismaService.category.findMany({ where });
+
+      // For delta sync: return IDs of records that were soft-deleted since updatedAfter
+      let deletedIds: string[] = [];
+      if (updatedAfter) {
+        const deletedRecords = await this.prismaService.category.findMany({
+          where: { deletedAt: { gte: new Date(updatedAfter) } },
+          select: { id: true },
+        });
+        deletedIds = deletedRecords.map((r) => r.id);
+      }
+
+      return { data: categories, deletedIds };
     } catch (error) {
       console.error('Error getting categories:', error);
       throw new Error(error.message);
@@ -170,7 +189,7 @@ export class CategoryManagementService {
     }
   }
 
-  // ================= DELETE =================
+  // ================= DELETE (soft delete so the client can detect the deletion during delta sync) =================
   async deleteCategory(
     id: string,
     data?: Partial<{ adminId: string; employeeId?: string }>,
@@ -178,8 +197,12 @@ export class CategoryManagementService {
     try {
       if (!id) throw new BadRequestException('Category ID is required');
 
-      const deleted = await this.prismaService.category.delete({
+      // Soft delete: set deletedAt instead of removing the row.
+      // This allows the delta sync endpoint to return deletedIds so clients can
+      // remove the record from their local IndexedDB without doing a full re-fetch.
+      const deleted = await this.prismaService.category.update({
         where: { id },
+        data: { deletedAt: new Date() },
       });
 
       if (data?.adminId) {

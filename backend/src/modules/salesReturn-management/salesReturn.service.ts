@@ -168,21 +168,26 @@ export class SalesReturnService {
     };
   }
 
-  // Get all sales returns
-  async findAll() {
+  // Delta sync support: accepts optional updatedAfter timestamp
+  // Returns { data: SalesReturn[], deletedIds: string[] }
+  async findAll(updatedAfter?: string) {
     try {
+      const where: any = { deletedAt: null };
+
+      if (updatedAfter) {
+        where.updatedAt = { gte: new Date(updatedAfter) };
+      }
+
       const returns = await this.prisma.salesReturn.findMany({
+        where,
         include: {
           items: {
             include: {
               stockout: {
-
                 include: {
-                  backorder:true,
+                  backorder: true,
                   stockin: {
-                    include: {
-                      product: true
-                    }
+                    include: { product: true }
                   }
                 }
               }
@@ -191,9 +196,19 @@ export class SalesReturnService {
         }
       });
 
+      let deletedIds: string[] = [];
+      if (updatedAfter) {
+        const deletedRecords = await this.prisma.salesReturn.findMany({
+          where: { deletedAt: { gte: new Date(updatedAfter) } },
+          select: { id: true },
+        });
+        deletedIds = deletedRecords.map((r) => r.id);
+      }
+
       return {
         message: 'Sales returns retrieved successfully',
         data: returns,
+        deletedIds,
       };
     } catch (error) {
       throw new BadRequestException(error.message);

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put, Query } from "@nestjs/common";
 import { StockoutService } from "./stockout.service";
 
 @Controller('stockout')
@@ -14,10 +14,11 @@ export class StockoutController{
     }
   }
 
+  // Supports ?updatedAfter=<ISO> for delta sync
   @Get('all')
-  async getAll() {
+  async getAll(@Query('updatedAfter') updatedAfter?: string) {
     try {
-      return await this.stockoutService.getAll();
+      return await this.stockoutService.getAll(updatedAfter);
     } catch (error) {
       throw new HttpException(error.message, error.status || HttpStatus.BAD_REQUEST);
     }

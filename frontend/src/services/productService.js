@@ -66,9 +66,10 @@ class ProductService {
    * Get all products
    * @returns {Promise<Array>} Array of all products with categories
    */
-  async getAllProducts() {
+  async getAllProducts(updatedAfter = null) {
     try {
-      const response = await api.get(`${this.apiPath}/all`);
+      const params = updatedAfter ? { updatedAfter } : {};
+      const response = await api.get(`${this.apiPath}/all`, { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching products:', error);

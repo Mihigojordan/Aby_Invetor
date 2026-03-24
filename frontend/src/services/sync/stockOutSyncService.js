@@ -14,6 +14,18 @@ class StockOutSyncService {
     this.syncTimeout = 5 * 60 * 1000; // 5 minute timeout
     this.batchSize = 50; // Process in batches to manage memory
     this.cleanupInterval = null;
+
+    // Pre-bound references kept for handleOnline/handleFocus (standalone safety net)
+    this._boundHandleOnline = this.handleOnline.bind(this);
+    this._boundHandleFocus = this.handleFocus.bind(this);
+  }
+
+  // Exponential backoff: skip items that haven't waited long enough since their last failure (Issue 6 fix)
+  shouldRetryNow(item) {
+    if (!item.syncRetryCount || item.syncRetryCount === 0) return true;
+    if (!item.lastSyncAttempt) return true;
+    const backoffMs = Math.min(30_000 * Math.pow(4, item.syncRetryCount - 1), 32 * 60 * 1000);
+    return (Date.now() - new Date(item.lastSyncAttempt).getTime()) >= backoffMs;
   }
 
   // ==================== MAIN SYNC METHODS ====================
@@ -202,6 +214,12 @@ class StockOutSyncService {
       if (syncedRecord) {
         console.log(`✓ StockOut ${stockOut.localId} already synced to server ID ${syncedRecord.serverId}`);
         await db.stockouts_offline_add.delete(stockOut.localId);
+        skipped++;
+        continue;
+      }
+
+      // Exponential backoff: skip if not enough time has passed since last failure
+      if (!this.shouldRetryNow(stockOut)) {
         skipped++;
         continue;
       }
@@ -1085,72 +1103,83 @@ const stockOutRecord = {
   }
 
   async fetchAndUpdateLocal() {
+    // ── StockOuts (delta sync) ───────────────────────────────────────────────
+    const meta = await db.sync_metadata.get('stockOuts');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+
+    let result;
     try {
-      // Fetch StockOuts
-      const serverStockOuts = await stockOutService.getAllStockOuts();
-      console.log('******** => + FETCHING AND UPDATING STOCK-OUT DATA ', serverStockOuts.length);
+      result = await stockOutService.getAllStockOuts(lastSyncedAt);
+    } catch (fetchError) {
+      console.error('[stockOuts] Fetch failed — local data preserved:', fetchError);
+      return;
+    }
 
-      await db.transaction('rw', db.stockouts_all, db.synced_stockout_ids, async () => {
-        await db.stockouts_all.clear();
-        console.log('✨ Cleared local stockouts, replacing with server data');
-for (const serverStockOut of serverStockOuts) {
-    await db.stockouts_all.put({
-        id: serverStockOut.id,
-        stockinId: serverStockOut.stockinId,
-        quantity: serverStockOut.quantity,
-        soldPrice: serverStockOut.soldPrice,
-        clientName: serverStockOut.clientName,
-        clientEmail: serverStockOut.clientEmail,
-        clientPhone: serverStockOut.clientPhone,
-        paymentMethod: serverStockOut.paymentMethod,
-        adminId: serverStockOut.adminId,
-        backorderId: serverStockOut.backorderId,
-        employeeId: serverStockOut.employeeId,
-        transactionId: serverStockOut.transactionId,
-        paymentStatus: serverStockOut.paymentStatus || 'PENDING',        // ALREADY THERE
-        debtedAmount: serverStockOut.debtedAmount || 0,                  // ALREADY THER   
-        lastModified: serverStockOut.createdAt || new Date(),
-        createdAt: serverStockOut.createdAt,
-        updatedAt: serverStockOut.updatedAt || new Date()
+    const { data: updatedRecords, deletedIds = [] } = result;
+    console.log(`[stockOuts] Delta sync: ${updatedRecords?.length ?? 0} updated, ${deletedIds.length} deleted`);
+
+    if (!lastSyncedAt && (!Array.isArray(updatedRecords) || updatedRecords.length === 0)) {
+      console.warn('[stockOuts] Empty full-fetch response — skipping to preserve local data');
+      return;
+    }
+
+    const toRecord = s => ({
+      id: s.id,
+      stockinId: s.stockinId,
+      quantity: s.quantity,
+      soldPrice: s.soldPrice,
+      clientName: s.clientName,
+      clientEmail: s.clientEmail,
+      clientPhone: s.clientPhone,
+      paymentMethod: s.paymentMethod,
+      adminId: s.adminId,
+      backorderId: s.backorderId,
+      employeeId: s.employeeId,
+      transactionId: s.transactionId,
+      paymentStatus: s.paymentStatus || 'PENDING',
+      debtedAmount: s.debtedAmount || 0,
+      lastModified: s.createdAt || new Date(),
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt || new Date()
     });
-}
 
-        const serverIds = new Set(serverStockOuts.map(s => s.id));
-        await db.synced_stockout_ids
-          .where('serverId')
-          .noneOf(Array.from(serverIds))
-          .delete();
+    await db.transaction('rw', db.stockouts_all, db.synced_stockout_ids, db.sync_metadata, async () => {
+      if (!lastSyncedAt) {
+        await db.stockouts_all.clear();
+        await db.stockouts_all.bulkPut(updatedRecords.map(toRecord));
+      } else {
+        for (const record of updatedRecords) {
+          await db.stockouts_all.put(toRecord(record));
+        }
+        for (const id of deletedIds) {
+          await db.stockouts_all.delete(id);
+          const mapping = await db.synced_stockout_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_stockout_ids.delete(mapping.localId);
+        }
+      }
 
-        console.log(`✅ Replaced local data with ${serverStockOuts.length} stockouts`);
+      await db.sync_metadata.put({
+        entity: 'stockOuts',
+        lastSyncedAt: new Date().toISOString(),
+        lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
       });
+    });
 
-      // Fetch Backorders
+    // ── Backorders (always full replace — small dataset, no updatedAt) ───────
+    try {
       const serverBackorders = await backorderService.getAllBackOrders();
-      console.log('******** => + FETCHING AND UPDATING BACKORDER DATA ', serverBackorders.length);
-
       await db.transaction('rw', db.backorders_all, async () => {
         await db.backorders_all.clear();
-        console.log('✨ Cleared local backorders, replacing with server data');
-
-        for (const serverBackorder of serverBackorders) {
+        for (const b of serverBackorders) {
           await db.backorders_all.put({
-            id: serverBackorder.id,
-            quantity: serverBackorder.quantity,
-            soldPrice: serverBackorder.soldPrice,
-            productName: serverBackorder.productName,
-            adminId: serverBackorder.adminId,
-            employeeId: serverBackorder.employeeId,
-            lastModified: new Date(),
-            createdAt: serverBackorder.createdAt,
-            updatedAt: serverBackorder.updatedAt || new Date()
+            id: b.id, quantity: b.quantity, soldPrice: b.soldPrice,
+            productName: b.productName, adminId: b.adminId, employeeId: b.employeeId,
+            lastModified: new Date(), createdAt: b.createdAt, updatedAt: b.updatedAt || new Date()
           });
         }
-
-        console.log(`✅ Replaced local data with ${serverBackorders.length} backorders`);
       });
-
-    } catch (error) {
-      console.error('Error fetching server stockout/backorder data:', error);
+    } catch (backorderError) {
+      console.error('[backorders] Fetch failed — local data preserved:', backorderError);
     }
   }
 
@@ -1258,22 +1287,6 @@ for (const serverStockOut of serverStockOuts) {
 
   // ==================== EVENT HANDLERS ====================
 
-  setupAutoSync() {
-    window.addEventListener('online', this.handleOnline.bind(this));
-    window.addEventListener('focus', this.handleFocus.bind(this));
-
-    // Enhanced cleanup interval with error handling
-    this.cleanupInterval = setInterval(async () => {
-      try {
-        await this.cleanupFailedSyncs();
-      } catch (error) {
-        console.error('Error during periodic cleanup:', error);
-      }
-    }, 30 * 60 * 1000); // Every 30 minutes
-
-    console.log('✅ Auto-sync event listeners registered');
-  }
-
   async handleOnline() {
     console.log('🌐 Network is back online, starting stockout sync...');
     setTimeout(() => this.syncStockOuts(), 1000);
@@ -1286,26 +1299,6 @@ for (const serverStockOut of serverStockOuts) {
     }
   }
 
-  cleanup() {
-    window.removeEventListener('online', this.handleOnline.bind(this));
-    window.removeEventListener('focus', this.handleFocus.bind(this));
-    
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
-    
-    // Clear processing sets
-    this.processingLocalIds.clear();
-    this.processingTransactionIds.clear();
-    
-    // Clear sync lock if it exists
-    if (this.syncLock) {
-      this.syncLock = null;
-    }
-
-    console.log('✅ StockOutSyncService cleanup completed');
-  }
 }
 
 export const stockOutSyncService = new StockOutSyncService();
