@@ -60,7 +60,6 @@ const CategoryManagement = ({ role }) => {
 
   useEffect(() => {
     loadCategories();
-    if (isOnline) handleManualSync();
   }, [isOnline]);
   
      useEffect(()=>{
@@ -128,15 +127,10 @@ const CategoryManagement = ({ role }) => {
   };
 
   const loadCategories = async (showRefreshLoader = false) => {
-    if (showRefreshLoader) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+    if (showRefreshLoader) setIsRefreshing(true);
 
     try {
-      if (isOnline) await triggerSync();
-
+      // Read from IndexedDB immediately — never await sync first
       const [allCategories, offlineAdds, offlineUpdates, offlineDeletes] =
         await Promise.all([
           db.categories_all.toArray(),
@@ -161,10 +155,7 @@ const CategoryManagement = ({ role }) => {
       setCategories(combinedCategories);
       setFilteredCategories(combinedCategories);
 
-      if (showRefreshLoader) {
-        showNotification("Categories refreshed successfully!");
-      }
-
+      if (showRefreshLoader) showNotification("Categories refreshed successfully!");
       if (!isOnline && combinedCategories.length === 0) {
         showNotification("No offline data available", "error");
       }
@@ -172,9 +163,11 @@ const CategoryManagement = ({ role }) => {
       console.error("Error loading categories:", error);
       showNotification("Failed to load categories", "error");
     } finally {
-      setIsLoading(false);
       setIsRefreshing(false);
     }
+
+    // Background sync — never awaited, never blocks the UI
+    if (isOnline) triggerSync();
   };
 
   const showNotification = (message, type = "success") => {
@@ -183,7 +176,6 @@ const CategoryManagement = ({ role }) => {
   };
 
   const handleCategorySubmit = async (categoryData) => {
-    setIsLoading(true);
     try {
       const validation = categoryService.validateCategoryData(categoryData);
       if (!validation.isValid) {
@@ -203,49 +195,23 @@ const CategoryManagement = ({ role }) => {
         updatedAt: now,
       };
 
+      // 1. Write locally
       const localId = await db.categories_offline_add.add(newCategory);
-      const savedCategory = { ...newCategory, localId, synced: false };
 
-      if (isOnline) {
-        try {
-          const response = await categoryService.createCategory({
-            ...categoryData,
-            ...userData,
-          });
-          await db.categories_all.put({
-            id: response.category.id,
-            name: categoryData.name,
-            description: categoryData.description,
-            lastModified: now,
-            updatedAt: response.category.updatedAt || now,
-          });
-          await db.categories_offline_add.delete(localId);
-          showNotification("Category added successfully!");
-        } catch (error) {
-          showNotification(
-            "Category saved offline (will sync when online)",
-            "warning"
-          );
-        }
-      } else {
-        showNotification(
-          "Category saved offline (will sync when online)",
-          "warning"
-        );
-      }
-
-      await loadCategories();
+      // 2. Update UI immediately — close modal, show new item
       setIsAddModalOpen(false);
+      setCategories(prev => [...prev, { ...newCategory, localId, synced: false }]);
+      showNotification(isOnline ? "Category added!" : "Category saved offline (will sync when online)", isOnline ? "success" : "warning");
+
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error("Error adding category:", error);
       showNotification(`Failed to add category: ${error.message}`, "error");
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleUpdateCategory = async (categoryData) => {
-    setIsLoading(true);
     try {
       const validation = categoryService.validateCategoryData(categoryData);
       if (!validation.isValid) {
@@ -266,81 +232,60 @@ const CategoryManagement = ({ role }) => {
         updatedAt: now,
       };
 
-      if (isOnline) {
-        try {
-          const response = await categoryService.updateCategory(
-            selectedCategory.id,
-            { ...categoryData, ...userData }
-          );
-          await db.categories_all.put({
-            id: selectedCategory.id,
-            name: categoryData.name,
-            description: categoryData.description,
-            lastModified: now,
-            updatedAt: response.category.updatedAt || now,
-          });
-          await db.categories_offline_update.delete(selectedCategory.id);
-          showNotification("Category updated successfully!");
-        } catch (error) {
-          await db.categories_offline_update.put(updatedData);
-          showNotification(
-            "Category updated offline (will sync when online)",
-            "warning"
-          );
-        }
-      } else {
-        await db.categories_offline_update.put(updatedData);
-        showNotification(
-          "Category updated offline (will sync when online)",
-          "warning"
-        );
-      }
+      // 1. Write locally
+      await db.categories_offline_update.put(updatedData);
 
-      await loadCategories();
+      // 2. Update UI immediately — close modal, reflect change in list
+      setCategories(prev => prev.map(c =>
+        (c.id === selectedCategory.id || c.localId === selectedCategory.localId)
+          ? { ...c, ...updatedData, synced: !!c.id }
+          : c
+      ));
       setIsEditModalOpen(false);
       setSelectedCategory(null);
+      showNotification(isOnline ? "Category updated!" : "Category updated offline (will sync when online)", isOnline ? "success" : "warning");
+
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error("Error updating category:", error);
       showNotification(`Failed to update category: ${error.message}`, "error");
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleConfirmDelete = async (categoryData) => {
-    setIsLoading(true);
+  const handleConfirmDelete = async () => {
     try {
       const userData =
         role === "admin"
           ? { adminId: adminData.id }
           : { employeeId: employeeData.id };
-      if (isOnline && selectedCategory.id) {
-        await categoryService.deleteCategory(selectedCategory.id, userData);
-        await db.categories_all.delete(selectedCategory.id);
-        showNotification("Category deleted successfully!");
-      } else if (selectedCategory.id) {
+
+      // 1. Update UI immediately — remove from list, close modal
+      const idToRemove = selectedCategory.id || selectedCategory.localId;
+      setCategories(prev => prev.filter(c => c.id !== selectedCategory.id && c.localId !== selectedCategory.localId));
+      setIsDeleteModalOpen(false);
+      setSelectedCategory(null);
+      showNotification("Category deleted!");
+
+      // 2. Write locally
+      if (selectedCategory.id) {
         await db.categories_offline_delete.add({
           id: selectedCategory.id,
           deletedAt: new Date(),
           ...userData,
         });
-        showNotification(
-          "Category deletion queued (will sync when online)",
-          "warning"
-        );
       } else {
+        // Local-only item — just remove from the add queue
         await db.categories_offline_add.delete(selectedCategory.localId);
-        showNotification("Category deleted!");
       }
 
-      await loadCategories();
-      setIsDeleteModalOpen(false);
-      setSelectedCategory(null);
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error("Error deleting category:", error);
       showNotification(`Failed to delete category: ${error.message}`, "error");
-    } finally {
-      setIsLoading(false);
+      // Reload to restore consistent state if local write failed
+      loadCategories();
     }
   };
 
@@ -933,12 +878,12 @@ const CategoryManagement = ({ role }) => {
           </div>
         </div>
 
-        {/* Loading State */}
-        {isLoading && !isRefreshing ? (
+        {/* Loading State (manual refresh only) */}
+        {isRefreshing ? (
           <div className="text-center py-12 p-3">
             <div className="inline-flex items-center gap-3">
               <RefreshCw className="w-5 h-5 animate-spin text-primary-600" />
-              <p className="text-gray-600">Loading categories...</p>
+              <p className="text-gray-600">Refreshing categories...</p>
             </div>
           </div>
         ) : filteredCategories.length === 0 ? (

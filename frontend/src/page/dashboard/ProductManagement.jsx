@@ -41,7 +41,6 @@ const ProductManagement = ({ role }) => {
 
   useEffect(() => {
     loadProducts();
-    if (isOnline) handleManualSync();
   }, [isOnline]);
      useEffect(()=>{
     if(isBelow){
@@ -54,31 +53,9 @@ const ProductManagement = ({ role }) => {
 
   },[isBelow])
 
+  // Read from IndexedDB only — categories are kept fresh by SyncContext delta sync
   const fetchCategories = async () => {
-    try {
-      if (isOnline) {
-        const response = await categoryService.getAllCategories();
-        if (response && response.categories) {
-          for (const category of response.categories) {
-            await db.categories_all.put({
-              id: category.id,
-              name: category.name,
-              description: category.description,
-              lastModified: category.lastModified || new Date(),
-              updatedAt: category.updatedAt || new Date()
-            });
-          }
-        }
-      }
-      const allCategories = await db.categories_all.toArray();
-      return allCategories;
-    } catch (error) {
-      if (!error.response) {
-        const allCategories = await db.categories_all.toArray();
-        return allCategories;
-      }
-      console.error("Error fetching categories:", error);
-    }
+    return await db.categories_all.toArray();
   };
 
   useEffect(() => {
@@ -133,14 +110,10 @@ const ProductManagement = ({ role }) => {
   }, [products]);
 
   const loadProducts = async (showRefreshLoader = false) => {
-    if (showRefreshLoader) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
-    try {
-      if (isOnline) await triggerSync();
+    if (showRefreshLoader) setIsRefreshing(true);
 
+    try {
+      // Read from IndexedDB immediately — never await sync first
       const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.products_all.toArray(),
         db.products_offline_add.toArray(),
@@ -189,9 +162,11 @@ const ProductManagement = ({ role }) => {
       console.error('Error loading products:', error);
       showNotification('Failed to load products', 'error');
     } finally {
-      setIsLoading(false);
       setIsRefreshing(false);
     }
+
+    // Background sync — never awaited, never blocks the UI
+    if (isOnline) triggerSync();
   };
 
   const showNotification = (message, type = 'success') => {
@@ -200,7 +175,6 @@ const ProductManagement = ({ role }) => {
   };
 
   const handleProductSubmit = async (productData) => {
-    setIsLoading(true);
     try {
       const validation = productService.validateImages(productData.images);
       if (!validation.isValid) {
@@ -217,6 +191,7 @@ const ProductManagement = ({ role }) => {
         updatedAt: now
       };
 
+      // 1. Write locally
       const localId = await db.products_offline_add.add(newProduct);
 
       if (productData.images?.length > 0) {
@@ -234,54 +209,20 @@ const ProductManagement = ({ role }) => {
         }
       }
 
-      if (isOnline) {
-        try {
-          const response = await productService.createProduct({ ...productData, ...userData });
-          await db.products_all.put({
-            id: response.product.id,
-            productName: productData.productName,
-            brand: productData.brand,
-            categoryId: productData.categoryId,
-            description: productData.description,
-            lastModified: now,
-            updatedAt: response.product.updatedAt || now
-          });
-          if (response.product.imageUrls?.length > 0) {
-            await db.product_images.where('[entityLocalId+entityType]').equals([localId, 'product']).delete();
-            for (const url of response.product.imageUrls) {
-              await db.product_images.add({
-                entityId: response.product.id,
-                entityLocalId: null,
-                entityType: 'product',
-                imageData: productService.getFullImageUrl(url),
-                synced: true,
-                from: 'server',
-                createdAt: now,
-                updatedAt: now
-              });
-            }
-          }
-          await db.products_offline_add.delete(localId);
-          showNotification('Product added successfully!');
-        } catch (error) {
-          showNotification('Product saved offline (will sync when online)', 'warning');
-        }
-      } else {
-        showNotification('Product saved offline (will sync when online)', 'warning');
-      }
-
-      await loadProducts();
+      // 2. Close modal immediately + reload from IndexedDB
       setIsAddModalOpen(false);
+      showNotification(isOnline ? 'Product added!' : 'Product saved offline (will sync when online)', isOnline ? 'success' : 'warning');
+      loadProducts();
+
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error('Error adding product:', error);
       showNotification(`Failed to add product: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleUpdateProduct = async (productData) => {
-    setIsLoading(true);
     try {
       const validation = productService.validateImages(productData.newImages || []);
       if (!validation.isValid) {
@@ -290,13 +231,6 @@ const ProductManagement = ({ role }) => {
 
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
-
-      if (!isOnline && productData && productData.localId && !productData.synced) {
-        await loadProducts();
-        setIsEditModalOpen(false);
-        setSelectedProduct(null);
-        return;
-      }
 
       const updatedData = {
         id: selectedProduct.id,
@@ -309,113 +243,66 @@ const ProductManagement = ({ role }) => {
         updatedAt: now
       };
 
-      if (isOnline) {
-        try {
-          const response = await productService.updateProduct(selectedProduct.id, { ...productData, ...userData });
-          await db.products_all.put({
-            id: selectedProduct.id,
-            productName: productData.productName,
-            brand: productData.brand,
-            categoryId: productData.categoryId,
-            description: productData.description,
-            lastModified: now,
-            updatedAt: response.product.updatedAt || now
+      // 1. Write locally
+      await db.products_offline_update.put(updatedData);
+      if (productData.newImages?.length > 0) {
+        for (const file of productData.newImages) {
+          await db.product_images.add({
+            entityId: selectedProduct.id,
+            entityLocalId: null,
+            entityType: 'product',
+            imageData: file,
+            synced: false,
+            from: 'local',
+            createdAt: now,
+            updatedAt: now
           });
-          await db.products_offline_update.delete(selectedProduct.id);
-          await db.product_images.where('[entityId+entityType]').equals([selectedProduct.id, 'product']).delete();
-          if (response.product.imageUrls?.length > 0) {
-            for (const url of response.product.imageUrls) {
-              await db.product_images.add({
-                entityId: selectedProduct.id,
-                entityLocalId: null,
-                entityType: 'product',
-                imageData: productService.getFullImageUrl(url),
-                synced: true,
-                from: 'server',
-                createdAt: now,
-                updatedAt: now
-              });
-            }
-          }
-          showNotification('Product updated successfully!');
-        } catch (error) {
-          await db.products_offline_update.put(updatedData);
-          if (productData.newImages?.length > 0) {
-            for (const file of productData.newImages) {
-              await db.product_images.add({
-                entityId: selectedProduct.id,
-                entityLocalId: null,
-                entityType: 'product',
-                imageData: file,
-                synced: false,
-                from: 'local',
-                createdAt: now,
-                updatedAt: now
-              });
-            }
-          }
-          showNotification('Product updated offline (will sync when online)', 'warning');
         }
-      } else {
-        await db.products_offline_update.put(updatedData);
-        if (productData.newImages?.length > 0) {
-          for (const file of productData.newImages) {
-            await db.product_images.add({
-              entityId: selectedProduct.id,
-              entityLocalId: null,
-              entityType: 'product',
-              imageData: file,
-              synced: false,
-              from: 'local',
-              createdAt: now,
-              updatedAt: now
-            });
-          }
-        }
-        showNotification('Product updated offline (will sync when online)', 'warning');
       }
 
-      await loadProducts();
+      // 2. Close modal immediately + reload from IndexedDB
       setIsEditModalOpen(false);
       setSelectedProduct(null);
+      showNotification(isOnline ? 'Product updated!' : 'Product updated offline (will sync when online)', isOnline ? 'success' : 'warning');
+      loadProducts();
+
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error('Error updating product:', error);
       showNotification(`Failed to update product: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleConfirmDelete = async () => {
-    setIsLoading(true);
     try {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
-      if (isOnline && selectedProduct.id) {
-        await productService.deleteProduct(selectedProduct.id, userData);
-        await db.products_all.delete(selectedProduct.id);
-        await db.product_images.where('[entityId+entityType]').equals([selectedProduct.id, 'product']).delete();
-        showNotification('Product deleted successfully!');
-      } else if (selectedProduct.id) {
+      const toDelete = selectedProduct;
+
+      // 1. Remove from UI immediately
+      setProducts(prev => prev.filter(p => p.id !== toDelete.id && p.localId !== toDelete.localId));
+      setIsDeleteModalOpen(false);
+      setSelectedProduct(null);
+      showNotification('Product deleted!');
+
+      // 2. Write locally
+      if (toDelete.id) {
         await db.products_offline_delete.add({
-          id: selectedProduct.id,
+          id: toDelete.id,
           deletedAt: new Date(),
           ...userData
         });
-        showNotification('Product deletion queued (will sync when online)', 'warning');
       } else {
-        await db.products_offline_add.delete(selectedProduct.localId);
-        await db.product_images.where('[entityLocalId+entityType]').equals([selectedProduct.localId, 'product']).delete();
-        showNotification('Product deleted!');
+        await db.products_offline_add.delete(toDelete.localId);
+        await db.product_images.where('[entityLocalId+entityType]').equals([toDelete.localId, 'product']).delete();
       }
 
-      await loadProducts();
-      setIsDeleteModalOpen(false);
-      setSelectedProduct(null);
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error('Error deleting product:', error);
       showNotification(`Failed to delete product: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
+      loadProducts();
     }
   };
 

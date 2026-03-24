@@ -17,6 +17,7 @@ export const SyncProvider = ({ children }) => {
 
   // Use refs for interval/lock so stale closures can't cause overlapping syncs
   const isSyncingRef = useRef(false);
+  const syncPausedRef = useRef(false); // mirrors syncPaused state — readable in closures
   const syncLockRef = useRef(null);
   const intervalRef = useRef(null);
 
@@ -76,10 +77,10 @@ export const SyncProvider = ({ children }) => {
   const refreshCounts = useCallback(async () => {
     try {
       const [cats, prods, sins, souts, srets] = await Promise.all([
-        db.categories_offline_add.count().then(a => a + db.categories_offline_update.count()).then(a => a),
-        db.products_offline_add.count().then(a => a + db.products_offline_update.count()).then(a => a),
-        db.stockins_offline_add.count().then(a => a + db.stockins_offline_update.count()).then(a => a),
-        db.stockouts_offline_add.count().then(a => a + db.stockouts_offline_update.count()).then(a => a),
+        Promise.all([db.categories_offline_add.count(), db.categories_offline_update.count()]).then(([a, b]) => a + b),
+        Promise.all([db.products_offline_add.count(), db.products_offline_update.count()]).then(([a, b]) => a + b),
+        Promise.all([db.stockins_offline_add.count(), db.stockins_offline_update.count()]).then(([a, b]) => a + b),
+        Promise.all([db.stockouts_offline_add.count(), db.stockouts_offline_update.count()]).then(([a, b]) => a + b),
         db.sales_returns_offline_add.count(),
       ]);
       setState(s => ({
@@ -123,16 +124,8 @@ export const SyncProvider = ({ children }) => {
 
   // ── Master sync trigger (respects lock and paused state) ─────────────────
   const triggerSync = useCallback(async () => {
-    if (!isOnline || isSyncingRef.current) return;
+    if (!isOnline || isSyncingRef.current || syncPausedRef.current) return;
     if (syncLockRef.current) { await syncLockRef.current; return; }
-
-    // Check syncPaused via ref to avoid stale closure
-    setState(s => {
-      if (s.syncPaused) return s;
-      return s; // will read below
-    });
-    // Read paused from state snapshot via a ref would be cleaner, but we check
-    // the DOM event mechanism instead — see pauseSync / resumeSync below.
 
     let unlock;
     syncLockRef.current = new Promise(res => { unlock = res; });
@@ -160,10 +153,12 @@ export const SyncProvider = ({ children }) => {
 
   // ── Pause/resume (called by 401 interceptor and auth contexts) ───────────
   const pauseSync = useCallback(() => {
+    syncPausedRef.current = true;
     setState(s => ({ ...s, syncPaused: true }));
   }, []);
 
   const resumeSync = useCallback(() => {
+    syncPausedRef.current = false;
     setState(s => ({ ...s, syncPaused: false }));
     // Trigger an immediate sync after re-auth
     setTimeout(() => triggerSync(), 500);

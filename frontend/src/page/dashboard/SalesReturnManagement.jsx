@@ -9,10 +9,6 @@ import CreditNoteComponent from '../../components/dashboard/salesReturn/CreditNo
 import { db } from '../../db/database';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import { useSalesReturnOfflineSync } from '../../hooks/useSalesReturnOfflineSync';
-import stockOutService from '../../services/stockoutService';
-import stockInService from '../../services/stockinService';
-import backOrderService from '../../services/backOrderService';
-import productService from '../../services/productService';
 import { useNavigate } from 'react-router-dom';
 
 const SalesReturnManagement = ({ role }) => {
@@ -133,14 +129,9 @@ const SalesReturnManagement = ({ role }) => {
   };
 
   const loadSalesReturns = async (showRefreshLoader = false) => {
-    if (showRefreshLoader) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
-    
+    if (showRefreshLoader) setIsRefreshing(true);
+
     try {
-      if (isOnline) await triggerSync();
 
       const [
         allSalesReturns,
@@ -206,21 +197,17 @@ const SalesReturnManagement = ({ role }) => {
       }
       
       if (!isOnline && combinedSalesReturns.length === 0) {
-        setNotification({
-          type: 'warning',
-          message: 'No offline data available'
-        });
+        setNotification({ type: 'warning', message: 'No offline data available' });
       }
     } catch (error) {
       console.error('Error loading sales returns:', error);
-      setNotification({
-        type: 'error',
-        message: 'Failed to load sales returns'
-      });
+      setNotification({ type: 'error', message: 'Failed to load sales returns' });
     } finally {
-      setIsLoading(false);
       setIsRefreshing(false);
     }
+
+    // Background sync — never awaited, never blocks the UI
+    if (isOnline) triggerSync();
   };
 
   const fetchStockOuts = async () => {
@@ -267,138 +254,51 @@ const SalesReturnManagement = ({ role }) => {
     }
   };
 
+  // Read from IndexedDB only — all entities kept fresh by SyncContext delta sync
   const fetchStockIns = async () => {
-    try {
-      if (isOnline) {
-        const response = await stockInService.getAllStockIns();
-        for (const si of response) {
-          await db.stockins_all.put({
-            id: si.id,
-            productId: si.productId,
-            quantity: si.quantity,
-            price: si.price,
-            sellingPrice: si.sellingPrice,
-            supplier: si.supplier,
-            sku: si.sku,
-            barcodeUrl: si.barcodeUrl,
-            lastModified: new Date(),
-            updatedAt: si.updatedAt || new Date()
-          });
-          if (si.product && !(await db.products_all.get(si.product.id))) {
-            await db.products_all.put({
-              id: si.product.id,
-              productName: si.product.productName,
-              categoryId: si.product.categoryId,
-              description: si.product.description,
-              brand: si.product.brand,
-              lastModified: new Date(),
-              updatedAt: new Date()
-            });
-          }
-        }
-      }
-
-      const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-        db.stockins_all.toArray(),
-        db.stockins_offline_add.toArray(),
-        db.stockins_offline_update.toArray(),
-        db.stockins_offline_delete.toArray()
-      ]);
-
-      const deleteIds = new Set(offlineDeletes.map(d => d.id));
-      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
-      const combinedStockin = allStockin
-        .filter(c => !deleteIds.has(c.id))
-        .map(c => ({ ...c, ...updateMap.get(c.id), synced: !updateMap.has(c.id) }))
-        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-        .sort((a, b) => a.synced - b.synced);
-
-      return combinedStockin;
-    } catch (error) {
-      console.error('Error fetching stock-ins:', error);
-      return [];
-    }
+    const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+      db.stockins_all.toArray(),
+      db.stockins_offline_add.toArray(),
+      db.stockins_offline_update.toArray(),
+      db.stockins_offline_delete.toArray()
+    ]);
+    const deleteIds = new Set(offlineDeletes.map(d => d.id));
+    const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+    return allStockin
+      .filter(s => !deleteIds.has(s.id))
+      .map(s => ({ ...s, ...updateMap.get(s.id), synced: !updateMap.has(s.id) }))
+      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+      .sort((a, b) => a.synced - b.synced);
   };
 
   const fetchBackorders = async () => {
-    try {
-      if (isOnline) {
-        const response = await backOrderService.getAllBackOrders();
-        for (const b of response.backorders || response) {
-          await db.backorders_all.put({
-            id: b.id,
-            quantity: b.quantity,
-            soldPrice: b.soldPrice,
-            productName: b.productName,
-            adminId: b.adminId,
-            employeeId: b.employeeId,
-            lastModified: b.lastModified || new Date(),
-            createdAt: b.createdAt || new Date(),
-            updatedAt: b.updatedAt || new Date()
-          });
-        }
-      }
-
-      const [allBackOrder, offlineAdds] = await Promise.all([
-        db.backorders_all.toArray(),
-        db.backorders_offline_add.toArray(),
-      ]);
-
-      const combinedBackOrder = allBackOrder
-        .map(c => ({ ...c, synced: true }))
-        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-        .sort((a, b) => a.synced - b.synced);
-
-      return combinedBackOrder;
-    } catch (error) {
-      console.error('Error fetching backorders:', error);
-      return [];
-    }
+    const [allBackOrder, offlineAdds] = await Promise.all([
+      db.backorders_all.toArray(),
+      db.backorders_offline_add.toArray(),
+    ]);
+    return allBackOrder
+      .map(b => ({ ...b, synced: true }))
+      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+      .sort((a, b) => a.synced - b.synced);
   };
 
   const fetchProducts = async () => {
-    try {
-      if (isOnline) {
-        const response = await productService.getAllProducts();
-        for (const p of response.products || response) {
-          await db.products_all.put({
-            id: p.id,
-            productName: p.productName,
-            categoryId: p.categoryId,
-            description: p.description,
-            brand: p.brand,
-            lastModified: p.createdAt || new Date(),
-            updatedAt: p.updatedAt || new Date()
-          });
-        }
-      }
-
-      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-        db.products_all.toArray(),
-        db.products_offline_add.toArray(),
-        db.products_offline_update.toArray(),
-        db.products_offline_delete.toArray()
-      ]);
-
-      const deleteIds = new Set(offlineDeletes.map(d => d.id));
-      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-
-      const combinedProducts = allProducts
-        .filter(c => !deleteIds.has(c.id))
-        .map(c => ({ ...c, ...updateMap.get(c.id), synced: !updateMap.has(c.id) }))
-        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-        .sort((a, b) => a.synced - b.synced);
-
-      return combinedProducts;
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      return [];
-    }
+    const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+      db.products_all.toArray(),
+      db.products_offline_add.toArray(),
+      db.products_offline_update.toArray(),
+      db.products_offline_delete.toArray()
+    ]);
+    const deleteIds = new Set(offlineDeletes.map(d => d.id));
+    const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+    return allProducts
+      .filter(p => !deleteIds.has(p.id))
+      .map(p => ({ ...p, ...updateMap.get(p.id), synced: !updateMap.has(p.id) }))
+      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+      .sort((a, b) => a.synced - b.synced);
   };
 
   const handleAddSalesReturn = async (returnData) => {
-    setIsLoading(true);
     try {
       if (!adminData?.id && !employeeData?.id) {
         throw new Error('User authentication required');
@@ -448,97 +348,25 @@ const SalesReturnManagement = ({ role }) => {
         await restoreStockQuantity(item.stockoutId, item.quantity);
       }
 
-      if (isOnline) {
-        try {
-          const requestData = {
-            transactionId: newReturn.transactionId,
-            reason: newReturn.reason,
-            creditnoteId: newReturn.creditnoteId,
-            items: returnData.items.map(i => ({
-              stockoutId: i.stockoutId,
-              quantity: i.quantity
-            })),
-            ...userInfo,
-            createdAt: now
-          };
-
-          const response = await salesReturnService.createSalesReturn(requestData);
-
-          await db.sales_returns_all.put({
-            id: response.salesReturn.id,
-            transactionId: response.salesReturn.transactionId,
-            reason: response.salesReturn.reason,
-            creditnoteId: response.salesReturn.creditnoteId,
-            ...userInfo,
-            createdAt: response.salesReturn.createdAt || now,
-            updatedAt: response.salesReturn.updatedAt || now,
-            lastModified: response.salesReturn.lastModified || now
-          });
-
-          for (const item of response.salesReturn.items) {
-            await db.sales_return_items_all.put({
-              id: item.id,
-              salesReturnId: item.salesReturnId,
-              stockoutId: item.stockoutId,
-              quantity: item.quantity,
-              ...userInfo,
-              createdAt: item.createdAt || now,
-              updatedAt: item.updatedAt || now
-            });
-          }
-
-          await db.sales_returns_offline_add.delete(localId);
-          await db.sales_return_items_offline_add
-            .where('salesReturnId')
-            .equals(localId)
-            .delete();
-
-          await db.synced_sales_return_ids.add({
-            localId,
-            serverId: response.salesReturn.id,
-            syncedAt: now
-          });
-
-          updateSearchParam('salesReturnId', response.salesReturn.id);
-          setSalesReturnId(response.salesReturn.id);
-          setIsCreditNoteOpen(true);
-          
-          setNotification({
-            type: 'success',
-            message: 'Sales return processed successfully!'
-          });
-        } catch (error) {
-          console.warn('Error posting sales return to server, keeping offline:', error);
-          updateSearchParam('salesReturnId', localId);
-          setSalesReturnId(localId);
-          setIsCreditNoteOpen(true);
-          
-          setNotification({
-            type: 'warning',
-            message: 'Sales return saved offline (will sync when online)'
-          });
-        }
-      } else {
-        updateSearchParam('salesReturnId', localId);
-        setSalesReturnId(localId);
-        setIsCreditNoteOpen(true);
-        
-        setNotification({
-          type: 'warning',
-          message: 'Sales return saved offline (will sync when online)'
-        });
-      }
-
-      await loadSalesReturns();
+      // Show credit note immediately with local ID — sync updates server IDs in background
+      updateSearchParam('salesReturnId', localId);
+      setSalesReturnId(localId);
+      setIsCreditNoteOpen(true);
+      setNotification({
+        type: isOnline ? 'success' : 'warning',
+        message: isOnline
+          ? 'Sales return processed successfully!'
+          : 'Sales return saved offline (will sync when online)'
+      });
       setIsAddModalOpen(false);
+      await loadSalesReturns();
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error('Error processing sales return:', error);
       setNotification({
         type: 'error',
         message: `Failed to process sales return: ${error.message}`
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -589,80 +417,52 @@ const SalesReturnManagement = ({ role }) => {
   };
 
   const handleConfirmDelete = async () => {
-    setIsLoading(true);
     try {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
 
       if (selectedSalesReturn.id) {
-        if (isOnline) {
-          await salesReturnService.deleteSalesReturn(selectedSalesReturn.id, userData);
-          await db.sales_returns_all.delete(selectedSalesReturn.id);
-          setNotification({
-            type: 'success',
-            message: 'Sales return deleted successfully!'
-          });
-        } else {
-          await db.sales_returns_offline_delete.add({
-            id: selectedSalesReturn.id,
-            deletedAt: now,
-            ...userData
-          });
-          setNotification({
-            type: 'warning',
-            message: 'Sales return deletion queued (will sync when online)'
-          });
-        }
+        await db.sales_returns_offline_delete.add({
+          id: selectedSalesReturn.id,
+          deletedAt: now,
+          ...userData
+        });
       } else {
         await db.sales_returns_offline_add.delete(selectedSalesReturn.localId);
         await db.sales_return_items_offline_add
           .where('salesReturnId')
           .equals(selectedSalesReturn.localId)
           .delete();
-        
-        setNotification({
-          type: 'success',
-          message: 'Sales return deleted!'
-        });
       }
 
-      await loadSalesReturns();
+      setNotification({ type: 'success', message: 'Sales return deleted!' });
       setIsDeleteModalOpen(false);
       setSelectedSalesReturn(null);
+      await loadSalesReturns();
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error('Error deleting sales return:', error);
       setNotification({
         type: 'error',
         message: `Failed to delete sales return: ${error.message}`
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleManualSync = async () => {
     if (!isOnline) {
-      setNotification({
-        type: 'error',
-        message: 'No internet connection'
-      });
+      setNotification({ type: 'error', message: 'No internet connection' });
       return;
     }
-    setIsLoading(true);
+    setIsRefreshing(true);
     try {
       await triggerSync();
       await loadSalesReturns();
-      setNotification({
-        type: 'success',
-        message: 'Sync completed successfully!'
-      });
+      setNotification({ type: 'success', message: 'Sync completed successfully!' });
     } catch (error) {
-      setNotification({
-        type: 'error',
-        message: 'Sync failed. Will retry automatically.'
-      });
+      setNotification({ type: 'error', message: 'Sync failed. Will retry automatically.' });
     } finally {
-      setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -1355,7 +1155,7 @@ const SalesReturnManagement = ({ role }) => {
         </div>
 
         {/* Main Content */}
-        {isLoading && !isRefreshing ? (
+        {isRefreshing ? (
           <div className="text-center py-16">
             <div className="inline-flex flex-col items-center gap-4">
               <div className="relative">

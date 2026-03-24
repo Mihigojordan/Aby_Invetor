@@ -50,10 +50,10 @@ async syncStockIns(skipLocalFetch) {
     const productResults = await productSyncService.syncUnsyncedAdds();
     console.log('✅ Product sync completed:', productResults);
 
-    // 🎯 STEP 2: Wait a bit to ensure all product IDs are updated
+    // 🎯 STEP 2: If products were just synced, wait for their IDs to propagate
     if (productResults?.processed > 0) {
-      console.log('⏰ Waiting for product ID updates to propagate...');
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 1 second delay
+      console.log('⏰ Waiting for product IDs to propagate into synced_product_ids...');
+      await this.waitForProductIds();
     }
 
     // 🎯 STEP 3: Now sync stockins with updated product IDs
@@ -72,10 +72,10 @@ async syncStockIns(skipLocalFetch) {
       results.deletes.processed > 0 ||
       !this.lastSyncTime ||
       (Date.now() - this.lastSyncTime) > 120000; // 2 minutes
- 
 
-      console.warn(' REFRESHING   ');
+    if (shouldFetchFresh) {
       await this.fetchAndUpdateLocal();
+    }
    
 
     this.lastSyncTime = Date.now();
@@ -510,6 +510,24 @@ async syncStockIns(skipLocalFetch) {
         lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
       });
     });
+  }
+
+  // ⏳ Poll until all pending local product IDs appear in synced_product_ids
+  async waitForProductIds(maxWaitMs = 10000) {
+    const pending = await db.stockins_offline_add.toArray();
+    const localProductIds = pending
+      .map(s => s.productId)
+      .filter(id => typeof id === 'string' && id.startsWith('local_'));
+    if (localProductIds.length === 0) return;
+
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      const mapped = await db.synced_product_ids
+        .where('localId').anyOf(localProductIds).count();
+      if (mapped >= localProductIds.length) return;
+      await new Promise(r => setTimeout(r, 300));
+    }
+    console.warn('[stockInSync] waitForProductIds timed out — proceeding anyway');
   }
 
   // 🔍 Check for content-based duplicates

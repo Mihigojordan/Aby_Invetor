@@ -43,7 +43,6 @@ const StockInManagement = ({ role }) => {
 
   useEffect(() => {
     loadData();
-    if (isOnline) handleManualSync();
   }, [isOnline]);
 
   useEffect(() => {
@@ -92,65 +91,30 @@ const StockInManagement = ({ role }) => {
 
   },[isBelow])
 
+  // Read from IndexedDB only — products kept fresh by SyncContext delta sync
   const fetchProducts = async () => {
-    try {
-      if (isOnline) {
-        const response = await productService.getAllProducts();
-        for (const p of response.products || response) {
-          await db.products_all.put({
-            id: p.id,
-            productName: p.productName,
-            categoryId: p.categoryId,
-            description: p.description,
-            brand: p.brand,
-            lastModified: p.createdAt || new Date(),
-            updatedAt: p.updatedAt || new Date()
-          });
-        }
-      }
-      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-        db.products_all.toArray(),
-        db.products_offline_add.toArray(),
-        db.products_offline_update.toArray(),
-        db.products_offline_delete.toArray()
-      ]);
-      const deleteIds = new Set(offlineDeletes.map(d => d.id));
-      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-      const combinedProducts = allProducts
-        .filter(c => !deleteIds.has(c.id))
-        .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
-        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-        .sort((a, b) => a.synced - b.synced);
-      return combinedProducts;
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-        db.products_all.toArray(),
-        db.products_offline_add.toArray(),
-        db.products_offline_update.toArray(),
-        db.products_offline_delete.toArray()
-      ]);
-      const deleteIds = new Set(offlineDeletes.map(d => d.id));
-      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-      const combinedProducts = allProducts
-        .filter(c => !deleteIds.has(c.id))
-        .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
-        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-        .sort((a, b) => a.synced - b.synced);
-      return combinedProducts;
-    }
+    const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
+      db.products_all.toArray(),
+      db.products_offline_add.toArray(),
+      db.products_offline_update.toArray(),
+      db.products_offline_delete.toArray()
+    ]);
+    const deleteIds = new Set(offlineDeletes.map(d => d.id));
+    const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
+    return allProducts
+      .filter(c => !deleteIds.has(c.id))
+      .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
+      .concat(offlineAdds.map(a => ({ ...a, synced: false })))
+      .sort((a, b) => a.synced - b.synced);
   };
 
   const loadData = async (showRefreshLoader = false) => {
-    if (showRefreshLoader) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+    if (showRefreshLoader) setIsRefreshing(true);
+
     try {
+      // Read from IndexedDB immediately — never await sync first
       const productData = await fetchProducts();
       setProducts(productData);
-      if (isOnline) await triggerSync();
       const [allStockIns, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.stockins_all.toArray(),
         db.stockins_offline_add.toArray(),
@@ -206,9 +170,11 @@ const StockInManagement = ({ role }) => {
       console.error('Error loading stock-ins:', error);
       showNotification('Failed to load stock-ins', 'error');
     } finally {
-      setIsLoading(false);
       setIsRefreshing(false);
     }
+
+    // Background sync — never awaited, never blocks the UI
+    if (isOnline) triggerSync();
   };
 
   const showNotification = (message, type = 'success') => {
@@ -217,13 +183,14 @@ const StockInManagement = ({ role }) => {
   };
 
   const handleAddStockIn = async (stockInData) => {
-    setIsLoading(true);
     try {
       if (!adminData?.id && !employeeData?.id) {
         throw new Error('User authentication required');
       }
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
+
+      // 1. Write locally
       if (stockInData.purchases && Array.isArray(stockInData.purchases)) {
         const purchases = stockInData.purchases.map(purchase => ({
           ...purchase,
@@ -232,204 +199,102 @@ const StockInManagement = ({ role }) => {
           createdAt: now,
           updatedAt: now
         }));
-        const localIds = [];
         for (const purchase of purchases) {
-          const localId = await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity });
-          localIds.push(localId);
+          await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity });
         }
-        if (isOnline) {
-          try {
-            const response = await stockInService.createMultipleStockIn(purchases, userData);
-            await db.transaction('rw', db.stockins_all, db.stockins_offline_add, db.synced_stockin_ids, async () => {
-              for (let i = 0; i < response.stockIn.data.length; i++) {
-                const serverStockIn = response.stockIn.data[i];
-                await db.stockins_all.put({
-                  id: serverStockIn.id,
-                  productId: serverStockIn.productId,
-                  quantity: serverStockIn.quantity,
-                  price: serverStockIn.price,
-                  sellingPrice: serverStockIn.sellingPrice,
-                  supplier: serverStockIn.supplier,
-                  sku: serverStockIn.sku,
-                  barcodeUrl: serverStockIn.barcodeUrl,
-                  lastModified: now,
-                  updatedAt: serverStockIn.updatedAt || now
-                });
-                await db.synced_stockin_ids.add({
-                  localId: localIds[i],
-                  serverId: serverStockIn.id,
-                  syncedAt: now
-                });
-                await db.stockins_offline_add.delete(localIds[i]);
-              }
-            });
-            showNotification(`Successfully added ${purchases.length} stock entries (${purchases.reduce((sum, p) => sum + p.quantity, 0)} total items)!`);
-          } catch (error) {
-            showNotification('Stock entries saved offline (will sync when online)', 'warning');
-          }
-        } else {
-          showNotification('Stock entries saved offline (will sync when online)', 'warning');
-        }
+        showNotification(isOnline
+          ? `${purchases.length} stock entries queued!`
+          : 'Stock entries saved offline (will sync when online)',
+          isOnline ? 'success' : 'warning');
       } else {
-        const newStockIn = {
-          ...stockInData,
-          ...userData,
-          lastModified: now,
-          createdAt: now,
-          updatedAt: now
-        };
+        const newStockIn = { ...stockInData, ...userData, lastModified: now, createdAt: now, updatedAt: now };
         if (!newStockIn.productId || !newStockIn.quantity || !newStockIn.price || !newStockIn.sellingPrice) {
           throw new Error('Missing required fields');
         }
-        const localId = await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity });
-        if (isOnline) {
-          try {
-            const response = await stockInService.createStockIn(newStockIn);
-            await db.transaction('rw', db.stockins_all, db.stockins_offline_add, db.synced_stockin_ids, async () => {
-              const serverStockInId = response.stockIn.data?.[0]?.id || response.id;
-              await db.stockins_all.put({
-                id: serverStockInId,
-                productId: newStockIn.productId,
-                quantity: newStockIn.quantity,
-                price: newStockIn.price,
-                sellingPrice: newStockIn.sellingPrice,
-                supplier: newStockIn.supplier,
-                sku: response.stockIn.data?.[0]?.sku,
-                barcodeUrl: response.stockIn.data?.[0]?.barcodeUrl,
-                lastModified: now,
-                updatedAt: response.updatedAt || now
-              });
-              await db.synced_stockin_ids.add({
-                localId: localId,
-                serverId: serverStockInId,
-                syncedAt: now
-              });
-              await db.stockins_offline_add.delete(localId);
-            });
-            showNotification(`Stock entry added successfully (${newStockIn.quantity} items)!`);
-          } catch (error) {
-            showNotification('Stock entry saved offline (will sync when online)', 'warning');
-          }
-        } else {
-          showNotification('Stock entry saved offline (will sync when online)', 'warning');
-        }
+        await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity });
+        showNotification(isOnline ? 'Stock entry added!' : 'Stock entry saved offline (will sync when online)', isOnline ? 'success' : 'warning');
       }
-      await loadData();
+
+      // 2. Close modal immediately + reload from IndexedDB
       setIsAddModalOpen(false);
+      loadData();
       navigate(role === 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin', { replace: true });
+
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error('Error adding stock-in:', error);
       let errorMessage = 'Failed to add stock entry';
-      if (error.message.includes('required')) {
-        errorMessage = 'Please fill in all required fields';
-      } else if (error.message.includes('authentication')) {
-        errorMessage = 'Please log in again';
-      } else {
-        errorMessage = `Failed to add stock entry: ${error.message}`;
-      }
+      if (error.message.includes('required')) errorMessage = 'Please fill in all required fields';
+      else if (error.message.includes('authentication')) errorMessage = 'Please log in again';
+      else errorMessage = `Failed to add stock entry: ${error.message}`;
       showNotification(errorMessage, 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleEditStockIn = async (stockInData) => {
-    setIsLoading(true);
     try {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
       const now = new Date();
-      if (!isOnline && stockInData && stockInData.localId && !stockInData.synced) {
+
+      // 1. Write locally
+      if (stockInData.localId && !stockInData.synced) {
+        // Local-only item — update in the add queue
         await db.stockins_offline_add.update(stockInData.localId, {
-          ...stockInData,
+          ...stockInData, ...userData, lastModified: now, updatedAt: now
+        });
+      } else {
+        await db.stockins_offline_update.put({
+          id: selectedStockIn.id,
+          quantity: stockInData.quantity,
+          price: stockInData.price,
+          sellingPrice: stockInData.sellingPrice,
+          supplier: stockInData.supplier,
           ...userData,
           lastModified: now,
           updatedAt: now
         });
-        await loadData();
-        setIsEditModalOpen(false);
-        setSelectedStockIn(null);
-        navigate(role === 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin', { replace: true });
-        return;
       }
-      const updatedData = {
-        id: selectedStockIn.id,
-        quantity: stockInData.quantity,
-        price: stockInData.price,
-        sellingPrice: stockInData.sellingPrice,
-        supplier: stockInData.supplier,
-        ...userData,
-        lastModified: now,
-        updatedAt: now
-      };
-      if (isOnline) {
-        try {
-          await stockInService.updateStockIn(selectedStockIn.id, updatedData);
-          await db.transaction('rw', db.stockins_all, db.stockins_offline_update, async () => {
-            await db.stockins_all.put({
-              id: selectedStockIn.id,
-              productId: selectedStockIn.productId,
-              quantity: updatedData.quantity,
-              price: updatedData.price,
-              sellingPrice: updatedData.sellingPrice,
-              supplier: updatedData.supplier,
-              sku: selectedStockIn.sku,
-              barcodeUrl: selectedStockIn.barcodeUrl,
-              lastModified: now,
-              updatedAt: now
-            });
-            await db.stockins_offline_update.delete(selectedStockIn.id);
-          });
-          showNotification('Stock entry updated successfully!');
-        } catch (error) {
-          await db.stockins_offline_update.put(updatedData);
-          showNotification('Stock entry updated offline (will sync when online)', 'warning');
-        }
-      } else {
-        await db.stockins_offline_update.put(updatedData);
-        showNotification('Stock entry updated offline (will sync when online)', 'warning');
-      }
-      await loadData();
+
+      // 2. Close modal immediately + reload from IndexedDB
       setIsEditModalOpen(false);
       setSelectedStockIn(null);
+      showNotification(isOnline ? 'Stock entry updated!' : 'Stock entry updated offline (will sync when online)', isOnline ? 'success' : 'warning');
+      loadData();
       navigate(role === 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin', { replace: true });
+
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error('Error updating stock-in:', error);
       showNotification(`Failed to update stock entry: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleConfirmDelete = async (stockInData) => {
-    setIsLoading(true);
+  const handleConfirmDelete = async () => {
     try {
       const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
-      if (isOnline && selectedStockIn.id) {
-        await stockInService.deleteStockIn(selectedStockIn.id);
-        await db.transaction('rw', db.stockins_all, db.stockins_offline_delete, async () => {
-          await db.stockins_all.delete(selectedStockIn.id);
-          await db.stockins_offline_delete.delete(selectedStockIn.id);
-        });
-        showNotification('Stock entry deleted successfully!');
-      } else if (selectedStockIn.id) {
-        await db.stockins_offline_delete.add({
-          id: selectedStockIn.id,
-          deletedAt: new Date(),
-          ...userData
-        });
-        showNotification('Stock deletion queued (will sync when online)', 'warning');
-      } else {
-        await db.stockins_offline_add.delete(selectedStockIn.localId);
-        showNotification('Stock entry deleted!');
-      }
-      await loadData();
+      const toDelete = selectedStockIn;
+
+      // 1. Remove from UI immediately
+      setStockIns(prev => prev.filter(s => s.id !== toDelete.id && s.localId !== toDelete.localId));
       setIsDeleteModalOpen(false);
       setSelectedStockIn(null);
+      showNotification('Stock entry deleted!');
+
+      // 2. Write locally
+      if (toDelete.id) {
+        await db.stockins_offline_delete.add({ id: toDelete.id, deletedAt: new Date(), ...userData });
+      } else {
+        await db.stockins_offline_add.delete(toDelete.localId);
+      }
+
+      // 3. Background sync — no await
+      if (isOnline) triggerSync();
     } catch (error) {
       console.error('Error deleting stock-in:', error);
       showNotification(`Failed to delete stock entry: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
+      loadData();
     }
   };
 
