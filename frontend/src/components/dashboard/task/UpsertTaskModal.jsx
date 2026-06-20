@@ -28,6 +28,12 @@ const UpsertTaskModal = ({ isOpen, onClose, onSubmit, task, isLoading, title }) 
         title: 'Returning',
         fullName: 'returning',
         description: 'Permission to record items being returned back into inventory after being sold, rented, or issued. Restores stock levels.'
+    },
+    {
+        value: 'report',
+        title: 'Report',
+        fullName: 'report',
+        description: 'Permission to view all employees\' daily reports, not just their own. Does not grant edit or delete access to other employees\' reports.'
     }
 ];
     useEffect(() => {
