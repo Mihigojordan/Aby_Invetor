@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import reportService from "../../services/reportService";
+import useEmployeeAuth from "../../context/EmployeeAuthContext";
 
 // Enhanced Upsert Report Modal Component with Live Totals
 const UpsertReportModal = ({
@@ -890,6 +891,8 @@ const DeleteModal = ({ isOpen, onClose, onConfirm, report, isLoading }) => {
 
 // Main Report Management Component
 const ReportManagement = ({ role }) => {
+  const { user } = useEmployeeAuth();
+  const ownEmployeeId = user?.id;
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -922,7 +925,10 @@ const ReportManagement = ({ role }) => {
       const transactionMatch = (report.transactions || []).some((transaction) =>
         (transaction.description || "").toLowerCase().includes(searchLower)
       );
-      return reportDate.includes(searchLower) || transactionMatch;
+      const employeeNameMatch = `${report.employee?.firstname || ""} ${report.employee?.lastname || ""}`
+        .toLowerCase()
+        .includes(searchLower);
+      return reportDate.includes(searchLower) || transactionMatch || employeeNameMatch;
     });
     setFilteredReports(filtered);
     setCurrentPage(1);
@@ -1194,6 +1200,7 @@ const ReportManagement = ({ role }) => {
             .filter((t) => t.type === "DEBIT")
             .reduce((total, t) => total + (t.amount || 0), 0);
           const netCashFlow = totalCredit - totalDebit;
+          const isOwnReport = report.employeeId === ownEmployeeId;
           return (
             <div
               key={report.id}
@@ -1207,7 +1214,9 @@ const ReportManagement = ({ role }) => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 text-sm">
-                        Daily Report
+                        {report.employee
+                          ? `${report.employee.firstname || ""} ${report.employee.lastname || ""}`.trim()
+                          : "Daily Report"}
                       </h3>
                     </div>
                   </div>
@@ -1218,18 +1227,22 @@ const ReportManagement = ({ role }) => {
                     >
                       <Eye size={14} />
                     </button>
+                    {isOwnReport && (
                     <button
                       onClick={() => openEditModal(report)}
                       className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                     >
                       <Edit3 size={14} />
                     </button>
+                    )}
+                    {isOwnReport && (
                     <button
                       onClick={() => openDeleteModal(report)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 size={14} />
                     </button>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-3 mb-4">
@@ -1318,6 +1331,9 @@ const ReportManagement = ({ role }) => {
                 #
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Employee
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1348,6 +1364,7 @@ const ReportManagement = ({ role }) => {
               const totalDebit = (report.transactions || [])
                 .filter((t) => t.type === "DEBIT")
                 .reduce((total, t) => total + (t.amount || 0), 0);
+              const isOwnReport = report.employeeId === ownEmployeeId;
               return (
                 <tr
                   key={report.id}
@@ -1356,6 +1373,13 @@ const ReportManagement = ({ role }) => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
                       {startIndex + index + 1}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-xs text-gray-900">
+                      {report.employee
+                        ? `${report.employee.firstname || ""} ${report.employee.lastname || ""}`.trim()
+                        : "—"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -1409,6 +1433,7 @@ const ReportManagement = ({ role }) => {
                       >
                         <Eye size={14} />
                       </button>
+                      {isOwnReport && (
                       <button
                         onClick={() => openEditModal(report)}
                         className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -1416,6 +1441,8 @@ const ReportManagement = ({ role }) => {
                       >
                         <Edit3 size={14} />
                       </button>
+                      )}
+                      {isOwnReport && (
                       <button
                         onClick={() => openDeleteModal(report)}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -1423,6 +1450,7 @@ const ReportManagement = ({ role }) => {
                       >
                         <Trash2 size={14} />
                       </button>
+                      )}
                     </div>
                   </td>
                 </tr>

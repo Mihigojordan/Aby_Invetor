@@ -47,7 +47,7 @@ export class ReportController {
   async findbyEmployeeId( @Req() req: RequestWithEmployee ){
     try{
       const EmployeeId = req.employee?.id as string
-      return await this.reportService.findReportByEmployeeId(EmployeeId)
+      return await this.reportService.findReportsForEmployee(EmployeeId)
     }catch(error){
       throw new HttpException(error.message, error.status)
     }
@@ -63,18 +63,22 @@ export class ReportController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() body: any) {
+  @UseGuards(EmployeeJwtAuthGuard)
+  async update(@Param('id') id: string, @Body() body: any, @Req() req: RequestWithEmployee) {
     try {
-      return await this.reportService.update(id, body);
+      const employeeId = req.employee?.id as string;
+      return await this.reportService.update(id, employeeId, body);
     } catch (error) {
      throw new HttpException(error.message, error.status)
     }
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  @UseGuards(EmployeeJwtAuthGuard)
+  async remove(@Param('id') id: string, @Req() req: RequestWithEmployee) {
     try {
-      return await this.reportService.remove(id);
+      const employeeId = req.employee?.id as string;
+      return await this.reportService.remove(id, employeeId);
     } catch (error) {
      throw new HttpException(error.message, error.status)
     }

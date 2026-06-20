@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -128,8 +128,28 @@ export class ReportService {
     }
   }
 
-  async update(id: string, data: any) {
+  async findReportsForEmployee(employeeId: string) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+      include: { tasks: true },
+    });
+
+    const canViewAllReports = (employee?.tasks || []).some((task) =>
+      task.taskname?.toLowerCase().includes('report'),
+    );
+
+    return canViewAllReports
+      ? this.findAll()
+      : this.findReportByEmployeeId(employeeId);
+  }
+
+  async update(id: string, employeeId: string, data: any) {
     try {
+      const report = await this.prisma.report.findUnique({ where: { id } });
+      if (!report) throw new NotFoundException('Report not found');
+      if (report.employeeId !== employeeId) {
+        throw new ForbiddenException('You can only edit your own report');
+      }
       return await this.prisma.report.update({
         where: { id },
         data: {
@@ -142,8 +162,13 @@ export class ReportService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string, employeeId: string) {
     try {
+      const report = await this.prisma.report.findUnique({ where: { id } });
+      if (!report) throw new NotFoundException('Report not found');
+      if (report.employeeId !== employeeId) {
+        throw new ForbiddenException('You can only delete your own report');
+      }
       return await this.prisma.report.delete({
         where: { id },
       });
