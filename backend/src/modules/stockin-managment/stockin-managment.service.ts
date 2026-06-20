@@ -126,6 +126,7 @@ export class StockinManagmentService {
       sellingPrice: number;
       adminId: string;
       employeeId: string;
+      receivedAt: string | Date;
     }>,
   ) {
     const stock = await this.prisma.stockIn.findUnique({
@@ -152,7 +153,11 @@ export class StockinManagmentService {
         price: data.price !== undefined ? Number(data.price) : stock.price,
         sellingPrice: Number(data.sellingPrice),
         totalPrice,
-        
+        // A manual edit (price/supplier correction etc.) is not a "receiving" event —
+        // only touch receivedAt when the caller explicitly provides it.
+        ...(data.receivedAt !== undefined
+          ? { receivedAt: new Date(data.receivedAt) }
+          : {}),
       },
 
     });
@@ -185,6 +190,53 @@ export class StockinManagmentService {
         employeeId: employee.id,
       });
     }
+
+    return updatedStock;
+  }
+
+  async addQuantity(
+    id: string,
+    data: { quantity?: number; adminId?: string; employeeId?: string },
+  ) {
+    const { quantity, adminId, employeeId } = data;
+
+    if (quantity === undefined || quantity === null || Number(quantity) <= 0) {
+      throw new BadRequestException('Quantity to add must be a positive number');
+    }
+    const delta = Number(quantity);
+
+    const stock = await this.prisma.stockIn.findUnique({
+      where: { id },
+      include: { product: true },
+    });
+    if (!stock) throw new NotFoundException('Stock not found');
+
+    const updatedStock = await this.prisma.stockIn.update({
+      where: { id },
+      data: {
+        quantity: { increment: delta },
+        totalPrice: { increment: delta * (stock.price ?? 0) },
+        receivedAt: new Date(),
+      },
+    });
+
+    // Activity Tracking
+    const activityUser =
+      (adminId &&
+        (await this.prisma.admin.findUnique({ where: { id: adminId } }))) ||
+      (employeeId &&
+        (await this.prisma.employee.findUnique({ where: { id: employeeId } })));
+
+    if (!activityUser) {
+      throw new NotFoundException('Admin or Employee not found');
+    }
+
+    await this.activityService.createActivity({
+      activityName: 'Stock Replenished',
+      description: `${'adminName' in activityUser ? activityUser.adminName : activityUser.firstname} added ${delta} unit(s) to stock for product called ${stock.product?.productName}`,
+      adminId,
+      employeeId,
+    });
 
     return updatedStock;
   }

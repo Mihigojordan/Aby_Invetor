@@ -1,10 +1,11 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff, RotateCcw, TrendingUp, Grid3x3, Table2, Filter, Truck, Box, Layers, ArrowDownToLine } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff, RotateCcw, TrendingUp, Grid3x3, Table2, Filter, Truck, Box, Layers, ArrowDownToLine, PackagePlus } from 'lucide-react';
 import productService from '../../services/productService';
 import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockInModel';
 import DeleteStockInModal from '../../components/dashboard/stockin/DeleteStockInModel';
 import ViewStockInModal from '../../components/dashboard/stockin/ViewStockInModal';
+import AddQuantityStockInModal from '../../components/dashboard/stockin/AddQuantityStockInModel';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
 import stockOutService from '../../services/stockoutService';
@@ -23,10 +24,12 @@ const StockInManagement = ({ role }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [dateFilterField, setDateFilterField] = useState('createdAt');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isAddQuantityModalOpen, setIsAddQuantityModalOpen] = useState(false);
   const [selectedStockIn, setSelectedStockIn] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -65,7 +68,7 @@ const StockInManagement = ({ role }) => {
     // Apply date filter
     if (startDate || endDate) {
       filtered = filtered.filter(stockIn => {
-        const stockDate = new Date(stockIn.createdAt || stockIn.lastModified);
+        const stockDate = new Date(stockIn[dateFilterField] || stockIn.lastModified);
         const start = startDate ? new Date(startDate) : null;
         const end = endDate ? new Date(endDate) : null;
         if (start && end && start > end) return true; // Invalid range, show all
@@ -79,7 +82,7 @@ const StockInManagement = ({ role }) => {
     }
     setFilteredStockIns(filtered);
     setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, stockIns]);
+  }, [searchTerm, startDate, endDate, dateFilterField, stockIns]);
 
      useEffect(()=>{
     if(isBelow){
@@ -186,7 +189,13 @@ const StockInManagement = ({ role }) => {
       return a.synced - b.synced;
     }
 
-    // 2️⃣ Then by date
+    // 2️⃣ Then by most recently received
+    const receivedDiff =
+      new Date(b.receivedAt || b.createdAt || b.lastModified) -
+      new Date(a.receivedAt || a.createdAt || a.lastModified);
+    if (receivedDiff !== 0) return receivedDiff;
+
+    // 3️⃣ Tiebreak by created date
     return (
       new Date(b.createdAt || b.lastModified) -
       new Date(a.createdAt || a.lastModified)
@@ -230,6 +239,7 @@ const StockInManagement = ({ role }) => {
           ...userData,
           lastModified: now,
           createdAt: now,
+          receivedAt: now,
           updatedAt: now
         }));
         const localIds = [];
@@ -252,6 +262,7 @@ const StockInManagement = ({ role }) => {
                   supplier: serverStockIn.supplier,
                   sku: serverStockIn.sku,
                   barcodeUrl: serverStockIn.barcodeUrl,
+                  receivedAt: serverStockIn.receivedAt || now,
                   lastModified: now,
                   updatedAt: serverStockIn.updatedAt || now
                 });
@@ -276,6 +287,7 @@ const StockInManagement = ({ role }) => {
           ...userData,
           lastModified: now,
           createdAt: now,
+          receivedAt: now,
           updatedAt: now
         };
         if (!newStockIn.productId || !newStockIn.quantity || !newStockIn.price || !newStockIn.sellingPrice) {
@@ -296,6 +308,7 @@ const StockInManagement = ({ role }) => {
                 supplier: newStockIn.supplier,
                 sku: response.stockIn.data?.[0]?.sku,
                 barcodeUrl: response.stockIn.data?.[0]?.barcodeUrl,
+                receivedAt: response.stockIn.data?.[0]?.receivedAt || now,
                 lastModified: now,
                 updatedAt: response.updatedAt || now
               });
@@ -395,6 +408,91 @@ const StockInManagement = ({ role }) => {
     } catch (error) {
       console.error('Error updating stock-in:', error);
       showNotification(`Failed to update stock entry: ${error.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddQuantity = async (amount) => {
+    if (!selectedStockIn) return;
+    setIsLoading(true);
+    try {
+      const userData = role === 'admin' ? { adminId: adminData.id } : { employeeId: employeeData.id };
+      const now = new Date();
+      const delta = Number(amount);
+
+      // Unsynced row: only exists locally, hasn't been pushed to the server yet
+      if (selectedStockIn.localId && !selectedStockIn.id) {
+        const currentQty = selectedStockIn.offlineQuantity ?? selectedStockIn.quantity ?? 0;
+        const newQty = currentQty + delta;
+        await db.stockins_offline_add.update(selectedStockIn.localId, {
+          quantity: newQty,
+          offlineQuantity: newQty,
+          receivedAt: now,
+          lastModified: now,
+          updatedAt: now
+        });
+        showNotification(`Added ${delta} units (offline entry updated)!`);
+      } else if (isOnline) {
+        try {
+          const updated = await stockInService.addStockInQuantity(selectedStockIn.id, delta, userData);
+          await db.stockins_all.put({
+            id: selectedStockIn.id,
+            productId: selectedStockIn.productId,
+            quantity: updated.quantity,
+            price: selectedStockIn.price,
+            sellingPrice: selectedStockIn.sellingPrice,
+            supplier: selectedStockIn.supplier,
+            sku: selectedStockIn.sku,
+            barcodeUrl: selectedStockIn.barcodeUrl,
+            receivedAt: updated.receivedAt || now,
+            lastModified: now,
+            updatedAt: updated.updatedAt || now
+          });
+          showNotification(`Added ${delta} units successfully!`);
+        } catch (error) {
+          if (error.status === 404) {
+            showNotification('This stock entry no longer exists on the server', 'error');
+          } else {
+            const newQty = (selectedStockIn.quantity ?? 0) + delta;
+            await db.stockins_offline_update.put({
+              id: selectedStockIn.id,
+              productId: selectedStockIn.productId,
+              quantity: newQty,
+              price: selectedStockIn.price,
+              sellingPrice: selectedStockIn.sellingPrice,
+              supplier: selectedStockIn.supplier,
+              receivedAt: now,
+              ...userData,
+              lastModified: now,
+              updatedAt: now
+            });
+            showNotification('Could not reach server — quantity update queued (will sync when online)', 'warning');
+          }
+        }
+      } else {
+        const newQty = (selectedStockIn.quantity ?? 0) + delta;
+        await db.stockins_offline_update.put({
+          id: selectedStockIn.id,
+          productId: selectedStockIn.productId,
+          quantity: newQty,
+          price: selectedStockIn.price,
+          sellingPrice: selectedStockIn.sellingPrice,
+          supplier: selectedStockIn.supplier,
+          receivedAt: now,
+          ...userData,
+          lastModified: now,
+          updatedAt: now
+        });
+        showNotification(`Queued +${delta} units (will sync when online)`, 'warning');
+      }
+
+      await loadData();
+      setIsAddQuantityModalOpen(false);
+      setSelectedStockIn(null);
+    } catch (error) {
+      console.error('Error adding stock quantity:', error);
+      showNotification(`Failed to add stock quantity: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -517,6 +615,9 @@ const StockInManagement = ({ role }) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF' }).format(price || 0);
   };
 
+  // Same low-stock threshold used elsewhere in the app (Dashboard/EmployeeDashboard)
+  const isLowStock = (stockIn) => (stockIn.offlineQuantity ?? stockIn.quantity ?? 0) <= 5;
+
   const calculateStats = () => {
     if (!Array.isArray(filteredStockIns) || filteredStockIns.length === 0) {
       return {
@@ -561,6 +662,11 @@ const StockInManagement = ({ role }) => {
     setIsDeleteModalOpen(true);
   };
 
+  const openAddQuantityModal = (stockIn) => {
+    setSelectedStockIn(stockIn);
+    setIsAddQuantityModalOpen(true);
+  };
+
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -580,6 +686,7 @@ const StockInManagement = ({ role }) => {
     setIsEditModalOpen(false);
     setIsDeleteModalOpen(false);
     setIsViewModalOpen(false);
+    setIsAddQuantityModalOpen(false);
     setSelectedStockIn(null);
     navigate(role === 'admin' ? '/admin/dashboard/stockin' : '/employee/dashboard/stockin', { replace: true });
   };
@@ -699,12 +806,13 @@ const StockInManagement = ({ role }) => {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Supplier</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Status</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Received</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {(currentItems || []).map((stockIn, index) => (
-              <tr key={stockIn.localId || stockIn.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={stockIn.localId || stockIn.id} className={`transition-colors ${isLowStock(stockIn) ? 'bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center">
@@ -718,8 +826,13 @@ const StockInManagement = ({ role }) => {
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <Box size={14} className="text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-900">{stockIn.offlineQuantity ?? stockIn.quantity ?? 0}</span>
+                    <Box size={14} className={isLowStock(stockIn) ? 'text-red-500' : 'text-gray-400'} />
+                    <span className={`text-sm font-semibold ${isLowStock(stockIn) ? 'text-red-600' : 'text-gray-900'}`}>{stockIn.offlineQuantity ?? stockIn.quantity ?? 0}</span>
+                    {isLowStock(stockIn) && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">
+                        {(stockIn.offlineQuantity ?? stockIn.quantity ?? 0) <= 0 ? 'Out of Stock' : 'Low Stock'}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
@@ -746,6 +859,12 @@ const StockInManagement = ({ role }) => {
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <PackagePlus size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-600">{formatDate(stockIn.receivedAt || stockIn.createdAt || stockIn.lastModified)}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openViewModal(stockIn)}
@@ -754,6 +873,14 @@ const StockInManagement = ({ role }) => {
                       title="View Details"
                     >
                       <Eye size={16} />
+                    </button>
+                    <button
+                      onClick={() => openAddQuantityModal(stockIn)}
+                      disabled={isLoading}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
+                      title="Add Quantity"
+                    >
+                      <PackagePlus size={16} />
                     </button>
                     <button
                       onClick={() => openEditModal(stockIn)}
@@ -788,7 +915,11 @@ const StockInManagement = ({ role }) => {
         {(currentItems || []).map((stockIn, index) => (
           <div
             key={stockIn.localId || stockIn.id}
-            className={`bg-white rounded-lg border hover:shadow-md transition-shadow ${stockIn.synced ? 'border-gray-200' : 'border-yellow-200'}`}
+            className={`rounded-lg border hover:shadow-md transition-shadow ${
+              isLowStock(stockIn)
+                ? 'bg-red-50 border-red-300'
+                : `bg-white ${stockIn.synced ? 'border-gray-200' : 'border-yellow-200'}`
+            }`}
           >
             <div className="p-4">
               <div className="flex items-start justify-between mb-3">
@@ -820,7 +951,14 @@ const StockInManagement = ({ role }) => {
               <div className="space-y-2 mb-3">
                 <div className="flex items-start justify-between text-xs">
                   <span className="font-medium text-gray-600">Quantity:</span>
-                  <span className="font-bold text-primary-600">{stockIn.offlineQuantity ?? stockIn.quantity}</span>
+                  <span className={`font-bold flex items-center gap-1 ${isLowStock(stockIn) ? 'text-red-600' : 'text-primary-600'}`}>
+                    {stockIn.offlineQuantity ?? stockIn.quantity}
+                    {isLowStock(stockIn) && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">
+                        {(stockIn.offlineQuantity ?? stockIn.quantity ?? 0) <= 0 ? 'Out of Stock' : 'Low Stock'}
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="flex items-start justify-between text-xs">
                   <span className="font-medium text-gray-600">Unit Price:</span>
@@ -833,6 +971,10 @@ const StockInManagement = ({ role }) => {
                 <div className="flex items-start justify-between text-xs">
                   <span className="font-medium text-gray-600">Sell Price:</span>
                   <span className="font-bold text-primary-600">{formatPrice(stockIn.sellingPrice)}</span>
+                </div>
+                <div className="flex items-start justify-between text-xs">
+                  <span className="font-medium text-gray-600">Received:</span>
+                  <span className="text-gray-900">{formatDate(stockIn.receivedAt || stockIn.createdAt || stockIn.lastModified)}</span>
                 </div>
                 {stockIn.supplier && (
                   <div className="flex items-start justify-between text-xs">
@@ -848,6 +990,14 @@ const StockInManagement = ({ role }) => {
                     <span>{formatDate(stockIn.createdAt || stockIn.lastModified)}</span>
                   </div>
                   <div className="flex gap-1">
+                    <button
+                      onClick={() => openAddQuantityModal(stockIn)}
+                      disabled={isLoading}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
+                      title="Add Quantity"
+                    >
+                      <PackagePlus size={14} />
+                    </button>
                     <button
                       onClick={() => openEditModal(stockIn)}
                       disabled={isLoading}
@@ -969,6 +1119,25 @@ const StockInManagement = ({ role }) => {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 w-full  items-start sm:items-center">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Filter by</label>
+                <div className="flex gap-1 border border-gray-300 rounded-lg p-1 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setDateFilterField('createdAt')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${dateFilterField === 'createdAt' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    Created Date
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDateFilterField('receivedAt')}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${dateFilterField === 'receivedAt' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    Received Date
+                  </button>
+                </div>
+              </div>
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
@@ -1077,6 +1246,13 @@ const StockInManagement = ({ role }) => {
           isOpen={isDeleteModalOpen}
           onClose={closeAllModals}
           onConfirm={handleConfirmDelete}
+          stockIn={selectedStockIn}
+          isLoading={isLoading}
+        />
+        <AddQuantityStockInModal
+          isOpen={isAddQuantityModalOpen}
+          onClose={closeAllModals}
+          onConfirm={handleAddQuantity}
           stockIn={selectedStockIn}
           isLoading={isLoading}
         />

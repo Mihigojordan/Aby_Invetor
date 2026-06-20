@@ -215,6 +215,7 @@ async syncStockIns(skipLocalFetch) {
           supplier: serverStockIn.supplier || stockIn.supplier,
           sku: serverStockIn.sku || stockIn.sku,
           barcodeUrl: serverStockIn.barcodeUrl || stockIn.barcodeUrl,
+          receivedAt: serverStockIn.receivedAt || new Date(),
           lastModified: new Date(),
           updatedAt: serverStockIn.updatedAt || new Date()
         };
@@ -324,6 +325,8 @@ async syncStockIns(skipLocalFetch) {
           barcodeUrl: stockIn.barcodeUrl,
           adminId: stockIn.adminId,
           employeeId: stockIn.employeeId,
+          // Only present when this queued update came from Quick Add Stock (a "receiving" event)
+          ...(stockIn.receivedAt !== undefined ? { receivedAt: stockIn.receivedAt } : {}),
           // Add version or timestamp for optimistic locking
           createdAt: stockIn.lastModified
         };
@@ -342,6 +345,7 @@ async syncStockIns(skipLocalFetch) {
             supplier: serverStockIn.supplier || stockIn.supplier,
             sku: serverStockIn.sku || stockIn.sku,
             barcodeUrl: serverStockIn.barcodeUrl || stockIn.barcodeUrl,
+            receivedAt: serverStockIn.receivedAt || stockIn.receivedAt,
             lastModified: serverStockIn.createdAt || new Date(),
             updatedAt: serverStockIn.updatedAt || new Date()
           });
@@ -450,6 +454,7 @@ async syncStockIns(skipLocalFetch) {
             supplier: serverStockIn.supplier,
             sku: serverStockIn.sku,
             barcodeUrl: serverStockIn.barcodeUrl,
+            receivedAt: serverStockIn.receivedAt,
             lastModified: serverStockIn.createdAt,
             createdAt: serverStockIn.createdAt,
             updatedAt: serverStockIn.updatedAt || new Date()

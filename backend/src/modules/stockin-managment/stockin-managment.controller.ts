@@ -38,9 +38,18 @@ export class StockinManagmentController {
       quantity: number;
       price: number;
       supplier: string;
+      receivedAt: string;
     }>,
   ) {
     return await this.stockInService.update(id, data);
+  }
+
+  @Put('add-quantity/:id')
+  async addQuantity(
+    @Param('id') id: string,
+    @Body() data: Partial<{ quantity: number; adminId: string; employeeId: string }>,
+  ) {
+    return await this.stockInService.addQuantity(id, data);
   }
 
   @Delete('delete/:id')

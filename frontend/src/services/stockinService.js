@@ -184,6 +184,36 @@ async createMultipleStockIn(purchasesArray, userInfo = {}) {
   }
 
   /**
+   * Increment a stock-in entry's quantity atomically (server-side +=).
+   * @param {string} id - Stock-in entry ID
+   * @param {number} quantity - Amount to add (must be > 0)
+   * @param {Object} [userInfo] - { adminId } or { employeeId }
+   * @returns {Promise<Object>} Updated stock-in entry
+   */
+  async addStockInQuantity(id, quantity, userInfo = {}) {
+    try {
+      if (!id) {
+        throw new Error('Stock-in ID is required');
+      }
+      if (!quantity || Number(quantity) <= 0) {
+        throw new Error('Quantity to add must be a positive number');
+      }
+
+      const response = await api.put(`/stockin/add-quantity/${id}`, {
+        quantity: Number(quantity),
+        adminId: userInfo.adminId || undefined,
+        employeeId: userInfo.employeeId || undefined
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding stock-in quantity:', error);
+      const err = new Error(error.response?.data?.message || error.message || 'Failed to add stock quantity');
+      err.status = error.response?.status;
+      throw err;
+    }
+  }
+
+  /**
    * Delete a stock-in entry
    * @param {string} id - Stock-in entry ID
    * @returns {Promise<Object>} Success message
