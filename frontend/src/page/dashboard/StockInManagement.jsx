@@ -24,7 +24,7 @@ const StockInManagement = ({ role }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [dateFilterField, setDateFilterField] = useState('createdAt');
+  const [dateFilterField, setDateFilterField] = useState('receivedAt');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);

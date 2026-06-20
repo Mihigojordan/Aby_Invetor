@@ -84,6 +84,7 @@ export class ReportService {
           transactions: true,
           employee:true
         },
+        orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -117,6 +118,7 @@ export class ReportService {
           transactions: true,
           employee:true
         },
+        orderBy: { createdAt: 'desc' },
       });
 
       if (!report) throw new NotFoundException('Report not found');
