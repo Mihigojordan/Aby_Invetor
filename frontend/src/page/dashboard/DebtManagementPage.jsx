@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, DollarSign, Phone, Mail, User, Calendar, CreditCard, AlertCircle, CheckCircle, XCircle, Filter, Package, Barcode, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { Search, DollarSign, Phone, Mail, User, Calendar, CreditCard, AlertCircle, CheckCircle, XCircle, Filter, Package, Barcode, TrendingUp, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import stockOutService from '../../services/stockoutService.js';
 
 // Currency formatting function
@@ -25,10 +25,16 @@ const DebtManagementPage = () => {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchDebts();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterPaymentMethod]);
 
   const fetchDebts = async () => {
     try {
@@ -94,6 +100,23 @@ const DebtManagementPage = () => {
   const totalPaid = filteredDebts.reduce((sum, debt) => sum + ((debt.soldPrice || 0) - (debt.debtedAmount || 0)), 0);
   const uniqueClients = new Set(filteredDebts.map(d => d.clientName || d.clientPhone)).size;
 
+  const totalPages = Math.ceil(filteredDebts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredDebts.slice(startIndex, endIndex);
+
+  const getPageNumbers = () => {
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    const pages = [];
+    for (let i = startPage; i <= endPage; i++) pages.push(i);
+    return pages;
+  };
+
   const getStatusIcon = (status) => {
     switch(status) {
       case 'SUCCESSFUL':
@@ -145,7 +168,7 @@ const DebtManagementPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen h-[90vh] bg-gray-50 p-6">
       <div className=" mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -282,7 +305,7 @@ const DebtManagementPage = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredDebts.map((debt) => (
+                  currentItems.map((debt) => (
                     <tr key={debt.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="text-sm">
@@ -377,6 +400,46 @@ const DebtManagementPage = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {filteredDebts.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-gray-200 bg-white">
+              <p className="text-sm text-gray-600">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredDebts.length)} of {filteredDebts.length} entries
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === 1 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    <ChevronLeft size={14} />
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-1 mx-2">
+                    {getPageNumbers().map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-2 text-sm rounded-md transition-colors ${currentPage === page ? 'bg-blue-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className={`flex items-center gap-1 px-3 py-2 text-sm border rounded-md transition-colors ${currentPage === totalPages ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    Next
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
