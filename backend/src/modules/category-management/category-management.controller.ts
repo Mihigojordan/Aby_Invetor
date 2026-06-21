@@ -24,14 +24,17 @@ export class CategoryManagementController {
     return this.categoryService.createCategory(data);
   }
 
-  // ✅ CACHED
   @Get('all')
-  @CacheTTL(120) // 2 minutes
   getAllCategories(
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('updatedAfter') updatedAfter?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
-    return this.categoryService.getAllCategories(+page, +limit);
+    return this.categoryService.getAllCategories(
+      updatedAfter,
+      limit ? +limit : 200,
+      offset ? +offset : 0,
+    );
   }
 
   // ✅ CACHED

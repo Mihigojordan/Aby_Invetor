@@ -98,12 +98,19 @@ export class StockinManagmentService {
     };
   }
 
-  async getAll() {
-    return this.prisma.stockIn.findMany({
-      include: {
-        product: true,
-      },
+  async getAll(updatedAfter?: string, take = 200, skip = 0) {
+    const where: any = {};
+    if (updatedAfter) {
+      where.updatedAt = { gte: new Date(updatedAfter) };
+    }
+    const records = await this.prisma.stockIn.findMany({
+      where,
+      include: { product: true },
+      take,
+      skip,
+      orderBy: { updatedAt: 'asc' },
     });
+    return { data: records, deletedIds: [] };
   }
   async getAllWithCategories() {
     return this.prisma.stockIn.findMany({

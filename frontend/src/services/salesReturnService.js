@@ -95,32 +95,12 @@ class SalesReturnService {
    * @param {Object} [filters] - Optional filtering parameters
    * @returns {Promise<Object>} Object containing array of sales return entries
    */
-  async getAllSalesReturns(filters = {}) {
+  async getAllSalesReturns(updatedAfter = null, filters = {}, { limit = 200, offset = 0 } = {}) {
     try {
-      let url = '/sales-return';
-      
-      // Add query parameters if filters are provided
-      const queryParams = new URLSearchParams();
-      
-      if (filters.transactionId) {
-        queryParams.append('transactionId', filters.transactionId);
-      }
-      if (filters.reason) {
-        queryParams.append('reason', filters.reason);
-      }
-      if (filters.createdAfter) {
-        queryParams.append('createdAfter', filters.createdAfter);
-      }
-      if (filters.createdBefore) {
-        queryParams.append('createdBefore', filters.createdBefore);
-      }
-
-      if (queryParams.toString()) {
-        url += `?${queryParams.toString()}`;
-      }
-
-      const response = await api.get(url);
-      return response.data;
+      const params = { limit, offset };
+      if (updatedAfter) params.updatedAfter = updatedAfter;
+      const response = await api.get('/sales-return', { params });
+      return response.data; // { data: [...], deletedIds: [] }
     } catch (error) {
       console.error('Error fetching all sales returns:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to fetch sales returns');

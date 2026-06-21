@@ -38,10 +38,10 @@ async syncStockIns(skipLocalFetch) {
     const productResults = await productSyncService.syncUnsyncedAdds();
     console.log('✅ Product sync completed:', productResults);
 
-    // 🎯 STEP 2: Wait a bit to ensure all product IDs are updated
+    // 🎯 STEP 2: Wait until all product IDs are mapped before syncing stockins
     if (productResults?.processed > 0) {
-      console.log('⏰ Waiting for product ID updates to propagate...');
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 1 second delay
+      console.log('⏰ Waiting for product IDs to propagate...');
+      await this.waitForProductIds();
     }
 
     // 🎯 STEP 3: Now sync stockins with updated product IDs
@@ -433,47 +433,92 @@ async syncStockIns(skipLocalFetch) {
     return { processed, errors, total: deletedStockIns.length };
   }
 
-  async fetchAndUpdateLocal() {
-    try {
-      const serverStockIns = await stockInService.getAllStockIns();
-      console.log('******** => + FETCHING AND UPDATING STOCK-IN DATA ', serverStockIns.length);
+  async waitForProductIds() {
+    const MAX_WAIT_MS = 10000;
+    const POLL_MS = 300;
+    const deadline = Date.now() + MAX_WAIT_MS;
+
+    while (Date.now() < deadline) {
+      const unsyncedStockins = await db.stockins_offline_add.toArray();
+      if (unsyncedStockins.length === 0) return;
+
+      const results = await Promise.all(
+        unsyncedStockins.map(async s => {
+          const serverProduct = await db.products_all.get(s.productId);
+          if (serverProduct) return true;
+          const synced = await db.synced_product_ids.where('localId').equals(s.productId).first();
+          return !!synced;
+        })
+      );
+
+      if (results.every(Boolean)) return;
+      await new Promise(resolve => setTimeout(resolve, POLL_MS));
+    }
+    console.warn('[stockIn] waitForProductIds: 10s timeout — proceeding anyway');
+  }
+
+  async fetchAndUpdateLocal(onProgress = null) {
+    const meta = await db.sync_metadata.get('stockIns');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+    const LIMIT = 200;
+    let offset = 0;
+    let totalFetched = 0;
+    let isFirstPage = true;
+
+    while (true) {
+      let result;
+      try {
+        result = await stockInService.getAllStockIns(lastSyncedAt, { limit: LIMIT, offset });
+      } catch (fetchError) {
+        console.error('[stockIns] Fetch failed — local data preserved:', fetchError);
+        return;
+      }
+
+      const { data: updatedRecords = [], deletedIds = [] } = result;
+
+      if (isFirstPage && !lastSyncedAt && updatedRecords.length === 0) {
+        console.warn('[stockIns] Empty full-fetch — skipping to preserve local data');
+        return;
+      }
 
       await db.transaction('rw', db.stockins_all, db.synced_stockin_ids, async () => {
-        // 🔥 Clear all local data - server is the source of truth
-        await db.stockins_all.clear();
-        console.log('✨ Cleared local stockins, replacing with server data');
+        if (isFirstPage && !lastSyncedAt) await db.stockins_all.clear();
 
-        // 📥 Replace with fresh server data including all columns
-        for (const serverStockIn of serverStockIns) {
-          await db.stockins_all.put({
-            id: serverStockIn.id,
-            productId: serverStockIn.productId,
-            quantity: serverStockIn.quantity,
-            price: serverStockIn.price,
-            sellingPrice: serverStockIn.sellingPrice,
-            supplier: serverStockIn.supplier,
-            sku: serverStockIn.sku,
-            barcodeUrl: serverStockIn.barcodeUrl,
-            receivedAt: serverStockIn.receivedAt,
-            lastModified: serverStockIn.createdAt,
-            createdAt: serverStockIn.createdAt,
-            updatedAt: serverStockIn.updatedAt || new Date()
-          });
+        const records = updatedRecords.map(s => ({
+          id: s.id,
+          productId: s.productId,
+          quantity: s.quantity,
+          price: s.price,
+          sellingPrice: s.sellingPrice,
+          supplier: s.supplier,
+          sku: s.sku,
+          barcodeUrl: s.barcodeUrl,
+          receivedAt: s.receivedAt,
+          lastModified: s.createdAt,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt || new Date()
+        }));
+        await db.stockins_all.bulkPut(records);
+
+        for (const id of deletedIds) {
+          await db.stockins_all.delete(id);
+          const mapping = await db.synced_stockin_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_stockin_ids.delete(mapping.localId);
         }
-
-        // 🧹 Clean up sync tracking for stockins no longer on server
-        const serverIds = new Set(serverStockIns.map(s => s.id));
-        await db.synced_stockin_ids
-          .where('serverId')
-          .noneOf(Array.from(serverIds))
-          .delete();
-
-        console.log(`✅ Successfully replaced local data with ${serverStockIns.length} stockins from server`);
       });
-    } catch (error) {
-      console.error('Error fetching server stockin data:', error);
-      // Don't throw - sync can continue without fresh server data
+
+      totalFetched += updatedRecords.length;
+      onProgress?.({ entity: 'stockIns', fetched: totalFetched });
+      if (updatedRecords.length < LIMIT) break;
+      offset += LIMIT;
+      isFirstPage = false;
     }
+
+    await db.sync_metadata.put({
+      entity: 'stockIns',
+      lastSyncedAt: new Date().toISOString(),
+      lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+    });
   }
 
   // 🔍 Check for content-based duplicates

@@ -101,10 +101,19 @@ export class ProductManagmentService {
     }
   }
 
-  async getAllProducts() {
-    return this.prisma.product.findMany({
+  async getAllProducts(updatedAfter?: string, take = 200, skip = 0) {
+    const where: any = {};
+    if (updatedAfter) {
+      where.updatedAt = { gte: new Date(updatedAfter) };
+    }
+    const records = await this.prisma.product.findMany({
+      where,
       include: { category: true },
+      take,
+      skip,
+      orderBy: { updatedAt: 'asc' },
     });
+    return { data: records, deletedIds: [] };
   }
 
   async getProductById(id: string) {

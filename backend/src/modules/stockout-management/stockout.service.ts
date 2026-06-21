@@ -34,15 +34,32 @@ export class StockoutService {
     paymentMethod?;
     adminId?: string;
     employeeId?: string;
+    clientTransactionId?: string;
   }) {
-    const { sales, adminId, employeeId, clientEmail, clientName, clientPhone, paymentMethod } = data;
+    const { sales, adminId, employeeId, clientEmail, clientName, clientPhone, paymentMethod, clientTransactionId } = data;
     console.log(data);
 
     if (!Array.isArray(sales) || sales.length === 0) {
       throw new BadRequestException('At least one sale is required');
     }
 
-    const transactionId = generateStockSKU('abyride', 'transaction');
+    // Idempotency check: if this clientTransactionId was already processed, return existing records
+    if (clientTransactionId) {
+      const existing = await this.prisma.stockOut.findMany({
+        where: { transactionId: clientTransactionId },
+      });
+      if (existing.length > 0) {
+        console.log(`Duplicate request detected for transactionId ${clientTransactionId}, returning existing records`);
+        return {
+          message: 'Stock out transaction completed successfully',
+          transactionId: clientTransactionId,
+          data: existing,
+        };
+      }
+    }
+
+    // Use clientTransactionId if provided so the server record matches the client's reference
+    const transactionId = clientTransactionId || generateStockSKU('abyride', 'transaction');
     const createdStockouts: Awaited<ReturnType<typeof this.prisma.stockOut.create>>[] = [];
 
     // Use a database transaction to ensure atomicity
@@ -57,10 +74,11 @@ export class StockoutService {
         };
 
         if (stockinId) {
-          // First, get the current stock with a lock for update
-          const stockin = await tx.stockIn.findUnique({
-            where: { id: stockinId },
-          });
+          // Use SELECT FOR UPDATE to lock the row and prevent concurrent stock over-decrement
+          const lockedRows = await tx.$queryRaw<any[]>`
+            SELECT id, quantity, sellingPrice FROM StockIn WHERE id = ${stockinId} FOR UPDATE
+          `;
+          const stockin = lockedRows[0];
 
           if (!stockin) {
             throw new NotFoundException(`Stockin not found for ID: ${stockinId}`);
@@ -78,23 +96,12 @@ export class StockoutService {
             throw new BadRequestException(`Selling price not set for stockin ID: ${stockinId}`);
           }
 
-          console.log('quantity of stockin Stock in : ' + stockin.id, stockin.quantity);
+          console.log('quantity of stockin Stock in : ' + stockinId, stockin.quantity);
 
-          // Use atomic decrement operation to prevent race conditions
-          const updatedStock = await tx.stockIn.updateMany({
-            where: {
-              id: stockinId,
-              quantity: { gte: quantity } // Only update if we still have enough stock
-            },
-            data: {
-              quantity: { decrement: quantity }
-            }
-          });
-
-          // Check if the update actually happened (count should be 1)
-          if (updatedStock.count === 0) {
-            throw new BadRequestException(`Insufficient stock for product with ID: ${stockinId}. Another transaction may have reduced the stock.`);
-          }
+          // Decrement while holding the row lock — no other transaction can read this row until we commit
+          await tx.$executeRaw`
+            UPDATE StockIn SET quantity = quantity - ${quantity} WHERE id = ${stockinId}
+          `;
 
           console.log('Stock updated successfully for stockin:', stockinId);
 
@@ -329,21 +336,29 @@ export class StockoutService {
     });
   }
 
-  async getAll() {
+  async getAll(updatedAfter?: string, take = 200, skip = 0) {
     try {
-      return await this.prisma.stockOut.findMany({
-        include: {
-          stockin: {
-            include: {
-              product: true
-            }
-          },
-          backorder: true,
-          admin: true,
-          employee: true,
+      const where: any = {};
+      if (updatedAfter) {
+        where.updatedAt = { gte: new Date(updatedAfter) };
+      }
 
-        },
+      const include = {
+        stockin: { include: { product: true } },
+        backorder: true,
+        admin: true,
+        employee: true,
+      };
+
+      const records = await this.prisma.stockOut.findMany({
+        where,
+        include,
+        take,
+        skip,
+        orderBy: { updatedAt: 'asc' },
       });
+
+      return { data: records, deletedIds: [] };
     } catch (error) {
       throw new BadRequestException(error.message);
     }

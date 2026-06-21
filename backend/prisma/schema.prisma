@@ -80,6 +80,7 @@ model Category {
   name        String?
   description String?
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   product     Product[] @relation("CategoryToProduct")
 }
 
@@ -92,11 +93,14 @@ model Product {
   categoryId  String
   description Json?
   imageUrls   Json?
-  createdAt    DateTime?  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   category    Category? @relation("CategoryToProduct", fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   stockIn     StockIn[]
+
+  @@index([updatedAt])
 }
 
 model StockIn {
@@ -121,6 +125,7 @@ model StockIn {
    requisitionItems RequisitionItem[]   // Link to requisitions
    stockRequisitionItem StockRequisitionItem[]
 
+  @@index([createdAt])
 }
 
 model StockOut {
@@ -149,6 +154,9 @@ model StockOut {
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([transactionId])
+  @@index([createdAt])
 }
 
 
@@ -173,12 +181,23 @@ model BackOrder{
   quantity     Int?
   soldPrice    Int?
   adminId      String?
-  employeeId   String? 
+  employeeId   String?
   admin        Admin?     @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee     Employee?  @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   stockout     StockOut[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model IdempotencyKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  response  Json
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([key])
+  @@index([expiresAt])
 }
 
 model Activity {
@@ -200,6 +219,7 @@ model SalesReturn {
   creditnoteId String?
   reason    String?
   createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
   items     SalesReturnItem[]
 }
 

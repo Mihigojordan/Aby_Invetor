@@ -434,18 +434,37 @@ class ProductSyncService {
     return { processed, errors, total: deletedProducts.length };
   }
 
-  async fetchAndUpdateLocal() {
-    try {
-      const serverProducts = await productService.getAllProducts();
-      console.log('******** => + FETCHING UPDATING THE UI DATA ', serverProducts.length);
+  async fetchAndUpdateLocal(onProgress = null) {
+    const meta = await db.sync_metadata.get('products');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+    const LIMIT = 200;
+    let offset = 0;
+    let totalFetched = 0;
+    let isFirstPage = true;
+
+    while (true) {
+      let result;
+      try {
+        result = await productService.getAllProducts(lastSyncedAt, { limit: LIMIT, offset });
+      } catch (fetchError) {
+        console.error('[products] Fetch failed — local data preserved:', fetchError);
+        return;
+      }
+
+      const { data: updatedRecords = [], deletedIds = [] } = result;
+
+      if (isFirstPage && !lastSyncedAt && updatedRecords.length === 0) {
+        console.warn('[products] Empty full-fetch — skipping to preserve local data');
+        return;
+      }
 
       await db.transaction('rw', db.products_all, db.product_images, db.synced_product_ids, async () => {
-        // Merge strategy instead of clearing all data
-        await db.products_all.clear();
-        console.log('✨ Cleared local products, replacing with server data');;
+        if (isFirstPage && !lastSyncedAt) {
+          await db.products_all.clear();
+          await db.product_images.where('from').equals('server').delete();
+        }
 
-        // Update/add products from server
-        for (const serverProduct of serverProducts) {
+        for (const serverProduct of updatedRecords) {
           await db.products_all.put({
             id: serverProduct.id,
             productName: serverProduct.productName,
@@ -456,16 +475,13 @@ class ProductSyncService {
             updatedAt: serverProduct.updatedAt || new Date()
           });
 
-          // Handle images for this product
           if (serverProduct.imageUrls?.length > 0) {
-            // Remove existing server images for this product
             await db.product_images
               .where('[entityId+entityType]')
               .equals([serverProduct.id, 'product'])
               .and(img => img.from === 'server')
               .delete();
 
-            // Add fresh server images
             for (const url of serverProduct.imageUrls) {
               await db.product_images.add({
                 entityId: serverProduct.id,
@@ -481,17 +497,26 @@ class ProductSyncService {
           }
         }
 
-        // Clean up sync tracking for products no longer on server
-        const serverIds = new Set(serverProducts.map(p => p.id));
-        await db.synced_product_ids
-          .where('serverId')
-          .noneOf(Array.from(serverIds))
-          .delete();
+        for (const id of deletedIds) {
+          await db.products_all.delete(id);
+          await db.product_images.where('[entityId+entityType]').equals([id, 'product']).delete();
+          const mapping = await db.synced_product_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_product_ids.delete(mapping.localId);
+        }
       });
-    } catch (error) {
-      console.error('Error fetching server products:', error);
-      // Don't throw - sync can continue without fresh server data
+
+      totalFetched += updatedRecords.length;
+      onProgress?.({ entity: 'products', fetched: totalFetched });
+      if (updatedRecords.length < LIMIT) break;
+      offset += LIMIT;
+      isFirstPage = false;
     }
+
+    await db.sync_metadata.put({
+      entity: 'products',
+      lastSyncedAt: new Date().toISOString(),
+      lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+    });
   }
 
   // 🔍 Check for content-based duplicates
