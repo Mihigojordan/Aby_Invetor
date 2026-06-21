@@ -462,21 +462,39 @@ class SalesReturnSyncService {
 //   }
 
   /**
-   * Fetch and update local data from server
+   * Fetch and update local data from server (delta sync)
    */
-  async fetchAndUpdateLocal() {
-    try {
-      const serverSalesReturns = await salesReturnService.getAllSalesReturns();
-      const salesReturnsData = serverSalesReturns.data || serverSalesReturns;
-      
-      console.log('******** => + FETCHING AND UPDATING SALES RETURN DATA ', salesReturnsData.length);
+  async fetchAndUpdateLocal(onProgress = null) {
+    const meta = await db.sync_metadata.get('salesReturns');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+    const LIMIT = 200;
+    let offset = 0;
+    let totalFetched = 0;
+    let isFirstPage = true;
+
+    while (true) {
+      let result;
+      try {
+        result = await salesReturnService.getAllSalesReturns(lastSyncedAt, {}, { limit: LIMIT, offset });
+      } catch (fetchError) {
+        console.error('[salesReturns] Fetch failed — local data preserved:', fetchError);
+        return;
+      }
+
+      const { data: updatedRecords = [], deletedIds = [] } = result;
+
+      if (isFirstPage && !lastSyncedAt && updatedRecords.length === 0) {
+        console.warn('[salesReturns] Empty full-fetch — skipping to preserve local data');
+        return;
+      }
 
       await db.transaction('rw', db.sales_returns_all, db.sales_return_items_all, async () => {
-        await db.sales_returns_all.clear();
-        await db.sales_return_items_all.clear();
-        console.log('✨ Cleared local sales returns, replacing with server data');
+        if (isFirstPage && !lastSyncedAt) {
+          await db.sales_returns_all.clear();
+          await db.sales_return_items_all.clear();
+        }
 
-        for (const serverReturn of salesReturnsData) {
+        for (const serverReturn of updatedRecords) {
           await db.sales_returns_all.put({
             id: serverReturn.id,
             transactionId: serverReturn.transactionId,
@@ -485,7 +503,6 @@ class SalesReturnSyncService {
             createdAt: serverReturn.createdAt
           });
 
-          // Save items if present
           if (serverReturn.items && Array.isArray(serverReturn.items)) {
             for (const item of serverReturn.items) {
               await db.sales_return_items_all.put({
@@ -498,12 +515,24 @@ class SalesReturnSyncService {
           }
         }
 
-        console.log(`✅ Replaced local data with ${salesReturnsData.length} sales returns`);
+        for (const id of deletedIds) {
+          await db.sales_returns_all.delete(id);
+          await db.sales_return_items_all.where('salesReturnId').equals(id).delete();
+        }
       });
 
-    } catch (error) {
-      console.error('Error fetching server sales return data:', error);
+      totalFetched += updatedRecords.length;
+      onProgress?.({ entity: 'salesReturns', fetched: totalFetched });
+      if (updatedRecords.length < LIMIT) break;
+      offset += LIMIT;
+      isFirstPage = false;
     }
+
+    await db.sync_metadata.put({
+      entity: 'salesReturns',
+      lastSyncedAt: new Date().toISOString(),
+      lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+    });
   }
 
   // Helper methods

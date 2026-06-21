@@ -17,15 +17,17 @@ class CategoryService {
         }
     }
 
-    async getAllCategories() {
+    async getAllCategories(updatedAfter = null, { limit = 200, offset = 0 } = {}) {
         try {
-            const response = await api.get('/category/all');
-            return response.data;
+            const params = { limit, offset };
+            if (updatedAfter) params.updatedAfter = updatedAfter;
+            const response = await api.get('/category/all', { params });
+            return response.data; // { data: [...], deletedIds: [] }
         } catch (error) {
             console.error('Error fetching categories:', error);
             const errorMessage =
-                error.response.data.message ||
-                error.response.data.error ||
+                error.response?.data?.message ||
+                error.response?.data?.error ||
                 error.message ||
                 'Failed to fetch categories';
             throw new Error(errorMessage);

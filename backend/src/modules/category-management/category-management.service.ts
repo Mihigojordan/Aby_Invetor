@@ -77,11 +77,20 @@ export class CategoryManagementService {
     }
   }
 
-  // ================= GET ALL =================
-  async getAllCategories(p0: number, p1: number) {
+  // ================= GET ALL (supports delta sync via updatedAfter) =================
+  async getAllCategories(updatedAfter?: string, take = 200, skip = 0) {
     try {
-      const categories = await this.prismaService.category.findMany();
-      return categories;
+      const where: any = {};
+      if (updatedAfter) {
+        where.updatedAt = { gte: new Date(updatedAfter) };
+      }
+      const categories = await this.prismaService.category.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { updatedAt: 'asc' },
+      });
+      return { data: categories, deletedIds: [] };
     } catch (error) {
       console.error('Error getting categories:', error);
       throw new Error(error.message);

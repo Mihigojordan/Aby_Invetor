@@ -18,7 +18,95 @@ class StockOutSyncService {
 
   // ==================== MAIN SYNC METHODS ====================
 
+  // Recover stockouts that were confirmed by the server but whose local save was interrupted by a crash
+  async recoverPendingCleanups() {
+    try {
+      const pending = await db.stockout_pending_cleanup.toArray();
+      if (pending.length === 0) return;
+
+      console.log(`🔧 Recovering ${pending.length} interrupted sync(s) from pending_cleanup...`);
+      for (const entry of pending) {
+        for (let i = 0; i < entry.localIds.length; i++) {
+          const localId = entry.localIds[i];
+          const serverId = entry.serverIds[i];
+          if (localId == null || serverId == null) continue;
+
+          await db.synced_stockout_ids.put({
+            localId,
+            serverId,
+            syncedAt: entry.confirmedAt || new Date()
+          });
+          await db.stockouts_offline_add.delete(localId).catch(() => {});
+        }
+        await db.stockout_pending_cleanup.delete(entry.transactionId);
+        console.log(`✅ Recovered transaction ${entry.transactionId} — ${entry.localIds.length} stockout(s) finalized`);
+      }
+    } catch (error) {
+      console.warn('Error during pending cleanup recovery:', error);
+    }
+  }
+
+  // Pre-check server for items that were in-flight when a timeout occurred
+  async verifyFlaggedItems() {
+    try {
+      const flagged = await db.stockouts_offline_add
+        .filter(item => item.needsServerVerification === true)
+        .toArray();
+
+      if (flagged.length === 0) return;
+
+      console.log(`🔍 Pre-flight: verifying ${flagged.length} flagged item(s) against server...`);
+
+      const byTxId = new Map();
+      const noTx = [];
+      for (const item of flagged) {
+        if (item.transactionId) {
+          if (!byTxId.has(item.transactionId)) byTxId.set(item.transactionId, []);
+          byTxId.get(item.transactionId).push(item);
+        } else {
+          noTx.push(item);
+        }
+      }
+
+      for (const [txId, items] of byTxId) {
+        try {
+          const serverResults = await stockOutService.getStockOutByTransactionId(txId);
+          if (serverResults && serverResults.length > 0) {
+            console.log(`✅ Pre-flight: transaction ${txId} already exists on server — cleaning up locally`);
+            await this.cleanupProcessedStockouts(items);
+          } else {
+            // Server doesn't have it — safe to re-submit; clear the verification flag
+            for (const item of items) {
+              await db.stockouts_offline_add.update(item.localId, {
+                needsServerVerification: false
+              }).catch(() => {});
+            }
+          }
+        } catch (err) {
+          console.warn(`Pre-flight check failed for transaction ${txId}:`, err.message);
+          // Leave flag as-is; will retry on next sync
+        }
+      }
+
+      // For items without a transactionId, check synced_stockout_ids
+      for (const item of noTx) {
+        const alreadySynced = await db.synced_stockout_ids.where('localId').equals(item.localId).first();
+        if (alreadySynced) {
+          await db.stockouts_offline_add.delete(item.localId).catch(() => {});
+        } else {
+          await db.stockouts_offline_add.update(item.localId, { needsServerVerification: false }).catch(() => {});
+        }
+      }
+    } catch (error) {
+      console.warn('Error during pre-flight server verification:', error);
+    }
+  }
+
   async syncUnsyncedAdds() {
+    // Recover any interrupted syncs from previous sessions before processing new ones
+    await this.recoverPendingCleanups();
+    await this.verifyFlaggedItems();
+
     const unsyncedAdds = await db.stockouts_offline_add.toArray();
     console.log('******** => + ADDING UNSYNCED STOCK-OUTS ', unsyncedAdds.length);
 
@@ -357,11 +445,27 @@ class StockOutSyncService {
 
       // Save successful results
       if (processedStockouts > 0) {
+        const successfulSales = preparedSalesData.slice(0, processedStockouts);
+        const successfulServerItems = serverStockOuts.slice(0, processedStockouts);
+
+        // Write a crash-safety marker BEFORE the local save.
+        // If the process crashes between the server response and the Dexie transaction,
+        // recoverPendingCleanups() will finalize these on next startup without re-submitting.
+        await db.stockout_pending_cleanup.put({
+          transactionId,
+          localIds: successfulSales.map(s => s.originalStockOut.localId),
+          serverIds: successfulServerItems.map(s => s.id),
+          confirmedAt: new Date()
+        }).catch(err => console.warn('Could not write pending_cleanup marker:', err));
+
         await this.saveTransactionResults(
-          serverStockOuts.slice(0, processedStockouts),
-          preparedSalesData.slice(0, processedStockouts),
+          successfulServerItems,
+          successfulSales,
           transactionId
         );
+
+        // Remove the crash-safety marker only after the local save succeeded
+        await db.stockout_pending_cleanup.delete(transactionId).catch(() => {});
       }
 
       // Handle failed stockouts
@@ -464,17 +568,10 @@ class StockOutSyncService {
 
   async checkForRecentTransactionDuplicate(transactionId, stockouts) {
     try {
-      const timeWindow = 5 * 60 * 1000; // 5 minutes
-      const cutoffTime = new Date(Date.now() - timeWindow);
-
-      // First check by transactionId directly
+      // Check by transactionId in local cache — no time window; transactionId is globally unique
       if (transactionId) {
         const existingByTransactionId = await db.stockouts_all
           .where('transactionId').equals(transactionId)
-          .and(item => {
-            const itemTime = new Date(item.updatedAt || item.lastModified || item.createdAt);
-            return itemTime > cutoffTime;
-          })
           .first();
 
         if (existingByTransactionId) {
@@ -482,27 +579,16 @@ class StockOutSyncService {
         }
       }
 
-      // Check individual stockouts
+      // Also verify against the synced ID mapping for each item
       for (const stockOut of stockouts) {
-        if (!this.isValidStockinId(stockOut.stockinId)) {
-          console.warn(`Skipping duplicate check for stockout ${stockOut.localId} - invalid stockinId:`, stockOut.stockinId);
-          continue;
-        }
-
-        const recentDuplicate = await db.stockouts_all
-          .where('stockinId').equals(stockOut.stockinId)
-          .and(item =>
-            item.quantity === stockOut.quantity &&
-            item.clientName === stockOut.clientName &&
-            item.transactionId === transactionId &&
-            new Date(item.updatedAt || item.lastModified || item.createdAt) > cutoffTime
-          )
+        const alreadySynced = await db.synced_stockout_ids
+          .where('localId').equals(stockOut.localId)
           .first();
-
-        if (recentDuplicate) {
+        if (alreadySynced) {
           return true;
         }
       }
+
       return false;
     } catch (error) {
       console.warn('Error checking for transaction duplicates:', error);
@@ -512,25 +598,11 @@ class StockOutSyncService {
 
   async checkForContentDuplicate(stockOut) {
     try {
-      const timeWindow = 10 * 60 * 1000; // 10 minutes
-      const cutoffTime = new Date(Date.now() - timeWindow);
-
-      if (!this.isValidStockinId(stockOut.stockinId)) {
-        console.warn(`Skipping content duplicate check for stockout ${stockOut.localId} - invalid stockinId:`, stockOut.stockinId);
-        return false;
-      }
-
-      const potentialDuplicates = await db.stockouts_all
-        .where('stockinId').equals(stockOut.stockinId)
-        .and(item =>
-          item.quantity === stockOut.quantity &&
-          item.clientName === stockOut.clientName &&
-          item.soldPrice === stockOut.soldPrice &&
-          new Date(item.updatedAt || item.lastModified || item.createdAt) > cutoffTime
-        )
-        .count();
-
-      return potentialDuplicates > 0;
+      // Use synced ID mapping as the authoritative duplicate check — avoids any time-window issues
+      const alreadySynced = await db.synced_stockout_ids
+        .where('localId').equals(stockOut.localId)
+        .first();
+      return !!alreadySynced;
     } catch (error) {
       console.warn('Error checking for content duplicates:', error);
       return false;
@@ -995,14 +1067,29 @@ const stockOutRecord = {
           )
         ]);
       } catch (error) {
-        console.warn('Previous sync timed out or failed, proceeding with new sync');
+        console.warn('Previous sync timed out — flagging in-flight items for server verification before clearing');
+        // Flag items that were mid-flight so next sync pre-checks server before re-submitting
+        for (const localId of this.processingLocalIds) {
+          await db.stockouts_offline_add.update(localId, {
+            needsServerVerification: true,
+            lastSyncAttempt: new Date()
+          }).catch(() => {});
+        }
+        for (const txId of this.processingTransactionIds) {
+          const items = await db.stockouts_offline_add
+            .where('transactionId').equals(txId).toArray().catch(() => []);
+          for (const item of items) {
+            await db.stockouts_offline_add.update(item.localId, {
+              needsServerVerification: true
+            }).catch(() => {});
+          }
+        }
         this.syncLock = null;
         this.isSyncing = false;
-        // Clear stale processing flags after timeout
         this.processingLocalIds.clear();
         this.processingTransactionIds.clear();
       }
-      
+
       if (this.isSyncing) {
         return { success: false, error: 'Sync already in progress' };
       }
@@ -1084,73 +1171,97 @@ const stockOutRecord = {
       !this.lastSyncTime;
   }
 
-  async fetchAndUpdateLocal() {
-    try {
-      // Fetch StockOuts
-      const serverStockOuts = await stockOutService.getAllStockOuts();
-      console.log('******** => + FETCHING AND UPDATING STOCK-OUT DATA ', serverStockOuts.length);
+  async fetchAndUpdateLocal(onProgress = null) {
+    // --- Delta sync for stockouts ---
+    const meta = await db.sync_metadata.get('stockOuts');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+    const LIMIT = 200;
+    let offset = 0;
+    let totalFetched = 0;
+    let isFirstPage = true;
+
+    while (true) {
+      let result;
+      try {
+        result = await stockOutService.getAllStockOuts(lastSyncedAt, { limit: LIMIT, offset });
+      } catch (fetchError) {
+        console.error('[stockOuts] Fetch failed — local data preserved:', fetchError);
+        break;
+      }
+
+      const { data: updatedRecords = [], deletedIds = [] } = result;
+
+      if (isFirstPage && !lastSyncedAt && updatedRecords.length === 0) {
+        console.warn('[stockOuts] Empty full-fetch — skipping to preserve local data');
+        break;
+      }
 
       await db.transaction('rw', db.stockouts_all, db.synced_stockout_ids, async () => {
-        await db.stockouts_all.clear();
-        console.log('✨ Cleared local stockouts, replacing with server data');
-for (const serverStockOut of serverStockOuts) {
-    await db.stockouts_all.put({
-        id: serverStockOut.id,
-        stockinId: serverStockOut.stockinId,
-        quantity: serverStockOut.quantity,
-        soldPrice: serverStockOut.soldPrice,
-        clientName: serverStockOut.clientName,
-        clientEmail: serverStockOut.clientEmail,
-        clientPhone: serverStockOut.clientPhone,
-        paymentMethod: serverStockOut.paymentMethod,
-        adminId: serverStockOut.adminId,
-        backorderId: serverStockOut.backorderId,
-        employeeId: serverStockOut.employeeId,
-        transactionId: serverStockOut.transactionId,
-        paymentStatus: serverStockOut.paymentStatus || 'PENDING',        // ALREADY THERE
-        debtedAmount: serverStockOut.debtedAmount || 0,                  // ALREADY THER   
-        lastModified: serverStockOut.createdAt || new Date(),
-        createdAt: serverStockOut.createdAt,
-        updatedAt: serverStockOut.updatedAt || new Date()
-    });
-}
+        if (isFirstPage && !lastSyncedAt) await db.stockouts_all.clear();
 
-        const serverIds = new Set(serverStockOuts.map(s => s.id));
-        await db.synced_stockout_ids
-          .where('serverId')
-          .noneOf(Array.from(serverIds))
-          .delete();
+        const records = updatedRecords.map(s => ({
+          id: s.id,
+          stockinId: s.stockinId,
+          quantity: s.quantity,
+          soldPrice: s.soldPrice,
+          clientName: s.clientName,
+          clientEmail: s.clientEmail,
+          clientPhone: s.clientPhone,
+          paymentMethod: s.paymentMethod,
+          adminId: s.adminId,
+          backorderId: s.backorderId,
+          employeeId: s.employeeId,
+          transactionId: s.transactionId,
+          paymentStatus: s.paymentStatus || 'PENDING',
+          debtedAmount: s.debtedAmount || 0,
+          lastModified: s.createdAt || new Date(),
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt || new Date()
+        }));
+        await db.stockouts_all.bulkPut(records);
 
-        console.log(`✅ Replaced local data with ${serverStockOuts.length} stockouts`);
+        for (const id of deletedIds) {
+          await db.stockouts_all.delete(id);
+          const mapping = await db.synced_stockout_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_stockout_ids.delete(mapping.localId);
+        }
       });
 
-      // Fetch Backorders
-      const serverBackorders = await backorderService.getAllBackOrders();
-      console.log('******** => + FETCHING AND UPDATING BACKORDER DATA ', serverBackorders.length);
+      totalFetched += updatedRecords.length;
+      onProgress?.({ entity: 'stockOuts', fetched: totalFetched });
+      if (updatedRecords.length < LIMIT) break;
+      offset += LIMIT;
+      isFirstPage = false;
+    }
 
+    if (totalFetched > 0 || lastSyncedAt) {
+      await db.sync_metadata.put({
+        entity: 'stockOuts',
+        lastSyncedAt: new Date().toISOString(),
+        lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+      });
+    }
+
+    // --- Full refresh for backorders (no updatedAfter API yet) ---
+    try {
+      const serverBackorders = await backorderService.getAllBackOrders();
       await db.transaction('rw', db.backorders_all, async () => {
         await db.backorders_all.clear();
-        console.log('✨ Cleared local backorders, replacing with server data');
-
-        for (const serverBackorder of serverBackorders) {
-          await db.backorders_all.put({
-            id: serverBackorder.id,
-            quantity: serverBackorder.quantity,
-            soldPrice: serverBackorder.soldPrice,
-            productName: serverBackorder.productName,
-            adminId: serverBackorder.adminId,
-            employeeId: serverBackorder.employeeId,
-            lastModified: new Date(),
-            createdAt: serverBackorder.createdAt,
-            updatedAt: serverBackorder.updatedAt || new Date()
-          });
-        }
-
-        console.log(`✅ Replaced local data with ${serverBackorders.length} backorders`);
+        const backorderRecords = serverBackorders.map(b => ({
+          id: b.id,
+          quantity: b.quantity,
+          soldPrice: b.soldPrice,
+          productName: b.productName,
+          adminId: b.adminId,
+          employeeId: b.employeeId,
+          lastModified: new Date(),
+          createdAt: b.createdAt,
+          updatedAt: b.updatedAt || new Date()
+        }));
+        await db.backorders_all.bulkPut(backorderRecords);
       });
-
     } catch (error) {
-      console.error('Error fetching server stockout/backorder data:', error);
+      console.error('Error fetching backorder data:', error);
     }
   }
 
@@ -1246,7 +1357,13 @@ for (const serverStockOut of serverStockOuts) {
           )
         ]);
       } catch (error) {
-        console.warn('Previous sync timed out, forcing new sync');
+        console.warn('Force sync: previous sync timed out — flagging in-flight items for server verification');
+        for (const localId of this.processingLocalIds) {
+          await db.stockouts_offline_add.update(localId, {
+            needsServerVerification: true,
+            lastSyncAttempt: new Date()
+          }).catch(() => {});
+        }
         this.syncLock = null;
         this.isSyncing = false;
         this.processingLocalIds.clear();
@@ -1262,6 +1379,11 @@ for (const serverStockOut of serverStockOuts) {
     window.addEventListener('online', this.handleOnline.bind(this));
     window.addEventListener('focus', this.handleFocus.bind(this));
 
+    // Reset retry counts once per browser session so transient failures don't permanently kill sync
+    this.resetRetryCountsOnStartup().catch(err =>
+      console.warn('Could not reset retry counts:', err)
+    );
+
     // Enhanced cleanup interval with error handling
     this.cleanupInterval = setInterval(async () => {
       try {
@@ -1272,6 +1394,15 @@ for (const serverStockOut of serverStockOuts) {
     }, 30 * 60 * 1000); // Every 30 minutes
 
     console.log('✅ Auto-sync event listeners registered');
+  }
+
+  async resetRetryCountsOnStartup() {
+    if (sessionStorage.getItem('stockoutSyncResetDone')) return;
+    sessionStorage.setItem('stockoutSyncResetDone', '1');
+    await db.stockouts_offline_add
+      .filter(item => item.syncRetryCount > 0 && item.syncRetryCount < 5)
+      .modify({ syncRetryCount: 0, syncError: null });
+    console.log('✅ Sync retry counts reset for new session');
   }
 
   async handleOnline() {

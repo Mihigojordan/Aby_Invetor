@@ -82,69 +82,59 @@ class StockOutService {
      * @param {string} [userInfo.employeeId] - Employee ID
      * @returns {Promise<Object>} Created stock-out transaction with success message
      */
-     async createMultipleStockOut(salesArray, clientInfo = {}, userInfo = {}) {
+     async createMultipleStockOut(salesArray, clientInfo = {}, userInfo = {}, options = {}) {
     try {
-      
-      
       // Validate sales array
       if (!Array.isArray(salesArray) || salesArray.length === 0) {
         throw new Error('At least one sale is required');
       }
 
-    console.warn('SALES :',salesArray);
-    
+      console.warn('SALES :', salesArray);
 
       // Validate each sale item
-for (const sale of salesArray) {
-  if (sale.isBackOrder) {
-    // Validate back order
-    if (!sale.quantity) {
-      throw new Error('Quantity is required for back order');
-    }
-    if (!sale.soldPrice) {
-      throw new Error('Sold price is required for back order');
-    }
-    if (!sale.backOrder || !sale.backOrder.productName || !sale.backOrder.sellingPrice) {
-      throw new Error('Back order must have product name and selling price');
-    }
-  } else {
-    // Validate stock-in sale
-    if (!sale.stockinId || !sale.quantity || !sale.soldPrice) {
-      throw new Error('Each stock-in sale must have stockinId, quantity, and soldPrice');
-    }
-  }
-}
+      for (const sale of salesArray) {
+        if (sale.isBackOrder) {
+          if (!sale.quantity) throw new Error('Quantity is required for back order');
+          if (!sale.soldPrice) throw new Error('Sold price is required for back order');
+          if (!sale.backOrder || !sale.backOrder.productName || !sale.backOrder.sellingPrice) {
+            throw new Error('Back order must have product name and selling price');
+          }
+        } else {
+          if (!sale.stockinId || !sale.quantity || !sale.soldPrice) {
+            throw new Error('Each stock-in sale must have stockinId, quantity, and soldPrice');
+          }
+        }
+      }
 
       // Format sales data to match backend expectations
-const formattedSales = salesArray.map(sale => {
-  if (sale.isBackOrder) {
-    return {
-      stockinId: null, // No stockinId for back orders
-      quantity: Number(sale.quantity),
-      soldPrice: Number(sale.soldPrice), // Add this
-      isBackOrder: true,
-         paymentStatus: sale.paymentStatus,
-    debtedAmount: sale.debtedAmount,
-  
-      backOrder: {
-        productName: sale.backOrder.productName,
-        quantity: Number(sale.quantity), // Back order quantity matches sales quantity
-        sellingPrice: Number(sale.backOrder.sellingPrice)
-      }
-    };
-  } else {
-    return {
-      stockinId: sale.stockinId,
-      quantity: Number(sale.quantity),
-      soldPrice: Number(sale.soldPrice), // Add this
-      isBackOrder: false,
-       paymentStatus: sale.paymentStatus,
-    debtedAmount: sale.debtedAmount,
-    
-      backOrder: null
-    };
-  }
-});
+      const formattedSales = salesArray.map(sale => {
+        if (sale.isBackOrder) {
+          return {
+            stockinId: null,
+            quantity: Number(sale.quantity),
+            soldPrice: Number(sale.soldPrice),
+            isBackOrder: true,
+            paymentStatus: sale.paymentStatus,
+            debtedAmount: sale.debtedAmount,
+            backOrder: {
+              productName: sale.backOrder.productName,
+              quantity: Number(sale.quantity),
+              sellingPrice: Number(sale.backOrder.sellingPrice)
+            }
+          };
+        } else {
+          return {
+            stockinId: sale.stockinId,
+            quantity: Number(sale.quantity),
+            soldPrice: Number(sale.soldPrice),
+            isBackOrder: false,
+            paymentStatus: sale.paymentStatus,
+            debtedAmount: sale.debtedAmount,
+            backOrder: null
+          };
+        }
+      });
+
       const requestData = {
         sales: formattedSales,
         clientName: clientInfo.clientName || undefined,
@@ -152,10 +142,18 @@ const formattedSales = salesArray.map(sale => {
         clientPhone: clientInfo.clientPhone || undefined,
         paymentMethod: clientInfo.paymentMethod || undefined,
         adminId: userInfo.adminId || undefined,
-        employeeId: userInfo.employeeId || undefined
+        employeeId: userInfo.employeeId || undefined,
+        // Pass the client's transactionId so the server can detect duplicate submissions
+        clientTransactionId: options.transactionId || undefined,
       };
 
-      const response = await api.post('/stockout/create', requestData);
+      // Build request headers — include idempotency key when provided
+      const headers = {};
+      if (options.idempotencyKey) {
+        headers['Idempotency-Key'] = options.idempotencyKey;
+      }
+
+      const response = await api.post('/stockout/create', requestData, { headers });
       return response.data;
     } catch (error) {
       console.error('Error creating multiple stock-out:', error);
@@ -167,10 +165,12 @@ const formattedSales = salesArray.map(sale => {
      * Get all stock-out entries
      * @returns {Promise<Array>} Array of stock-out entries with related details
      */
-    async getAllStockOuts() {
+    async getAllStockOuts(updatedAfter = null, { limit = 200, offset = 0 } = {}) {
         try {
-            const response = await api.get('/stockout/all');
-            return response.data;
+            const params = { limit, offset };
+            if (updatedAfter) params.updatedAfter = updatedAfter;
+            const response = await api.get('/stockout/all', { params });
+            return response.data; // { data: [...], deletedIds: [] }
         } catch (error) {
             console.error('Error fetching all stock-outs:', error);
             throw new Error(error?.response?.data?.message || error?.message || 'Failed to fetch stock-outs');

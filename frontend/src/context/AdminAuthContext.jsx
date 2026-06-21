@@ -353,8 +353,8 @@ export const AdminAuthContextProvider = ({ children }) => {
             if (loginResponse.authenticated) {
                 console.log("Re-login successful ✅");
 
-                // Refresh user profile
-                const userProfile = await adminAuthService.getAdminProfile();
+                // Use the user data from the login response if available; otherwise fetch profile once
+                const userProfile = loginResponse.user ?? loginResponse.admin ?? await adminAuthService.getAdminProfile();
 
                 updateAuthState({
                     user: userProfile,

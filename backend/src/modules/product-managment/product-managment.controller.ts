@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -36,8 +37,16 @@ export class ProductManagmentController {
   }
 
   @Get('all')
-  async findAll() {
-    return this.productService.getAllProducts();
+  async findAll(
+    @Query('updatedAfter') updatedAfter?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.productService.getAllProducts(
+      updatedAfter,
+      limit ? +limit : 200,
+      offset ? +offset : 0,
+    );
   }
 
   @Get('getone/:id')

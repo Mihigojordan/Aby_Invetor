@@ -24,6 +24,7 @@ import { RequisitionModule } from './modules/requisition-management/requisition.
 import { StockRequisitionModule } from './modules/stock-requisition/stock-requisition.module';
 import { ExpenseModule } from './modules/expense-management/expense.module';
 import { CreditModule } from './modules/credit-management/credit.module';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { CreditModule } from './modules/credit-management/credit.module';
     StockRequisitionModule,
     ExpenseModule,
     CreditModule,
+    IdempotencyModule,
   ],
   controllers: [AppController],
   providers: [],

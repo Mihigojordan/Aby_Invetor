@@ -1,7 +1,6 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Barcode, Calendar, Eye, RefreshCw, ChevronLeft, ChevronRight, Printer, Wifi, WifiOff, RotateCcw, TrendingUp, Grid3x3, Table2, Filter, Truck, Box, Layers, ArrowDownToLine, PackagePlus } from 'lucide-react';
-import productService from '../../services/productService';
 import UpsertStockInModal from '../../components/dashboard/stockin/UpsertStockInModel';
 import DeleteStockInModal from '../../components/dashboard/stockin/DeleteStockInModel';
 import ViewStockInModal from '../../components/dashboard/stockin/ViewStockInModal';
@@ -19,7 +18,6 @@ import useScreenBelow from '../../hooks/useScreenBelow';
 const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
   const [products, setProducts] = useState([]);
-  const [filteredStockIns, setFilteredStockIns] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -55,34 +53,31 @@ const StockInManagement = ({ role }) => {
     }
   }, [syncError]);
 
-  useEffect(() => {
+  const filteredStockIns = useMemo(() => {
     let filtered = stockIns || [];
-    // Apply search filter
     if (searchTerm) {
-      filtered = filtered.filter(stockIn =>
-        stockIn.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stockIn.supplier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stockIn.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+      const lower = searchTerm.toLowerCase();
+      filtered = filtered.filter(s =>
+        s.product?.productName?.toLowerCase().includes(lower) ||
+        s.supplier?.toLowerCase().includes(lower) ||
+        s.sku?.toLowerCase().includes(lower)
       );
     }
-    // Apply date filter
     if (startDate || endDate) {
-      filtered = filtered.filter(stockIn => {
-        const stockDate = new Date(stockIn[dateFilterField] || stockIn.lastModified);
+      filtered = filtered.filter(s => {
+        const d = new Date(s[dateFilterField] || s.lastModified);
         const start = startDate ? new Date(startDate) : null;
         const end = endDate ? new Date(endDate) : null;
-        if (start && end && start > end) return true; // Invalid range, show all
-        if (start && stockDate < start) return false;
-        if (end) {
-          end.setHours(23, 59, 59, 999); // Include entire end date
-          if (stockDate > end) return false;
-        }
+        if (start && end && start > end) return true;
+        if (start && d < start) return false;
+        if (end) { end.setHours(23, 59, 59, 999); if (d > end) return false; }
         return true;
       });
     }
-    setFilteredStockIns(filtered);
-    setCurrentPage(1);
+    return filtered;
   }, [searchTerm, startDate, endDate, dateFilterField, stockIns]);
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, startDate, endDate, dateFilterField]);
 
      useEffect(()=>{
     if(isBelow){
@@ -97,20 +92,6 @@ const StockInManagement = ({ role }) => {
 
   const fetchProducts = async () => {
     try {
-      if (isOnline) {
-        const response = await productService.getAllProducts();
-        for (const p of response.products || response) {
-          await db.products_all.put({
-            id: p.id,
-            productName: p.productName,
-            categoryId: p.categoryId,
-            description: p.description,
-            brand: p.brand,
-            lastModified: p.createdAt || new Date(),
-            updatedAt: p.updatedAt || new Date()
-          });
-        }
-      }
       const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.products_all.toArray(),
         db.products_offline_add.toArray(),
@@ -119,28 +100,14 @@ const StockInManagement = ({ role }) => {
       ]);
       const deleteIds = new Set(offlineDeletes.map(d => d.id));
       const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-      const combinedProducts = allProducts
+      return allProducts
         .filter(c => !deleteIds.has(c.id))
         .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
         .concat(offlineAdds.map(a => ({ ...a, synced: false })))
         .sort((a, b) => a.synced - b.synced);
-      return combinedProducts;
     } catch (error) {
-      console.error('Error fetching products:', error);
-      const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
-        db.products_all.toArray(),
-        db.products_offline_add.toArray(),
-        db.products_offline_update.toArray(),
-        db.products_offline_delete.toArray()
-      ]);
-      const deleteIds = new Set(offlineDeletes.map(d => d.id));
-      const updateMap = new Map(offlineUpdates.map(u => [u.id, u]));
-      const combinedProducts = allProducts
-        .filter(c => !deleteIds.has(c.id))
-        .map(c => ({ ...c, ...updateMap.get(c.id), synced: true }))
-        .concat(offlineAdds.map(a => ({ ...a, synced: false })))
-        .sort((a, b) => a.synced - b.synced);
-      return combinedProducts;
+      console.error('Error fetching products from IndexedDB:', error);
+      return [];
     }
   };
 
@@ -204,7 +171,6 @@ const StockInManagement = ({ role }) => {
 
         ;
       setStockIns(combinedStockIns);
-      setFilteredStockIns(combinedStockIns);
       if (showRefreshLoader) {
         showNotification('Stock entries refreshed successfully!');
       }

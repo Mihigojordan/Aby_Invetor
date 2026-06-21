@@ -92,10 +92,12 @@ async createMultipleStockIn(purchasesArray, userInfo = {}) {
    * Get all stock-in entries
    * @returns {Promise<Array>} Array of stock-in entries with product details
    */
-  async getAllStockIns() {
+  async getAllStockIns(updatedAfter = null, { limit = 200, offset = 0 } = {}) {
     try {
-      const response = await api.get('/stockin/all');
-      return response.data;
+      const params = { limit, offset };
+      if (updatedAfter) params.updatedAfter = updatedAfter;
+      const response = await api.get('/stockin/all', { params });
+      return response.data; // { data: [...], deletedIds: [] }
     } catch (error) {
       console.error('Error fetching all stock-ins:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to fetch stock-ins');

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
 import { SalesReturnService } from './salesReturn.service';
 
 @Controller('sales-return')
@@ -11,8 +11,16 @@ export class SalesReturnController {
   }
 
   @Get()
-  async findAll() {
-    return this.salesReturnService.findAll();
+  async findAll(
+    @Query('updatedAfter') updatedAfter?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.salesReturnService.findAll(
+      updatedAfter,
+      limit ? +limit : 200,
+      offset ? +offset : 0,
+    );
   }
 
   @Get(':id')

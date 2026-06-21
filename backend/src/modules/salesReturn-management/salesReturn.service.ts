@@ -168,10 +168,18 @@ export class SalesReturnService {
     };
   }
 
-  // Get all sales returns
-  async findAll() {
+  // Get all sales returns (supports delta sync via updatedAfter + pagination)
+  async findAll(updatedAfter?: string, take = 200, skip = 0) {
     try {
+      const where: any = {};
+      if (updatedAfter) {
+        where.updatedAt = { gte: new Date(updatedAfter) };
+      }
       const returns = await this.prisma.salesReturn.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { updatedAt: 'asc' },
         include: {
           items: {
             include: {
@@ -194,6 +202,7 @@ export class SalesReturnService {
       return {
         message: 'Sales returns retrieved successfully',
         data: returns,
+        deletedIds: [],
       };
     } catch (error) {
       throw new BadRequestException(error.message);

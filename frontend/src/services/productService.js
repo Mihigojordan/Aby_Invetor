@@ -66,10 +66,12 @@ class ProductService {
    * Get all products
    * @returns {Promise<Array>} Array of all products with categories
    */
-  async getAllProducts() {
+  async getAllProducts(updatedAfter = null, { limit = 200, offset = 0 } = {}) {
     try {
-      const response = await api.get(`${this.apiPath}/all`);
-      return response.data;
+      const params = { limit, offset };
+      if (updatedAfter) params.updatedAfter = updatedAfter;
+      const response = await api.get(`${this.apiPath}/all`, { params });
+      return response.data; // { data: [...], deletedIds: [] }
     } catch (error) {
       console.error('Error fetching products:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch products';

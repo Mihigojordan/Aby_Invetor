@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Edit3, Trash2, Package, DollarSign, Hash, User, Check, AlertTriangle, Calendar, Eye, Phone, Mail, Receipt, Wifi, WifiOff, RotateCcw, RefreshCw, ChevronLeft, ChevronRight, FileText, TrendingUp, X, Grid3x3, Table2, Filter, Truck, ShoppingBag, ArrowUpToLine, CreditCard, Smartphone, HandCoins, CreditCardIcon } from 'lucide-react';
 import stockOutService from '../../services/stockoutService';
 import stockInService from '../../services/stockinService';
@@ -21,8 +21,8 @@ import UpdatePaymentModal from '../../components/dashboard/stockout/UpdatePaymen
 const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
   const [stockIns, setStockIns] = useState([]);
-  const [filteredStockOuts, setFilteredStockOuts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -35,7 +35,7 @@ const StockOutManagement = ({ role }) => {
   const [notification, setNotification] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const { isOnline } = useNetworkStatusContext();
-  const { triggerSync, syncError } = useStockOutOfflineSync();
+  const { triggerSync, syncError, isSyncing, unsyncedStockOuts, lastSync } = useStockOutOfflineSync();
   const [isInvoiceNoteOpen, setIsInvoiceNoteOpen] = useState(false);
   const [transactionId, setTransactionId] = useState(null);
   const { user: employeeData } = useEmployeeAuth();
@@ -86,27 +86,34 @@ const StockOutManagement = ({ role }) => {
     }
   }, [notification]);
 
+  // Debounce the search term so filtering only runs 300ms after the user stops typing
   useEffect(() => {
-    const filtered = stockOuts.filter(stockOut => {
-      const matchesSearch =
-        stockOut.stockin?.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stockOut.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stockOut.clientEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stockOut.clientPhone?.includes(searchTerm) ||
-        stockOut.transactionId?.toLowerCase().includes(searchTerm.toLowerCase());
+    const handler = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, startDate, endDate]);
+
+  // Derived state — no useState needed; recomputes only when dependencies change
+  const filteredStockOuts = useMemo(() => {
+    const term = debouncedSearchTerm.toLowerCase();
+    const start = startDate ? (() => { const d = new Date(startDate); d.setHours(0,0,0,0); return d; })() : null;
+    const end   = endDate   ? (() => { const d = new Date(endDate);   d.setHours(23,59,59,999); return d; })() : null;
+    return stockOuts.filter(stockOut => {
+      const matchesSearch = !term ||
+        stockOut.stockin?.product?.productName?.toLowerCase().includes(term) ||
+        stockOut.clientName?.toLowerCase().includes(term) ||
+        stockOut.clientEmail?.toLowerCase().includes(term) ||
+        stockOut.clientPhone?.includes(debouncedSearchTerm) ||
+        stockOut.transactionId?.toLowerCase().includes(term);
       const stockOutDate = new Date(stockOut.createdAt || stockOut.lastModified);
-      const start = startDate ? new Date(startDate) : null;
-      const end = endDate ? new Date(endDate) : null;
-      if (start) start.setHours(0, 0, 0, 0);
-      if (end) end.setHours(23, 59, 59, 999);
-      const matchesDate =
-        (!start || stockOutDate >= start) &&
-        (!end || stockOutDate <= end);
+      const matchesDate = (!start || stockOutDate >= start) && (!end || stockOutDate <= end);
       return matchesSearch && matchesDate;
     });
-    setFilteredStockOuts(filtered);
-    setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, stockOuts]);
+  }, [stockOuts, debouncedSearchTerm, startDate, endDate]);
 
   useEffect(() => {
     const stats = calculateStockOutStatistics(filteredStockOuts);
@@ -238,7 +245,6 @@ const StockOutManagement = ({ role }) => {
       const convertedStockIns = Array.from(stockinMap.values());
 
       setStockOuts(combinedStockOuts);
-      setFilteredStockOuts(combinedStockOuts);
       setStockIns(convertedStockIns);
 
       if (showRefreshLoader) {
@@ -269,31 +275,34 @@ const StockOutManagement = ({ role }) => {
     try {
       if (isOnline) {
         const response = await stockInService.getAllStockIns();
-        for (const si of response) {
-          await db.stockins_all.put({
-            id: si.id,
-            productId: si.productId,
-            quantity: si.quantity,
-            price: si.price,
-            sellingPrice: si.sellingPrice,
-            supplier: si.supplier,
-            sku: si.sku,
-            barcodeUrl: si.barcodeUrl,
+        // Batch-write all stockins in one IndexedDB transaction instead of N individual puts
+        const stockinRecords = response.map(si => ({
+          id: si.id,
+          productId: si.productId,
+          quantity: si.quantity,
+          price: si.price,
+          sellingPrice: si.sellingPrice,
+          supplier: si.supplier,
+          sku: si.sku,
+          barcodeUrl: si.barcodeUrl,
+          lastModified: new Date(),
+          updatedAt: si.updatedAt || new Date()
+        }));
+        await db.stockins_all.bulkPut(stockinRecords);
+
+        // Also persist embedded product data in bulk
+        const productRecords = response
+          .filter(si => si.product)
+          .map(si => ({
+            id: si.product.id,
+            productName: si.product.productName,
+            categoryId: si.product.categoryId,
+            description: si.product.description,
+            brand: si.product.brand,
             lastModified: new Date(),
-            updatedAt: si.updatedAt || new Date()
-          });
-          if (si.product && !(await db.products_all.get(si.product.id))) {
-            await db.products_all.put({
-              id: si.product.id,
-              productName: si.product.productName,
-              categoryId: si.product.categoryId,
-              description: si.product.description,
-              brand: si.product.brand,
-              lastModified: new Date(),
-              updatedAt: new Date()
-            });
-          }
-        }
+            updatedAt: new Date()
+          }));
+        if (productRecords.length) await db.products_all.bulkPut(productRecords);
       }
       const [allStockin, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.stockins_all.toArray(),
@@ -321,19 +330,18 @@ const StockOutManagement = ({ role }) => {
     try {
       if (isOnline) {
         const response = await backOrderService.getAllBackOrders();
-        for (const b of response.backorders || response) {
-          await db.backorders_all.put({
-            id: b.id,
-            quantity: b.quantity,
-            soldPrice: b.soldPrice,
-            productName: b.productName,
-            adminId: b.adminId,
-            employeeId: b.employeeId,
-            lastModified: b.lastModified || new Date(),
-            createdAt: b.createdAt || new Date(),
-            updatedAt: b.updatedAt || new Date()
-          });
-        }
+        const backorderRecords = (response.backorders || response).map(b => ({
+          id: b.id,
+          quantity: b.quantity,
+          soldPrice: b.soldPrice,
+          productName: b.productName,
+          adminId: b.adminId,
+          employeeId: b.employeeId,
+          lastModified: b.lastModified || new Date(),
+          createdAt: b.createdAt || new Date(),
+          updatedAt: b.updatedAt || new Date()
+        }));
+        await db.backorders_all.bulkPut(backorderRecords);
       }
       const [allBackOrder, offlineAdds] = await Promise.all([
         db.backorders_all.toArray(),
@@ -364,17 +372,16 @@ const StockOutManagement = ({ role }) => {
     try {
       if (isOnline) {
         const response = await productService.getAllProducts();
-        for (const p of response.products || response) {
-          await db.products_all.put({
-            id: p.id,
-            productName: p.productName,
-            categoryId: p.categoryId,
-            description: p.description,
-            brand: p.brand,
-            lastModified: p.createdAt || new Date(),
-            updatedAt: p.updatedAt || new Date()
-          });
-        }
+        const productRecords = (response.products || response).map(p => ({
+          id: p.id,
+          productName: p.productName,
+          categoryId: p.categoryId,
+          description: p.description,
+          brand: p.brand,
+          lastModified: p.createdAt || new Date(),
+          updatedAt: p.updatedAt || new Date()
+        }));
+        await db.products_all.bulkPut(productRecords);
       }
       const [allProducts, offlineAdds, offlineUpdates, offlineDeletes] = await Promise.all([
         db.products_all.toArray(),
@@ -914,9 +921,11 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
   };
 
   const totalPages = Math.ceil(filteredStockOuts.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredStockOuts.slice(startIndex, endIndex);
+  const pageStartIndex = (currentPage - 1) * itemsPerPage;
+  const pageEndIndex = pageStartIndex + itemsPerPage;
+  const currentItems = useMemo(() => {
+    return filteredStockOuts.slice(pageStartIndex, pageEndIndex);
+  }, [filteredStockOuts, currentPage, itemsPerPage]);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -936,7 +945,6 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
     setSearchTerm('');
     setStartDate('');
     setEndDate('');
-    setFilteredStockOuts(stockOuts);
     setCurrentPage(1);
   };
 
@@ -1030,7 +1038,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-3 border-t border-gray-200 bg-white">
       <div className="flex items-center gap-4">
         <p className="text-xs text-gray-600">
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredStockOuts.length)} of {filteredStockOuts.length} entries
+          Showing {pageStartIndex + 1} to {Math.min(pageEndIndex, filteredStockOuts.length)} of {filteredStockOuts.length} entries
         </p>
       </div>
       {totalPages > 1 && (
@@ -1395,6 +1403,22 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
       )}
 
       <InvoiceComponent isOpen={isInvoiceNoteOpen} onClose={handleCloseInvoiceModal} transactionId={transactionId} />
+
+      {/* Sync status banner — shows when there are pending offline sales waiting to sync */}
+      {unsyncedStockOuts > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border-b border-yellow-200 text-sm text-yellow-800">
+          <RotateCcw className={`w-4 h-4 flex-shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+          <span>
+            {unsyncedStockOuts} sale{unsyncedStockOuts !== 1 ? 's' : ''} pending sync
+            {isSyncing ? ' — syncing now...' : isOnline ? ' — will sync shortly' : ' — waiting for connection'}
+          </span>
+          {lastSync && (
+            <span className="ml-auto text-yellow-600 text-xs flex-shrink-0">
+              Last synced: {lastSync.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="h-full">
         {/* Header Section */}

@@ -6,7 +6,7 @@ export class AppDatabase extends Dexie {
     super('AppDatabase');
 
     // Define schema version
-    this.version(15).stores({
+    this.version(16).stores({
       // product
       products_all: 'id, productName, brand, categoryId, lastModified, updatedAt',
       products_offline_add: '++localId, productName, brand, categoryId, description, adminId, employeeId, lastModified, createdAt, updatedAt',
@@ -32,7 +32,7 @@ export class AppDatabase extends Dexie {
       // stockout
       stockouts_all: 'id, stockinId, quantity, soldPrice, backorderId, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
    
-   stockouts_offline_add: '++localId, stockinId, quantity, offlineQuantity, backorderLocalId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, createdAt, updatedAt',
+   stockouts_offline_add: '++localId, stockinId, quantity, offlineQuantity, backorderLocalId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, needsServerVerification, lastModified, createdAt, updatedAt',
    
    stockouts_offline_update: 'id, stockinId, quantity, backorderUpdateId, soldPrice, clientName, clientEmail, clientPhone, paymentMethod, debtedAmount, isDebt, paymentStatus, adminId, employeeId, transactionId, lastModified, updatedAt',
       stockouts_offline_delete: 'id, deletedAt, adminId, employeeId',
@@ -61,6 +61,9 @@ export class AppDatabase extends Dexie {
       
       // admin
       admins_all: "id, adminName, adminEmail, password, encryptedPassword, isLocked, createdAt, updatedAt",
+
+      // crash-safety: stores server-confirmed stockout IDs before local Dexie save completes
+      stockout_pending_cleanup: 'transactionId, confirmedAt',
     })
     .upgrade(trans => {
       // simple migration - move records if needed
@@ -83,6 +86,12 @@ export class AppDatabase extends Dexie {
       safeMove(trans.stockouts_offline_add, trans.stockouts_offline_update);
       safeMove(trans.sales_returns_offline_add, trans.sales_returns_offline_update);
       safeMove(trans.sales_return_items_offline_add, trans.sales_return_items_offline_update);
+    });
+
+    this.version(17).stores({
+      sync_metadata: 'entity',
+      offline_auth_profiles: 'email, role',
+      device_keys: 'id',
     });
 
     // Assign tables
@@ -110,6 +119,7 @@ export class AppDatabase extends Dexie {
     this.stockouts_offline_update = this.table('stockouts_offline_update');
     this.stockouts_offline_delete = this.table('stockouts_offline_delete');
     this.synced_stockout_ids = this.table('synced_stockout_ids');
+    this.stockout_pending_cleanup = this.table('stockout_pending_cleanup');
 
     this.backorders_all = this.table('backorders_all');
     this.backorders_offline_add = this.table('backorders_offline_add');
@@ -128,6 +138,10 @@ export class AppDatabase extends Dexie {
 
     this.admins_all = this.table('admins_all');
     this.employees_all = this.table('employees_all');
+
+    this.sync_metadata = this.table('sync_metadata');
+    this.offline_auth_profiles = this.table('offline_auth_profiles');
+    this.device_keys = this.table('device_keys');
   }
 }
 

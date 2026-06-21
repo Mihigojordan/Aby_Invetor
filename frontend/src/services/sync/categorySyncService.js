@@ -312,37 +312,61 @@ class CategorySyncService {
     return { processed, errors, total: deletedCategories.length };
   }
 
-  async fetchAndUpdateLocal() {
-    try {
-      const serverCategories = await categoryService.getAllCategories();
-      console.log('******** => + FETCHING AND UPDATING CATEGORY DATA ', serverCategories.length);
+  async fetchAndUpdateLocal(onProgress = null) {
+    const meta = await db.sync_metadata.get('categories');
+    const lastSyncedAt = meta?.lastSyncedAt || null;
+    const LIMIT = 200;
+    let offset = 0;
+    let totalFetched = 0;
+    let isFirstPage = true;
+
+    while (true) {
+      let result;
+      try {
+        result = await categoryService.getAllCategories(lastSyncedAt, { limit: LIMIT, offset });
+      } catch (fetchError) {
+        console.error('[categories] Fetch failed — local data preserved:', fetchError);
+        return;
+      }
+
+      const { data: updatedRecords = [], deletedIds = [] } = result;
+
+      if (isFirstPage && !lastSyncedAt && updatedRecords.length === 0) {
+        console.warn('[categories] Empty full-fetch — skipping to preserve local data');
+        return;
+      }
 
       await db.transaction('rw', db.categories_all, db.synced_category_ids, async () => {
-        // Don't clear all - merge instead to preserve offline additions
-          await db.categories_all.clear();
-        console.log('✨ Cleared local categories, replacing with server data');
+        if (isFirstPage && !lastSyncedAt) await db.categories_all.clear();
 
-        for (const serverCategory of serverCategories) {
-          await db.categories_all.put({
-            id: serverCategory.id,
-            name: serverCategory.name,
-            description: serverCategory.description,
-            lastModified: new Date(),
-            updatedAt: serverCategory.updatedAt || new Date()
-          });
+        const records = updatedRecords.map(c => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          lastModified: new Date(),
+          updatedAt: c.updatedAt || new Date()
+        }));
+        await db.categories_all.bulkPut(records);
+
+        for (const id of deletedIds) {
+          await db.categories_all.delete(id);
+          const mapping = await db.synced_category_ids.where('serverId').equals(id).first();
+          if (mapping) await db.synced_category_ids.delete(mapping.localId);
         }
-
-        // Clean up synced_category_ids for items no longer on server
-        const serverIds = new Set(serverCategories.map(c => c.id));
-        await db.synced_category_ids
-          .where('serverId')
-          .noneOf(Array.from(serverIds))
-          .delete();
       });
-    } catch (error) {
-      console.error('Error fetching server category data:', error);
-      // Don't throw - sync can continue without fresh server data
+
+      totalFetched += updatedRecords.length;
+      onProgress?.({ entity: 'categories', fetched: totalFetched });
+      if (updatedRecords.length < LIMIT) break;
+      offset += LIMIT;
+      isFirstPage = false;
     }
+
+    await db.sync_metadata.put({
+      entity: 'categories',
+      lastSyncedAt: new Date().toISOString(),
+      lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+    });
   }
 
   // 🔍 Check for content-based duplicates
