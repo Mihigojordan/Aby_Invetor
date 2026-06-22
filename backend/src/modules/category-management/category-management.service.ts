@@ -22,11 +22,12 @@ export class CategoryManagementService {
   async createCategory(data: {
     name?: string;
     description?: string;
+    subcategory?: string;
     adminId?: string;
     employeeId?: string;
   }) {
     try {
-      const { name, description } = data;
+      const { name, description, subcategory } = data;
       if (!name) throw new BadRequestException('Category name is required');
 
       const categoryExists = await this.prismaService.category.findFirst({
@@ -35,7 +36,7 @@ export class CategoryManagementService {
       if (categoryExists) throw new BadRequestException('Category already exists');
 
       const createdCategory = await this.prismaService.category.create({
-        data: { name, description },
+        data: { name, description, subcategory },
       });
 
       if (data?.adminId) {
@@ -120,6 +121,7 @@ export class CategoryManagementService {
     data: {
       name?: string;
       description?: string;
+      subcategory?: string;
       adminId?: string;
       employeeId?: string;
     },
@@ -137,6 +139,7 @@ export class CategoryManagementService {
         data: {
           name: data.name ?? existing.name,
           description: data.description ?? existing.description,
+          subcategory: data.subcategory ?? existing.subcategory,
         },
       });
 

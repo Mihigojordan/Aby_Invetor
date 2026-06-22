@@ -13,18 +13,16 @@ import { useNotifications } from '../context/NotificationContext'
 
 const DashboardLayout = ({role}) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true)
 
- 
   const { user } = useEmployeeAuth()
   const { user:admin } = useAdminAuth()
   const { partner } = usePartnerAuth()
-  const { setRecipient,markAsRead } = useNotifications()
+  const { setRecipient } = useNotifications()
   const { socket, isConnected, emit } = useSocket()
   const isPartnerRegistered = useRef(false);
   const isEmployeeRegistered = useRef(false);
   const isAdminRegistered = useRef(false);
-
- 
 
   const onToggle = () => {
     setIsOpen(!isOpen)
@@ -70,10 +68,21 @@ const DashboardLayout = ({role}) => {
 
 
   return (
-    <div className='flex items-start  w-screen'>
-      <Sidebar onToggle={onToggle} role={role} isOpen={isOpen} />
-      <div className="min-h-screen max-h-screen  w-full lg:w-11/12 bg-gray-50">
-        <Header onToggle={onToggle} role={role} />
+    <div className='flex items-start w-screen'>
+      <Sidebar
+        onToggle={onToggle}
+        role={role}
+        isOpen={isOpen}
+        isExpanded={isSidebarExpanded}
+        onToggleSidebarSize={() => setIsSidebarExpanded(!isSidebarExpanded)}
+      />
+      <div className="min-h-screen max-h-screen w-full transition-all duration-300" style={{ backgroundColor: '#F3F5F9' }}>
+        <Header
+          onToggle={onToggle}
+          role={role}
+          isSidebarExpanded={isSidebarExpanded}
+          onToggleSidebarSize={() => setIsSidebarExpanded(!isSidebarExpanded)}
+        />
         <Outlet />
       </div>
     </div>

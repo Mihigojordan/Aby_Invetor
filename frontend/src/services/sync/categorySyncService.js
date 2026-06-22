@@ -107,6 +107,7 @@ class CategorySyncService {
         const categoryData = {
           name: category.name,
           description: category.description,
+          subcategory: category.subcategory,
           adminId: category.adminId,
           employeeId: category.employeeId,
           // 🔑 Idempotency key for backend deduplication
@@ -149,6 +150,7 @@ class CategorySyncService {
             id: serverCategoryId,
             name: category.name,
             description: category.description,
+            subcategory: category.subcategory,
             lastModified: new Date(),
             updatedAt: response.category?.updatedAt || response.updatedAt || new Date()
           };
@@ -212,6 +214,7 @@ class CategorySyncService {
         const categoryData = {
           name: category.name,
           description: category.description,
+          subcategory: category.subcategory,
           adminId: category.adminId,
           employeeId: category.employeeId,
           // Add version or timestamp for optimistic locking
@@ -225,6 +228,7 @@ class CategorySyncService {
             id: category.id,
             name: category.name,
             description: category.description,
+            subcategory: category.subcategory,
             lastModified: new Date(),
             updatedAt: response.category?.updatedAt || response.updatedAt || new Date()
           });
@@ -343,6 +347,7 @@ class CategorySyncService {
           id: c.id,
           name: c.name,
           description: c.description,
+          subcategory: c.subcategory,
           lastModified: new Date(),
           updatedAt: c.updatedAt || new Date()
         }));

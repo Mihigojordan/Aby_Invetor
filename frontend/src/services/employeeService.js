@@ -46,12 +46,17 @@ class EmployeeService {
     async getAllEmployees() {
         try {
             const response = await api.get('/employee/all');
-            return response.data;
+            const employees = response.data;
+            if (!Array.isArray(employees)) {
+                console.warn('Unexpected response format:', employees);
+                return [];
+            }
+            return employees;
         } catch (error) {
             console.error('Error fetching employees:', error);
             const errorMessage =
-                error.response.data.message ||
-                error.response.data.error ||
+                error.response?.data?.message ||
+                error.response?.data?.error ||
                 error.message ||
                 'Failed to fetch employees';
             throw new Error(errorMessage);

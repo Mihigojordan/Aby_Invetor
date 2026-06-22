@@ -24,253 +24,61 @@ import {
   Clipboard,
   ClipboardList,
   DollarSign,
+  ChevronLeft,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import useAdminAuth from "../../context/AdminAuthContext";
 import useEmployeeAuth from "../../context/EmployeeAuthContext";
 import InstallButton from "./InstallButton";
+import Logo from "./Logo";
 
-const Sidebar = ({ isOpen = true, onToggle, role }) => {
+const Sidebar = ({ isOpen = true, onToggle, role, isExpanded = true, onToggleSidebarSize }) => {
   const { user: adminData } = useAdminAuth();
   const { user: employeeData } = useEmployeeAuth();
-  const navigate = useNavigate();
   const location = useLocation();
 
   const adminItems = [
-    {
-      key: "dashboard",
-      label: "Dashboard Summary",
-      icon: Home,
-      path: "/admin/dashboard",
-    },
-    {
-      key: "employee-list",
-      label: "Employee Management",
-      icon: Users,
-      path: "/admin/dashboard/employee",
-    },
-    {
-      key: "employee-report",
-      label: "Employee Report",
-      icon: FileText,
-      path: "/admin/dashboard/employee-report",
-    },
-    {
-      key: "permissions",
-      label: "Permission Management",
-      icon: Shield,
-      path: "/admin/dashboard/position",
-    },
-       {
-      key:"partners",
-      label: "Partner Management",
-      icon: Briefcase,
-      path: "/admin/dashboard/partner",
-    },
-    
-    {
-      key: "product-list",
-      label: "Product Management",
-      icon: Package,
-      path: "/admin/dashboard/product",
-    },
-    {
-      key: "category-management",
-      label: "Category Management",
-      icon: FolderTree,
-      path: "/admin/dashboard/category",
-    },
-    {
-      key: "stockin",
-      label: "Manage Stock",
-      icon: ArrowDown,
-      path: "/admin/dashboard/stockin",
-    },
-    {
-      key: "stockout-movement",
-      label: "Stock Out Management",
-      icon: ArrowUp,
-      path: "/admin/dashboard/stockout",
-    },
-    {
-      key: "debt-movement",
-      label: "Debt Management",
-      icon: DollarSign,
-      path: "/admin/dashboard/debt-management",
-     
-    },
-    {
-      key: "sales-returns",
-      label: "Sales Returns",
-      icon: RotateCcw,
-      path: "/admin/dashboard/sales-return",
-    },
-       {
-          key: "requisition-management",
-          label: "Requisition Management",
-          path: "/admin/dashboard/requisition",
-          icon: Clipboard,
-        },
-       {
-          key: "stock-requisition-management",
-          label: "Stock Requisition Management",
-          path: "/admin/dashboard/stock-requisition",
-          icon: ClipboardList,
-        },
-            {
-      key: "expense-movement",
-      label: "Expense Management",
-      icon: ReceiptPoundSterling,
-      path: "/admin/dashboard/expense-management",
-            },
-            {
-      key: "credit-movement",
-      label: "Credit Management",
-      icon: ReceiptPoundSterling,
-      path: "/admin/dashboard/credit-management",
-            },
-    {
-      key: "sales-report",
-      label: "Sales Report",
-      icon: BarChart3,
-      path: "/admin/dashboard/sales-report",
-    },
+    { key: "dashboard", label: "Dashboard Summary", icon: Home, path: "/admin/dashboard" },
+    { key: "employee-list", label: "Employee Management", icon: Users, path: "/admin/dashboard/employee" },
+    { key: "employee-report", label: "Employee Report", icon: FileText, path: "/admin/dashboard/employee-report" },
+    { key: "permissions", label: "Permission Management", icon: Shield, path: "/admin/dashboard/position" },
+    { key: "partners", label: "Partner Management", icon: Briefcase, path: "/admin/dashboard/partner" },
+    { key: "product-list", label: "Product Management", icon: Package, path: "/admin/dashboard/product" },
+    { key: "category-management", label: "Category Management", icon: FolderTree, path: "/admin/dashboard/category" },
+    { key: "stockin", label: "Manage Stock", icon: ArrowDown, path: "/admin/dashboard/stockin" },
+    { key: "stockout-movement", label: "Stock Out Management", icon: ArrowUp, path: "/admin/dashboard/stockout" },
+    { key: "debt-movement", label: "Debt Management", icon: DollarSign, path: "/admin/dashboard/debt-management" },
+    { key: "sales-returns", label: "Sales Returns", icon: RotateCcw, path: "/admin/dashboard/sales-return" },
+    { key: "requisition-management", label: "Requisition Management", path: "/admin/dashboard/requisition", icon: Clipboard },
+    { key: "stock-requisition-management", label: "Stock Requisition Management", path: "/admin/dashboard/stock-requisition", icon: ClipboardList },
+    { key: "expense-movement", label: "Expense Management", icon: ReceiptPoundSterling, path: "/admin/dashboard/expense-management" },
+    { key: "credit-movement", label: "Credit Management", icon: ReceiptPoundSterling, path: "/admin/dashboard/credit-management" },
+    { key: "sales-report", label: "Sales Report", icon: BarChart3, path: "/admin/dashboard/sales-report" },
   ];
 
   const employeeItems = [
-    {
-      key: "dashboard",
-      label: "Dashboard Summary",
-      icon: Home,
-      path: "/employee/dashboard",
-      alwaysShow: true,
-    },
-       {
-      key: "category-management",
-      label: "Category Management",
-      icon: FolderTree,
-      path: "/employee/dashboard/category",
-      taskname: ["receiving", "returning", "return", "stockin"],
-    },
-    {
-      key: "product-list",
-      label: "Product Management",
-      icon: Package,
-      path: "/employee/dashboard/product",
-      taskname: ["receiving", "returning", "return", "stockin"],
-    },
- 
-    {
-      key: "stockin_receiving",
-      label: "Stock  In Management",
-      taskname: ["receiving", "stockin"],
-      icon: ArrowDown,
-      path: "/employee/dashboard/stockin",
-    },
-        {
-      key:"partners",
-      label: "Partner Management",
-      icon: Briefcase,
-      path: "/employee/dashboard/partner",
-    },
-    
-    {
-      key: "stockout-movement",
-      label: "Sales  Out Management",
-      icon: ArrowUp,
-      path: "/employee/dashboard/stockout",
-      taskname: ["saling", "selling", "sales", "stockout"],
-    },
-    {
-      key: "debt-movement",
-      label: "Debt Management",
-      icon: DollarSign,
-      path: "/employee/dashboard/debt-management",
-           taskname: ["saling", "selling", "sales", "stockout"],
-    
-    },
-
-    {
-      key: "sales-returns",
-      label: "Sales Returns Management",
-      icon: RotateCcw,
-      path: "/employee/dashboard/sales-return",
-      taskname: ["returning", "return"],
-    },
-
-                {
-      key: "expense-movement",
-      label: "Expense Management",
-      icon: ReceiptPoundSterling,
-      path: "/employee/dashboard/expense-management",
-        taskname: ["saling", "selling", "sales", "stockout"],
-            },
-            {
-      key: "credit-movement",
-      label: "Credit Management",
-      icon: ReceiptPoundSterling,
-      path: "/employee/dashboard/credit-management",
-        taskname: ["saling", "selling", "sales", "stockout"],
-            },
-    
-    {
-      key: "sales-report",
-      label: "Sales Report Management",
-      icon: BarChart3,
-      path: "/employee/dashboard/sales-report",
-      taskname: ["saling", "selling", "sales", "stockout"],
-    },
-
-  
-       {
-          key: "requisition-management",
-          label: "Requisition Management",
-           taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
-          path: "/employee/dashboard/requisition",
-          icon: Clipboard,
-        },
-         {
-          key: "stock-requisition-management",
-          label: "Stock Requisition Management",
-          path: "/employee/dashboard/stock-requisition",
-          taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
-          icon: ClipboardList,
-        },
-
-
-    {
-      key: "employee_reports",
-      label: "Report Management",
-      taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
-      icon: FileText,
-      path: "/employee/dashboard/report",
-    },
+    { key: "dashboard", label: "Dashboard Summary", icon: Home, path: "/employee/dashboard", alwaysShow: true },
+    { key: "category-management", label: "Category Management", icon: FolderTree, path: "/employee/dashboard/category", taskname: ["receiving", "returning", "return", "stockin"] },
+    { key: "product-list", label: "Product Management", icon: Package, path: "/employee/dashboard/product", taskname: ["receiving", "returning", "return", "stockin"] },
+    { key: "stockin_receiving", label: "Stock In Management", taskname: ["receiving", "stockin"], icon: ArrowDown, path: "/employee/dashboard/stockin" },
+    { key: "partners", label: "Partner Management", icon: Briefcase, path: "/employee/dashboard/partner" },
+    { key: "stockout-movement", label: "Sales Out Management", icon: ArrowUp, path: "/employee/dashboard/stockout", taskname: ["saling", "selling", "sales", "stockout"] },
+    { key: "debt-movement", label: "Debt Management", icon: DollarSign, path: "/employee/dashboard/debt-management", taskname: ["saling", "selling", "sales", "stockout"] },
+    { key: "sales-returns", label: "Sales Returns Management", icon: RotateCcw, path: "/employee/dashboard/sales-return", taskname: ["returning", "return"] },
+    { key: "expense-movement", label: "Expense Management", icon: ReceiptPoundSterling, path: "/employee/dashboard/expense-management", taskname: ["saling", "selling", "sales", "stockout"] },
+    { key: "credit-movement", label: "Credit Management", icon: ReceiptPoundSterling, path: "/employee/dashboard/credit-management", taskname: ["saling", "selling", "sales", "stockout"] },
+    { key: "sales-report", label: "Sales Report Management", icon: BarChart3, path: "/employee/dashboard/sales-report", taskname: ["saling", "selling", "sales", "stockout"] },
+    { key: "requisition-management", label: "Requisition Management", taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout"], path: "/employee/dashboard/requisition", icon: Clipboard },
+    { key: "stock-requisition-management", label: "Stock Requisition Management", path: "/employee/dashboard/stock-requisition", taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout"], icon: ClipboardList },
+    { key: "employee_reports", label: "Report Management", taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout"], icon: FileText, path: "/employee/dashboard/report" },
   ];
 
-  const getProfileRoute = () =>
-    role === "admin"
-      ? "/admin/dashboard/profile"
-      : "/employee/dashboard/profile";
-
-  const handleNavigateProfile = () => {
-    const route = getProfileRoute();
-    if (route) navigate(route, { replace: true });
-  };
-
   const getFilteredEmployeeItems = () => {
-    if (!employeeData || !employeeData.tasks) {
-      return employeeItems.filter((item) => item.alwaysShow);
-    }
+    if (!employeeData || !employeeData.tasks) return employeeItems.filter((item) => item.alwaysShow);
     const employeeTaskNames = employeeData.tasks.map((task) => task.taskname);
-    
     return employeeItems.filter((item) => {
       if (item.alwaysShow) return true;
-      
-      if (item.taskname) {
-        return item.taskname.some((task) => employeeTaskNames.includes(task));
-      }
-      
+      if (item.taskname) return item.taskname.some((task) => employeeTaskNames.includes(task));
       return false;
     });
   };
@@ -289,16 +97,27 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       onClick={() => {
         if (window.innerWidth < 1024) onToggle();
       }}
-      className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-        isActive
-          ? "bg-primary-100 text-primary-700 border-r-2 border-primary-600"
-          : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-      }`}
+      title={!isExpanded ? item.label : undefined}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative"
+      style={{
+        backgroundColor: 'transparent',
+        color: '#8A93A6',
+      }}
     >
       <item.icon
-        className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-primary-600" : "text-gray-400"}`}
+        className="w-5 h-5 flex-shrink-0 transition-colors"
+        style={{ color: isActive ? '#3fabc6' : '#8A93A6', fill: isActive ? '#3fabc6' : 'none' }}
       />
-      <span className="font-medium text-sm">{item.label}</span>
+      {isExpanded && (
+        <span className="font-medium text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+          {item.label}
+        </span>
+      )}
+      {!isExpanded && (
+        <div className="absolute left-14 bg-gray-800 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap">
+          {item.label}
+        </div>
+      )}
     </Link>
   );
 
@@ -312,31 +131,52 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       )}
 
       <div
-        className={`fixed left-0 top-0 min-h-screen bg-white flex flex-col border-r border-primary-200 transform transition-transform duration-300 z-50 lg:relative lg:translate-x-0 ${
+        className={`fixed left-0 top-0 min-h-screen bg-white flex flex-col transition-all duration-300 z-50 lg:relative lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:w-3/12 xl:w-[21%]`}
+        }`}
+        style={{
+          borderRight: '1px solid #E6E9F0',
+          width: isExpanded ? '350px' : '80px'
+        }}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between p-2.5 border-b border-primary-200">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center">
-              <Package className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">
-                ABY Inventory
-              </h1>
-              <p className="text-[0.7rem] text-gray-500 capitalize">
-                {role} Dashboard
-              </p>
-            </div>
+        <div
+          className="flex items-center justify-between p-4 lg:p-3"
+          style={{
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+            background: 'linear-gradient(135deg, rgba(63, 171, 198, 0.05), rgba(224, 72, 75, 0.03))'
+          }}
+        >
+          <Logo isExpanded={isExpanded} subtitle={role === 'admin' ? 'Admin Dashboard' : 'Employee Dashboard'} showSubtitle={isExpanded} />
+          <div className="flex gap-1">
+            {isExpanded && (
+              <button
+                onClick={onToggleSidebarSize}
+                className="p-1.5 rounded-lg transition-colors lg:flex hidden"
+                style={{ backgroundColor: 'rgba(63, 171, 198, 0.1)', color: '#3fabc6' }}
+                title="Collapse sidebar"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+            {!isExpanded && (
+              <button
+                onClick={onToggleSidebarSize}
+                className="p-1.5 rounded-lg transition-colors lg:flex hidden mx-auto"
+                style={{ backgroundColor: 'rgba(63, 171, 198, 0.1)', color: '#3fabc6' }}
+                title="Expand sidebar"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={onToggle}
+              className="lg:hidden p-1.5 rounded-lg transition-colors"
+              style={{ backgroundColor: 'rgba(63, 171, 198, 0.1)', color: '#3fabc6' }}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={onToggle}
-            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Navigation Menu */}
@@ -351,22 +191,17 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
                 />
               ))
             ) : (
-              <div className="text-center py-2">
-                <p className="text-gray-500 text-sm font-light">
-                  No additional menu items available
+              <div className="text-center py-4">
+                <p className="text-xs font-light" style={{ color: '#8A93A6' }}>
+                  No menu items
                 </p>
-                {role === "employee" && (
-                  <p className="text-gray-400 text-xs mt-1">
-                    Contact admin to assign tasks for more options
-                  </p>
-                )}
               </div>
             )}
           </nav>
         </div>
 
         {/* Sidebar Footer */}
-        <InstallButton /> 
+        {isExpanded && <InstallButton />}
       </div>
     </>
   );

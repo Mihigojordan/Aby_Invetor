@@ -216,11 +216,13 @@ export class AdminService {
         });
       }
 
+      const isProduction = process.env.NODE_ENV === 'production';
+
       res.clearCookie('AccessAdminToken', {
         httpOnly: true,
-        secure: true, // <-- Required for SameSite=None in production
-        sameSite: 'none', // <-- Required for cross-origin cookies
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
        // Track the login activity
@@ -234,6 +236,99 @@ export class AdminService {
     } catch (error) {
       console.log('error logging out:', error);
       throw new Error(error.message);
+    }
+  }
+
+  async forgotPassword(adminEmail: string) {
+    try {
+      if (!adminEmail || !this.emailRegex.test(adminEmail)) {
+        throw new BadRequestException('Invalid email address');
+      }
+
+      const admin = await this.prisma.admin.findUnique({
+        where: { adminEmail },
+      });
+
+      if (!admin) {
+        throw new NotFoundException('Admin not found');
+      }
+
+      const token = this.jwtServices.sign(
+        { adminId: admin.id, type: 'password-reset' },
+        { expiresIn: '30m' },
+      );
+
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+      await this.prisma.adminPasswordReset.create({
+        data: {
+          adminId: admin.id,
+          token,
+          expiresAt,
+        },
+      });
+
+      console.log(`Password reset token created for ${adminEmail}`);
+
+      return {
+        message: 'Password reset link sent to email',
+        token,
+      };
+    } catch (error) {
+      console.error('error in forgot password:', error);
+      throw new Error(error.message || 'Failed to process password reset');
+    }
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    try {
+      if (!token || !newPassword) {
+        throw new BadRequestException('Token and password are required');
+      }
+
+      if (newPassword.length < 6) {
+        throw new BadRequestException('Password must be at least 6 characters');
+      }
+
+      const resetToken = await this.prisma.adminPasswordReset.findUnique({
+        where: { token },
+        include: { admin: true },
+      });
+
+      if (!resetToken) {
+        throw new BadRequestException('Invalid reset token');
+      }
+
+      if (resetToken.usedAt) {
+        throw new BadRequestException('Token has already been used');
+      }
+
+      if (new Date() > resetToken.expiresAt) {
+        throw new BadRequestException('Reset token has expired');
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      await this.prisma.admin.update({
+        where: { id: resetToken.adminId },
+        data: { password: hashedPassword },
+      });
+
+      await this.prisma.adminPasswordReset.update({
+        where: { id: resetToken.id },
+        data: { usedAt: new Date() },
+      });
+
+      await this.activityService.createActivity({
+        activityName: 'Admin Password Reset',
+        description: `${resetToken.admin.adminName} reset their password`,
+        adminId: resetToken.adminId,
+      });
+
+      return { message: 'Password reset successfully' };
+    } catch (error) {
+      console.error('error in reset password:', error);
+      throw new Error(error.message || 'Failed to reset password');
     }
   }
 }

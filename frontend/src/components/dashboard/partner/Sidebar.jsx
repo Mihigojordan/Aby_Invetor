@@ -17,6 +17,7 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usePartnerAuth } from '../../../context/PartnerAuthContext'; // Adjust path
 import InstallButton from '../InstallButton'; // Optional PWA install button
+import Logo from '../Logo';
 
 const Sidebar = ({ isOpen = true, onToggle }) => {
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -75,14 +76,16 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
     return (
       <button
         onClick={() => toggleDropdown(item.key)}
-        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 ${
-          hasActiveChild || openDropdown === item.key
-            ? 'bg-primary-50 text-primary-700'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-        }`}
+        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
       >
         <div className="flex items-center space-x-3">
-          <item.icon className={`w-5 h-5 ${hasActiveChild ? 'text-primary-600' : 'text-gray-400'}`} />
+          <item.icon
+            className={`w-5 h-5`}
+            style={{
+              color: hasActiveChild ? '#3fabc6' : '#9CA3AF',
+              fill: hasActiveChild ? '#3fabc6' : 'none'
+            }}
+          />
           <span className="font-medium text-sm">{item.label}</span>
         </div>
         {isOpen ? (
@@ -100,11 +103,7 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
     return (
       <Link
         to={child.path}
-        className={`flex items-center space-x-3 px-9 py-2 text-sm rounded-lg transition-all duration-200 ${
-          isActive
-            ? 'bg-primary-100 text-primary-700 font-medium'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-        }`}
+        className="flex items-center space-x-3 px-9 py-2 text-sm rounded-lg transition-all duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
         onClick={() => window.innerWidth < 1024 && onToggle?.()}
       >
         <span>{child.label}</span>
@@ -118,14 +117,16 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
     return (
       <Link
         to={item.path}
-        className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-          isActive
-            ? 'bg-primary-100 text-primary-700 border-r-4 border-primary-600'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-        }`}
+        className="flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
         onClick={() => window.innerWidth < 1024 && onToggle?.()}
       >
-        <item.icon className={`w-5 h-5 ${isActive ? 'text-primary-600' : 'text-gray-400'}`} />
+        <item.icon
+          className={`w-5 h-5`}
+          style={{
+            color: isActive ? '#3fabc6' : '#9CA3AF',
+            fill: isActive ? '#3fabc6' : 'none'
+          }}
+        />
         <span className="font-medium text-sm">{item.label}</span>
       </Link>
     );
@@ -149,15 +150,7 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
-              <Package className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">ABY Inventory</h1>
-              <p className="text-xs text-gray-500">Partner Portal</p>
-            </div>
-          </div>
+          <Logo isExpanded={true} subtitle="Partner Portal" showSubtitle={true} />
           <button
             onClick={onToggle}
             className="lg:hidden p-2 rounded-lg hover:bg-gray-100"

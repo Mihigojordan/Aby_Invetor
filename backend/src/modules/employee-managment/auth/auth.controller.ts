@@ -24,20 +24,19 @@ export class EmployeeAuthController {
   @Post('login')
   async login(@Body() req, @Res() res: Response) {
     try {
-      const token = await this.authService.EmployeeLogin(req); // Remove res parameter
+      const token = await this.authService.EmployeeLogin(req);
 
       if (!token) {
         console.log('error getting token');
       }
 
-      console.log('loggin in it :',req);
-      
+      const isProduction = process.env.NODE_ENV === 'production';
 
       res.cookie('AccessEmployeeToken', token, {
         httpOnly: true,
-        secure: true, // Set to true in production
-        sameSite: 'none', // Required for cross-origin cookies
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       res.status(200).json({
@@ -108,6 +107,32 @@ export class EmployeeAuthController {
       return await this.authService.EmployeeUnlocking(id, datas);
     } catch (error) {
       console.log('error editing host', error);
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: { email: string }) {
+    try {
+      return await this.authService.forgotPassword(body.email);
+    } catch (error) {
+      console.log('error with forgot password', error);
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() body: { token: string; password: string }) {
+    try {
+      return await this.authService.resetPassword(body.token, body.password);
+    } catch (error) {
+      console.log('error resetting password', error);
       throw new HttpException(
         error.message,
         error.status || HttpStatus.BAD_REQUEST,

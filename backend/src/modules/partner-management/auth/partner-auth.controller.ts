@@ -36,10 +36,12 @@ export class PartnerAuthController {
   ) {
     const { partner, token } = await this.authService.login(body);
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     res.cookie('AccessPartnerToken', token, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
@@ -49,10 +51,12 @@ export class PartnerAuthController {
 
   @Post('logout')
   async logout(@Res({ passthrough: true }) res: Response) {
+    const isProduction = process.env.NODE_ENV === 'production';
+
     res.clearCookie('AccessPartnerToken', {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/',
     });
     return { message: 'Logged out successfully' };

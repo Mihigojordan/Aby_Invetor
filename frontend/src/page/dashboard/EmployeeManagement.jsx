@@ -32,17 +32,19 @@ const EmployeeManagement = ({ role }) => {
     } else {
       setIsLoading(true);
     }
-    
+
     try {
-      const data = await employeeService.getAllEmployees();
-      setEmployees(data);
-      setFilteredEmployees(data);
+      const employeeList = await employeeService.getAllEmployees();
+      setEmployees(employeeList);
+      setFilteredEmployees(employeeList);
       if (showRefreshLoader) {
         showNotification('Employees refreshed successfully!');
       }
     } catch (error) {
       console.error('Failed to fetch employees:', error);
       showNotification(`Failed to fetch employees: ${error.message}`, 'error');
+      setEmployees([]);
+      setFilteredEmployees([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -51,7 +53,7 @@ const EmployeeManagement = ({ role }) => {
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [role, isOnline]);
 
   useEffect(() => {
     const filtered = employees.filter(employee =>
@@ -643,7 +645,7 @@ const EmployeeManagement = ({ role }) => {
               <p className="text-gray-600">Loading employees...</p>
             </div>
           </div>
-        ) : filteredEmployees.length === 0 ? (
+        ) : !employees || employees.length === 0 ? (
           <div className="text-center py-12">
             <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
