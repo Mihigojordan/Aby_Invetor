@@ -216,6 +216,7 @@ export class EmployeeManagmentService {
       const employees = await this.prismaService.employee.findMany({
         include: {
           tasks: true,
+          permissions: true,
         },
       });
       return employees;

@@ -2,10 +2,7 @@
 // Keys mirror Sidebar.jsx's adminItems keys exactly, so the same vocabulary
 // is shared between sidebar navigation and the permission matrix.
 export const PERMISSION_FEATURES = [
-  { key: 'dashboard', label: 'Dashboard Summary' },
-  { key: 'employee-list', label: 'Employee Management' },
   { key: 'employee-report', label: 'Employee Report' },
-  { key: 'permissions', label: 'Permission Management' },
   { key: 'partners', label: 'Partner Management' },
   { key: 'product-list', label: 'Product Management' },
   { key: 'category-management', label: 'Category Management' },

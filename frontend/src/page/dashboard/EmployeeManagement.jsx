@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit3, Trash2, Users, Mail, Phone, MapPin, Check, AlertTriangle, ClipboardList, User, FileText, Download, Eye, RotateCcw, ChevronLeft, ChevronRight, Calendar, Wifi, WifiOff } from 'lucide-react';
 import UpsertEmployeeModal from '../../components/dashboard/employee/UpsertEmployeeModal';
 import DeleteModal from '../../components/dashboard/employee/DeleteModal';
-import AssignModal from '../../components/dashboard/employee/AssignModal';
 import employeeService from '../../services/employeeService';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import useAdminAuth from '../../context/AdminAuthContext';
@@ -16,7 +15,6 @@ const EmployeeManagement = ({ role }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -152,36 +150,6 @@ const EmployeeManagement = ({ role }) => {
     }
   };
 
-  const handleAssignTasks = async (taskIds) => {
-    setIsLoading(true);
-    try {
-      if (!selectedEmployee) {
-        throw new Error('No employee selected for task assignment');
-      }
-
-      const assignmentData = {
-        employeeId: selectedEmployee.id,
-        assignedTasks: taskIds
-      };
-      
-      const response = await employeeService.assignTasksToEmployee(assignmentData);
-      setEmployees(prev =>
-        prev.map(emp =>
-          emp.id === selectedEmployee.id 
-            ? { ...emp, tasks: response.employee?.tasks || taskIds.map(id => ({ id, taskname: `Task ${id}` })) }
-            : emp
-        )
-      );
-      setIsAssignModalOpen(false);
-      setSelectedEmployee(null);
-      showNotification(response.message || 'Tasks assigned successfully!');
-    } catch (error) {
-      showNotification(`Failed to assign tasks: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const openEditModal = (employee) => {
     setSelectedEmployee(employee);
     setIsEditModalOpen(true);
@@ -190,11 +158,6 @@ const EmployeeManagement = ({ role }) => {
   const openDeleteModal = (employee) => {
     setSelectedEmployee(employee);
     setIsDeleteModalOpen(true);
-  };
-
-  const openAssignModal = (employee) => {
-    setSelectedEmployee(employee);
-    setIsAssignModalOpen(true);
   };
 
   const openViewModal = (employee) => {
@@ -227,7 +190,6 @@ const EmployeeManagement = ({ role }) => {
     setIsAddModalOpen(false);
     setIsEditModalOpen(false);
     setIsDeleteModalOpen(false);
-    setIsAssignModalOpen(false);
     setSelectedEmployee(null);
   };
 
@@ -357,14 +319,6 @@ const EmployeeManagement = ({ role }) => {
                     title="Edit employee"
                   >
                     <Edit3 size={14} />
-                  </button>
-                  <button
-                    onClick={() => openAssignModal(employee)}
-                    disabled={isLoading}
-                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
-                    title="Assign tasks"
-                  >
-                    <ClipboardList size={14} />
                   </button>
                   <button
                     onClick={() => openDeleteModal(employee)}
@@ -547,14 +501,6 @@ const EmployeeManagement = ({ role }) => {
                       <Edit3 size={14} />
                     </button>
                     <button
-                      onClick={() => openAssignModal(employee)}
-                      disabled={isLoading}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
-                      title="Assign Tasks"
-                    >
-                      <ClipboardList size={14} />
-                    </button>
-                    <button
                       onClick={() => openDeleteModal(employee)}
                       disabled={isLoading}
                       className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
@@ -678,13 +624,6 @@ const EmployeeManagement = ({ role }) => {
           isOpen={isDeleteModalOpen}
           onClose={closeAllModals}
           onConfirm={handleDeleteEmployee}
-          employee={selectedEmployee}
-          isLoading={isLoading}
-        />
-        <AssignModal
-          isOpen={isAssignModalOpen}
-          onClose={closeAllModals}
-          onConfirm={handleAssignTasks}
           employee={selectedEmployee}
           isLoading={isLoading}
         />
