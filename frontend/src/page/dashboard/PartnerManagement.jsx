@@ -30,8 +30,14 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import partnerService from '../../services/partnerService';
 import { useNavigate } from 'react-router-dom';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import { hasFeaturePermission } from '../../utils/permissions';
 
-const PartnerDashboard = () => {
+const PartnerDashboard = ({ role }) => {
+  const { user: employeeData } = useEmployeeAuth();
+  const canCreate = hasFeaturePermission(employeeData, role, 'partners', 'create');
+  const canUpdate = hasFeaturePermission(employeeData, role, 'partners', 'update');
+  const canDelete = hasFeaturePermission(employeeData, role, 'partners', 'delete');
   const [partners, setPartners] = useState([]);
   const [allPartners, setAllPartners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -328,6 +334,7 @@ const PartnerDashboard = () => {
                     >
                       <Eye className="w-4 h-4" />
                     </motion.button>
+                    {canUpdate && (
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       onClick={() => handleEditPartner(partner)}
@@ -336,6 +343,8 @@ const PartnerDashboard = () => {
                     >
                       <Edit className="w-4 h-4" />
                     </motion.button>
+                    )}
+                    {canDelete && (
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       onClick={() => setDeleteConfirm(partner)}
@@ -344,6 +353,7 @@ const PartnerDashboard = () => {
                     >
                       <Trash2 className="w-4 h-4" />
                     </motion.button>
+                    )}
                   </div>
                 </td>
               </motion.tr>
@@ -391,12 +401,16 @@ const PartnerDashboard = () => {
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => handleViewPartner(partner)} className="text-gray-500 hover:text-primary-600 p-2 rounded-full hover:bg-primary-50">
               <Eye className="w-4 h-4" />
             </motion.button>
+            {canUpdate && (
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => handleEditPartner(partner)} className="text-gray-500 hover:text-primary-600 p-2 rounded-full hover:bg-primary-50">
               <Edit className="w-4 h-4" />
             </motion.button>
+            )}
+            {canDelete && (
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setDeleteConfirm(partner)} className="text-gray-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50">
               <Trash2 className="w-4 h-4" />
             </motion.button>
+            )}
           </div>
         </motion.div>
       ))}
@@ -431,12 +445,16 @@ const PartnerDashboard = () => {
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => handleViewPartner(partner)} className="text-gray-500 hover:text-primary-600 p-2 rounded-full hover:bg-primary-50">
               <Eye className="w-4 h-4" />
             </motion.button>
+            {canUpdate && (
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => handleEditPartner(partner)} className="text-gray-500 hover:text-primary-600 p-2 rounded-full hover:bg-primary-50">
               <Edit className="w-4 h-4" />
             </motion.button>
+            )}
+            {canDelete && (
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setDeleteConfirm(partner)} className="text-gray-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50">
               <Trash2 className="w-4 h-4" />
             </motion.button>
+            )}
           </div>
         </motion.div>
       ))}
@@ -512,6 +530,7 @@ const PartnerDashboard = () => {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 <span>Refresh</span>
               </motion.button>
+              {canCreate && (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 onClick={handleAddPartner}
@@ -520,6 +539,7 @@ const PartnerDashboard = () => {
                 <Plus className="w-4 h-4" />
                 <span>Add Partner</span>
               </motion.button>
+              )}
             </div>
           </div>
         </div>

@@ -13,6 +13,7 @@ import  useEmployeeAuth  from '../../context/EmployeeAuthContext';
 import { format } from 'date-fns';
 import { API_URL } from '../../api/api';
 import { useSocketEvent } from '../../context/SocketContext';
+import { hasFeaturePermission } from '../../utils/permissions';
 
 const StockRequisitionDashboard = ({role}) => {
   const { user } = useEmployeeAuth();
@@ -20,6 +21,9 @@ const StockRequisitionDashboard = ({role}) => {
   const employeeId = user?.id;
   const isAdmin = role === 'admin';
   const isEmployee = role === 'employee';
+  const canCreate = hasFeaturePermission(user, role, 'stock-requisition-management', 'create');
+  const canUpdateRequisition = hasFeaturePermission(user, role, 'stock-requisition-management', 'update');
+  const canDeleteRequisition = hasFeaturePermission(user, role, 'stock-requisition-management', 'delete');
 
   // ── STATE ──
   const [requisitions, setRequisitions] = useState([]);
@@ -158,10 +162,10 @@ const StockRequisitionDashboard = ({role}) => {
   };
 
   // ── PERMISSIONS ──
-  const canEdit = (req) => isEmployee && req.employeeId === employeeId && req.status === 'PENDING';
-  const canDelete = (req) => isEmployee && req.employeeId === employeeId && req.status === 'PENDING';
+  const canEdit = (req) => isEmployee && req.employeeId === employeeId && req.status === 'PENDING' && canUpdateRequisition;
+  const canDelete = (req) => isEmployee && req.employeeId === employeeId && req.status === 'PENDING' && canDeleteRequisition;
   const canApproveReject = (req) => isAdmin && req.status === 'PENDING';
-    const canReceive = (req) => isEmployee && ['APPROVED', 'PARTIALLY_RECEIVED'].includes(req.status);
+    const canReceive = (req) => isEmployee && ['APPROVED', 'PARTIALLY_RECEIVED'].includes(req.status) && canUpdateRequisition;
 
   // ── STATUS CONFIG ──
   const getStatusConfig = (status) => {
@@ -410,7 +414,7 @@ const StockRequisitionDashboard = ({role}) => {
                 <span>Refresh</span>
               </motion.button>
 
-              {isEmployee && (
+              {isEmployee && canCreate && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   onClick={() => navigate('/employee/dashboard/stock-requisition/create')}

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, DollarSign, Phone, Mail, User, Calendar, CreditCard, AlertCircle, CheckCircle, XCircle, Filter, Package, Barcode, TrendingUp, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import stockOutService from '../../services/stockoutService.js';
+import useEmployeeAuth from '../../context/EmployeeAuthContext';
+import { hasFeaturePermission } from '../../utils/permissions';
 
 // Currency formatting function
 const formatCurrency = (amount, currency = 'RWF') => {
@@ -14,7 +16,9 @@ const formatCurrency = (amount, currency = 'RWF') => {
   return `${currency} ${formatted}`;
 };
 
-const DebtManagementPage = () => {
+const DebtManagementPage = ({ role }) => {
+  const { user: employeeData } = useEmployeeAuth();
+  const canUpdate = hasFeaturePermission(employeeData, role, 'debt-movement', 'update');
   const [debts, setDebts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -383,6 +387,7 @@ const DebtManagementPage = () => {
                           >
                             View
                           </button>
+                          {canUpdate && (
                           <button
                             onClick={() => {
                               setSelectedDebt(debt);
@@ -392,6 +397,7 @@ const DebtManagementPage = () => {
                           >
                             Pay
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -661,6 +667,7 @@ const DebtManagementPage = () => {
               </div>
 
               <div className="mt-6 flex gap-3">
+                {canUpdate && (
                 <button
                   onClick={() => {
                     setShowDetailsModal(false);
@@ -671,6 +678,7 @@ const DebtManagementPage = () => {
                   <DollarSign className="w-4 h-4 mr-2" />
                   Make Payment
                 </button>
+                )}
                 <button
                   onClick={() => {
                     setShowDetailsModal(false);

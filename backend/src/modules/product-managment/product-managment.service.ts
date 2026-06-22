@@ -48,47 +48,47 @@ export class ProductManagmentService {
         : { details: '' };
       console.log(descriptionJson);
 
+      // Resolve admin/employee IDs — fall back to null if the referenced record
+      // no longer exists (handles stale IDs from offline-created products)
+      const resolvedAdminId = data.adminId
+        ? ((await this.prisma.admin.findUnique({ where: { id: String(data.adminId) }, select: { id: true } }))?.id ?? null)
+        : null;
+      const resolvedEmployeeId = data.employeeId
+        ? ((await this.prisma.employee.findUnique({ where: { id: String(data.employeeId) }, select: { id: true } }))?.id ?? null)
+        : null;
+
       const product = await this.prisma.product.create({
         data: {
           productName,
           brand,
-          adminId: data.adminId ? String(data.adminId) : null,
-          description: descriptionJson, // Store as JSON object
+          adminId: resolvedAdminId,
+          description: descriptionJson,
           imageUrls,
-          employeeId: data.employeeId ? String(data.employeeId) : null,
+          employeeId: resolvedEmployeeId,
           categoryId: categoryId,
           createdAt: createdAt ? createdAt : new Date().toISOString(),
         },
       });
 
-      // 🔍 Log activity
-      if (data.adminId) {
-        console.log('adminID:', data.adminId);
-        const admin = await this.prisma.admin.findUnique({
-          where: { id: data.adminId },
-        });
-        if (!admin)
-          throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
-
-        await this.activityService.createActivity({
-          activityName: 'Product Created',
-          description: `${admin.adminName} created product: ${product.productName}`,
-          adminId: admin.id,
-        });
+      if (resolvedAdminId) {
+        const admin = await this.prisma.admin.findUnique({ where: { id: resolvedAdminId } });
+        if (admin) {
+          await this.activityService.createActivity({
+            activityName: 'Product Created',
+            description: `${admin.adminName} created product: ${product.productName}`,
+            adminId: admin.id,
+          });
+        }
       }
-      if (data.employeeId) {
-        console.log('employeeiD:', data.employeeId);
-        const employee = await this.prisma.employee.findUnique({
-          where: { id: data.employeeId },
-        });
-        if (!employee)
-          throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
-
-        await this.activityService.createActivity({
-          activityName: 'Product Created',
-          description: `${employee.firstname} created product: ${product.productName}`,
-          employeeId: employee.id,
-        });
+      if (resolvedEmployeeId) {
+        const employee = await this.prisma.employee.findUnique({ where: { id: resolvedEmployeeId } });
+        if (employee) {
+          await this.activityService.createActivity({
+            activityName: 'Product Created',
+            description: `${employee.firstname} created product: ${product.productName}`,
+            employeeId: employee.id,
+          });
+        }
       }
 
       return {

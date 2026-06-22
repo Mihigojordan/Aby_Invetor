@@ -17,6 +17,7 @@ import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import { useNavigate } from 'react-router-dom';
 import useScreenBelow from '../../hooks/useScreenBelow';
 import UpdatePaymentModal from '../../components/dashboard/stockout/UpdatePaymentModal';
+import { hasFeaturePermission } from '../../utils/permissions';
 
 const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
@@ -40,6 +41,9 @@ const StockOutManagement = ({ role }) => {
   const [transactionId, setTransactionId] = useState(null);
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
+  const canCreate = hasFeaturePermission(employeeData, role, 'stockout-movement', 'create');
+  const canUpdate = hasFeaturePermission(employeeData, role, 'stockout-movement', 'update');
+  const canDelete = hasFeaturePermission(employeeData, role, 'stockout-movement', 'delete');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(8);
   const [viewMode, setViewMode] = useState('table');
@@ -1194,9 +1198,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                       >
                         <Eye size={16} />
                       </button>
-                        {isOnline && hasDebt && 
-                      
-                      
+                        {isOnline && hasDebt && canUpdate && (
                       <button
                         onClick={() => handleOpenPaymentModal(stockOut)}
                         disabled={isLoading}
@@ -1205,7 +1207,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                       >
                         <CreditCardIcon size={14} />
                       </button>
-                      }
+                      )}
                       {stockOut.transactionId && (
                         <button
                           onClick={() => handleShowInvoiceComponent(stockOut.transactionId)}
@@ -1216,6 +1218,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                           <Receipt size={16} />
                         </button>
                       )}
+                      {canUpdate && (
                       <button
                         onClick={() => openEditModal(stockOut)}
                         disabled={isLoading}
@@ -1224,6 +1227,8 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                       >
                         <Edit3 size={16} />
                       </button>
+                      )}
+                      {canDelete && (
                       <button
                         onClick={() => openDeleteModal(stockOut)}
                         disabled={isLoading}
@@ -1232,6 +1237,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                       >
                         <Trash2 size={16} />
                       </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1345,9 +1351,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                           <Receipt size={14} />
                         </button>
                       )}
-                      {isOnline && hasDebt && 
-                      
-                      
+                      {isOnline && hasDebt && canUpdate && (
                       <button
                         onClick={() => handleOpenPaymentModal(stockOut)}
                         disabled={isLoading}
@@ -1356,7 +1360,8 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                       >
                         <CreditCardIcon size={14} />
                       </button>
-                      }
+                      )}
+                      {canUpdate && (
                       <button
                         onClick={() => openEditModal(stockOut)}
                         disabled={isLoading}
@@ -1365,6 +1370,8 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                       >
                         <Edit3 size={14} />
                       </button>
+                      )}
+                      {canDelete && (
                       <button
                         onClick={() => openDeleteModal(stockOut)}
                         disabled={isLoading}
@@ -1373,6 +1380,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                       >
                         <Trash2 size={14} />
                       </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1479,6 +1487,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                 )}
               </div>
 
+              {canCreate && (
               <button
                 onClick={openAddModal}
                 disabled={isLoading}
@@ -1487,6 +1496,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                 <Plus size={18} />
                 <span className="text-sm font-semibold">New Sale</span>
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -1581,7 +1591,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
                   ? 'Try adjusting your search or date filters to find what you\'re looking for.'
                   : 'Get started by adding your first sales transaction.'}
               </p>
-              {!(searchTerm || startDate || endDate) && (
+              {!(searchTerm || startDate || endDate) && canCreate && (
                 <button
                   onClick={openAddModal}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"

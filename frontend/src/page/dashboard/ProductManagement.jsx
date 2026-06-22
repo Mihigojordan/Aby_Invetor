@@ -13,6 +13,7 @@ import { useProductOfflineSync } from '../../hooks/useProductOfflineSync';
 import categoryService from '../../services/categoryService';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import useScreenBelow from '../../hooks/useScreenBelow';
+import { hasFeaturePermission } from '../../utils/permissions';
 
 const ProductManagement = ({ role }) => {
   const [products, setProducts] = useState([]);
@@ -33,6 +34,9 @@ const ProductManagement = ({ role }) => {
   const navigate = useNavigate();
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
+  const canCreate = hasFeaturePermission(employeeData, role, 'product-list', 'create');
+  const canUpdate = hasFeaturePermission(employeeData, role, 'product-list', 'update');
+  const canDelete = hasFeaturePermission(employeeData, role, 'product-list', 'delete');
   const { triggerSync, syncError } = useProductOfflineSync();
    const isBelow = useScreenBelow();
 
@@ -631,6 +635,7 @@ const ProductManagement = ({ role }) => {
                     <Eye size={14} />
                   </button>
                 )}
+                {canUpdate && (
                 <button
                   onClick={() => handleEditProduct(product)}
                   disabled={isLoading}
@@ -639,6 +644,8 @@ const ProductManagement = ({ role }) => {
                 >
                   <Edit3 size={14} />
                 </button>
+                )}
+                {canDelete && (
                 <button
                   onClick={() => handleDeleteProduct(product)}
                   disabled={isLoading}
@@ -647,6 +654,7 @@ const ProductManagement = ({ role }) => {
                 >
                   <Trash2 size={14} />
                 </button>
+                )}
               </div>
             </div>
 
@@ -739,6 +747,7 @@ const ProductManagement = ({ role }) => {
                   <Eye size={14} />
                 </button>
               )}
+              {canUpdate && (
               <button
                 onClick={() => handleEditProduct(product)}
                 disabled={isLoading}
@@ -747,6 +756,8 @@ const ProductManagement = ({ role }) => {
               >
                 <Edit3 size={14} />
               </button>
+              )}
+              {canDelete && (
               <button
                 onClick={() => handleDeleteProduct(product)}
                 disabled={isLoading}
@@ -755,6 +766,7 @@ const ProductManagement = ({ role }) => {
               >
                 <Trash2 size={14} />
               </button>
+              )}
             </div>
           </li>
         ))}
@@ -861,6 +873,7 @@ const ProductManagement = ({ role }) => {
                       <Eye size={14} />
                     </button>
                   )}
+                  {canUpdate && (
                   <button
                     onClick={() => handleEditProduct(product)}
                     disabled={isLoading}
@@ -869,6 +882,8 @@ const ProductManagement = ({ role }) => {
                   >
                     <Edit3 size={14} />
                   </button>
+                  )}
+                  {canDelete && (
                   <button
                     onClick={() => handleDeleteProduct(product)}
                     disabled={isLoading}
@@ -877,6 +892,7 @@ const ProductManagement = ({ role }) => {
                   >
                     <Trash2 size={14} />
                   </button>
+                  )}
                 </div>
               </td>
             </tr>
@@ -939,6 +955,7 @@ const ProductManagement = ({ role }) => {
                   <RotateCcw size={16} className={isRefreshing ? 'animate-spin' : ''} />
                 </button>
               )}
+              {canCreate && (
               <button
                 onClick={handleAddProduct}
                 disabled={isLoading}
@@ -947,6 +964,7 @@ const ProductManagement = ({ role }) => {
                 <Plus size={14} />
                 Add Product
               </button>
+              )}
             </div>
           </div>
           <p className="text-xs text-gray-600 mt-1">
@@ -1074,7 +1092,7 @@ const ProductManagement = ({ role }) => {
                 ? 'Try adjusting your search terms.'
                 : 'Get started by adding your first product.'}
             </p>
-            {!searchTerm && (
+            {!searchTerm && canCreate && (
               <button
                 onClick={handleAddProduct}
                 className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"

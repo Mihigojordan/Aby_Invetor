@@ -11,13 +11,16 @@ import creditService from '../../services/creditService';
 import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import { format } from 'date-fns';
 import useScreenBelow from '../../hooks/useScreenBelow';
+import { hasFeaturePermission } from '../../utils/permissions';
 
 const CreditManagementPage = ({ role }) => {
   const { user } = useEmployeeAuth();
   const employeeId = user?.id;
   const isAdmin = role === 'admin';
-  // const isEmployee = role === 'employee';
-  const isEmployee = true;
+  const isEmployee = role === 'employee';
+  const canCreate = hasFeaturePermission(user, role, 'credit-movement', 'create');
+  const canUpdateCredit = hasFeaturePermission(user, role, 'credit-movement', 'update');
+  const canDeleteCredit = hasFeaturePermission(user, role, 'credit-movement', 'delete');
 
   // ── STATE ──
   const [credits, setCredits] = useState([]);
@@ -260,7 +263,7 @@ const CreditManagementPage = ({ role }) => {
     setTimeout(() => setOperationStatus(null), duration);
   };
 
-  const canDelete = (credit) => isEmployee && credit.employeeId === employeeId;
+  const canDelete = (credit) => isEmployee && credit.employeeId === employeeId && canDeleteCredit;
 
   // ── PAGINATION ──
   const totalPages = Math.ceil(credits.length / itemsPerPage);
@@ -389,7 +392,7 @@ const CreditManagementPage = ({ role }) => {
                 </div>
               </div>
 
-              {balance > 0 && (
+              {balance > 0 && canUpdateCredit && (
                 <button
                   onClick={() => openPaymentModal(credit)}
                   className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
@@ -456,7 +459,7 @@ const CreditManagementPage = ({ role }) => {
                         </button>
                       )}
 
-                      {balance > 0 && (
+                      {balance > 0 && canUpdateCredit && (
                         <button
                           onClick={() => openPaymentModal(credit)}
                           className="p-1.5 hover:bg-green-50 rounded-full text-green-600"
@@ -738,7 +741,7 @@ const CreditManagementPage = ({ role }) => {
                 Refresh
               </button>
 
-              {isEmployee && (
+              {isEmployee && canCreate && (
                 <button
                   onClick={openCreateModal}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow-sm"

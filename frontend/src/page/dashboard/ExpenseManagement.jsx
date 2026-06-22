@@ -15,12 +15,16 @@ import useEmployeeAuth from '../../context/EmployeeAuthContext';
 import { format } from 'date-fns';
 import { API_URL } from '../../api/api';
 import useScreenBelow from '../../hooks/useScreenBelow';
+import { hasFeaturePermission } from '../../utils/permissions';
 
 const ExpenseManagementPage = ({ role }) => {
   const { user } = useEmployeeAuth();
   const employeeId = user?.id;
   const isAdmin = role === 'admin';
   const isEmployee = role === 'employee';
+  const canCreate = hasFeaturePermission(user, role, 'expense-movement', 'create');
+  const canUpdate = hasFeaturePermission(user, role, 'expense-movement', 'update');
+  const canDeleteExpense = hasFeaturePermission(user, role, 'expense-movement', 'delete');
 
   // ── STATE ──
   const [expenses, setExpenses] = useState([]);
@@ -177,7 +181,7 @@ const ExpenseManagementPage = ({ role }) => {
         <Eye className="w-5 h-5" />
       </button>
 
-      {canEditOrDelete(exp) && (
+      {canEditExpense(exp) && (
         <>
           <button
             onClick={() => openEditModal(exp)}
@@ -186,6 +190,10 @@ const ExpenseManagementPage = ({ role }) => {
           >
             <Edit className="w-5 h-5" />
           </button>
+        </>
+      )}
+      {canDeleteExpenseRow(exp) && (
+        <>
           <button
             onClick={() => setDeleteConfirm(exp)}
             className="p-1.5 text-gray-500 hover:text-red-600 rounded-full hover:bg-red-50"
@@ -303,6 +311,8 @@ const ExpenseManagementPage = ({ role }) => {
 
   const canEditOrDelete = (exp) =>
     isEmployee && exp.employeeId === employeeId;
+  const canEditExpense = (exp) => canEditOrDelete(exp) && canUpdate;
+  const canDeleteExpenseRow = (exp) => canEditOrDelete(exp) && canDeleteExpense;
 
   // ── PAGINATION ──
   const totalPages = Math.ceil(expenses.length / itemsPerPage);
@@ -651,7 +661,7 @@ const ExpenseManagementPage = ({ role }) => {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
-              {isEmployee && (
+              {isEmployee && canCreate && (
                 <button
                   onClick={() => openEditModal()}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium shadow-sm"

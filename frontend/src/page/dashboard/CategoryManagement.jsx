@@ -32,6 +32,7 @@ import { db } from "../../db/database";
 import { useCategoryOfflineSync } from "../../hooks/useCategoryOffline";
 import { useNetworkStatusContext } from "../../context/useNetworkContext";
 import useScreenBelow from "../../hooks/useScreenBelow";
+import { hasFeaturePermission } from "../../utils/permissions";
 
 const CategoryManagement = ({ role }) => {
   const [categories, setCategories] = useState([]);
@@ -57,6 +58,9 @@ const CategoryManagement = ({ role }) => {
   const { triggerSync, syncError } = useCategoryOfflineSync();
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
+  const canCreate = hasFeaturePermission(employeeData, role, 'category-management', 'create');
+  const canUpdate = hasFeaturePermission(employeeData, role, 'category-management', 'update');
+  const canDelete = hasFeaturePermission(employeeData, role, 'category-management', 'delete');
 
   useEffect(() => {
     loadCategories();
@@ -511,6 +515,7 @@ const CategoryManagement = ({ role }) => {
               </div>
               {/* Action Buttons */}
               <div className="flex gap-1">
+                {canUpdate && (
                 <button
                   onClick={() => openEditModal(category)}
                   disabled={isLoading}
@@ -519,6 +524,8 @@ const CategoryManagement = ({ role }) => {
                 >
                   <Edit3 size={14} />
                 </button>
+                )}
+                {canDelete && (
                 <button
                   onClick={() => openDeleteModal(category)}
                   disabled={isLoading}
@@ -527,6 +534,7 @@ const CategoryManagement = ({ role }) => {
                 >
                   <Trash2 size={14} />
                 </button>
+                )}
               </div>
             </div>
 
@@ -597,6 +605,7 @@ const CategoryManagement = ({ role }) => {
               </div>
             </div>
             <div className="flex gap-2">
+              {canUpdate && (
               <button
                 onClick={() => openEditModal(category)}
                 disabled={isLoading}
@@ -605,6 +614,8 @@ const CategoryManagement = ({ role }) => {
               >
                 <Edit3 size={14} />
               </button>
+              )}
+              {canDelete && (
               <button
                 onClick={() => openDeleteModal(category)}
                 disabled={isLoading}
@@ -613,6 +624,7 @@ const CategoryManagement = ({ role }) => {
               >
                 <Trash2 size={14} />
               </button>
+              )}
             </div>
           </li>
         ))}
@@ -707,6 +719,7 @@ const CategoryManagement = ({ role }) => {
 
               <td className="px-4 py-3 whitespace-nowrap">
                 <div className="flex items-center gap-2">
+                  {canUpdate && (
                   <button
                     onClick={() => openEditModal(category)}
                     disabled={isLoading}
@@ -715,6 +728,8 @@ const CategoryManagement = ({ role }) => {
                   >
                     <Edit3 size={14} />
                   </button>
+                  )}
+                  {canDelete && (
                   <button
                     onClick={() => openDeleteModal(category)}
                     disabled={isLoading}
@@ -723,6 +738,7 @@ const CategoryManagement = ({ role }) => {
                   >
                     <Trash2 size={14} />
                   </button>
+                  )}
                 </div>
               </td>
             </tr>
@@ -805,6 +821,7 @@ const CategoryManagement = ({ role }) => {
                 </button>
                 
               )}
+                {canCreate && (
                 <button
               onClick={() => setIsAddModalOpen(true)}
               disabled={isLoading}
@@ -813,6 +830,7 @@ const CategoryManagement = ({ role }) => {
               <Plus size={14} />
               Add Category
             </button>
+            )}
 
             </div>
             
@@ -953,7 +971,7 @@ const CategoryManagement = ({ role }) => {
                 ? "Try adjusting your search terms."
                 : "Get started by adding your first category."}
             </p>
-            {!searchTerm && (
+            {!searchTerm && canCreate && (
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"

@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { EmployeeManagmentModule } from './modules/employee-managment/employee-managment.module';
 import { TaskManagementModule } from './modules/task-management/task-management.module';
+import { PermissionModule } from './modules/permission-management/permission.module';
 import { CategoryManagementModule } from './modules/category-management/category-management.module';
 import { ProductManagmentModule } from './modules/product-managment/product-managment.module';
 import { StockinManagmentModule } from './modules/stockin-managment/stockin-managment.module';
@@ -41,6 +42,7 @@ import { IdempotencyModule } from './common/idempotency/idempotency.module';
     AdminModule,
     EmployeeManagmentModule,
     TaskManagementModule,
+    PermissionModule,
     CategoryManagementModule,
     ProductManagmentModule,
     StockinManagmentModule,

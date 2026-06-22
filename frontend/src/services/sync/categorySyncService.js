@@ -122,9 +122,31 @@ class CategorySyncService {
         try {
           response = await categoryService.createCategory(categoryData);
         } catch (apiError) {
-          // Handle specific API errors
-          if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
-            console.log(`⚠️ Server detected duplicate for category ${category.localId}, removing from queue`);
+          // 409 = category already exists on server — record the mapping so
+          // any dependent records (products) resolve to the correct server ID
+          if (apiError.status === 409 || apiError.response?.status === 409) {
+            const existingCategory = apiError.response?.data?.category || apiError.data?.category;
+            if (existingCategory?.id) {
+              await db.transaction('rw', db.categories_all, db.categories_offline_add, db.synced_category_ids, async () => {
+                await db.categories_all.put({
+                  id: existingCategory.id,
+                  name: existingCategory.name,
+                  description: existingCategory.description,
+                  lastModified: new Date(existingCategory.updatedAt || existingCategory.createdAt || Date.now()),
+                  updatedAt: new Date(existingCategory.updatedAt || Date.now()),
+                });
+                await db.synced_category_ids.put({ localId: category.localId, serverId: existingCategory.id, syncedAt: new Date() });
+                await db.categories_offline_add.delete(category.localId);
+              });
+              console.log(`⚠️ Category already exists on server — mapped ${category.localId} → ${existingCategory.id}`);
+            } else {
+              await db.categories_offline_add.delete(category.localId);
+              console.log(`⚠️ Category already exists but no ID returned — removed from queue`);
+            }
+            skipped++;
+            continue;
+          }
+          if (apiError.status === 400 && apiError.message?.includes('already exists')) {
             await db.categories_offline_add.delete(category.localId);
             skipped++;
             continue;

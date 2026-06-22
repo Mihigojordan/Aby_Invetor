@@ -18,9 +18,10 @@ import { RequestWithAdmin } from 'src/common/interfaces/admin.interface';
 export class TaskManagementController {
   constructor(private readonly taskServices: TaskManagementService) {}
   @Post('create')
-  async registerTask(@Body() data) {
+  async registerTask(@Body() data, @Req() req: RequestWithAdmin) {
     try {
-      return await this.taskServices.registerTask(data);
+      const adminId = req.admin?.id as string;
+      return await this.taskServices.registerTask({ ...data, adminId });
     } catch (error) {
       console.error('error registering a task', error);
       throw new Error(error.message);

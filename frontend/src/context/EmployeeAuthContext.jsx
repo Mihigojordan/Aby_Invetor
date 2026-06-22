@@ -6,6 +6,7 @@ import { decrypt } from "../utils/Encryption";
 import { db } from "../db/database"; // your Dexie db
 import pushNotificationService from "../services/pushNotificationService";
 import { getClientDescription } from "../stores/detectDevice";
+import permissionService from "../services/permissionService";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const EmployeeAuthContext = createContext({
@@ -64,6 +65,19 @@ const clearAuthStorage = () => {
     Object.values(AUTH_STORAGE_KEYS).forEach(key => {
         removeStoredValue(key)
     })
+}
+
+// Attaches the employee's permission matrix rows (replaces the old Task-keyword
+// derived capability flags) onto the profile object before it's stored as `user`.
+const attachPermissions = async (employee) => {
+    if (!employee) return employee;
+    try {
+        const permissions = await permissionService.getOwnPermissions();
+        return { ...employee, permissions };
+    } catch (error) {
+        console.warn('Could not fetch employee permissions:', error);
+        return { ...employee, permissions: employee.permissions || [] };
+    }
 }
 
 export const EmployeeAuthContextProvider = ({ children }) => {
@@ -316,9 +330,16 @@ export const EmployeeAuthContextProvider = ({ children }) => {
             try {
                 console.log("Checking backend employee auth state...");
                 const response = await employeeAuthService.getProfile();
-                // If already authenticated on backend → stop
+                // If already authenticated on backend → refresh permissions (don't just stop)
                 if (response && response.employee && response.employee.id) {
-                    console.log("Already authenticated online ✅");
+                    console.log("Already authenticated online ✅ refreshing permissions...");
+                    const employeeWithPermissions = await attachPermissions(response.employee);
+                    updateAuthState({
+                        user: employeeWithPermissions,
+                        isAuthenticated: true,
+                        isLocked: response.employee?.isLocked || false,
+                        isOfflineMode: false
+                    });
                     return;
                 }
             } catch (error) {
@@ -355,9 +376,10 @@ export const EmployeeAuthContextProvider = ({ children }) => {
 
                 // Refresh user profile
                 const userProfile = await employeeAuthService.getProfile();
+                const employeeWithPermissions = await attachPermissions(userProfile.employee);
 
                 updateAuthState({
-                    user: userProfile.employee,
+                    user: employeeWithPermissions,
                     isAuthenticated: true,
                     isLocked: userProfile.employee?.isLocked || false,
                     isOfflineMode: false
@@ -388,9 +410,10 @@ export const EmployeeAuthContextProvider = ({ children }) => {
                         // Fetch user profile after successful online login
                         try {
                             const userProfile = await employeeAuthService.getProfile()
-                            
+                            const employeeWithPermissions = await attachPermissions(userProfile.employee)
+
                             updateAuthState({
-                                user: userProfile.employee,
+                                user: employeeWithPermissions,
                                 isAuthenticated: true,
                                 isLocked: userProfile.employee?.isLocked || false,
                                 isOfflineMode: false
@@ -548,8 +571,9 @@ export const EmployeeAuthContextProvider = ({ children }) => {
                 const response = await employeeAuthService.getProfile()
 
                 if (response && response.employee) {
+                    const employeeWithPermissions = await attachPermissions(response.employee)
                     updateAuthState({
-                        user: response.employee,
+                        user: employeeWithPermissions,
                         isAuthenticated: true,
                         isLocked: response.employee?.isLocked || false,
                         isOfflineMode: false

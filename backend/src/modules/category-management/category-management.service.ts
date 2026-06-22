@@ -32,7 +32,12 @@ export class CategoryManagementService {
       const categoryExists = await this.prismaService.category.findFirst({
         where: { name },
       });
-      if (categoryExists) throw new BadRequestException('Category already exists');
+      if (categoryExists) {
+        throw new HttpException(
+          { message: 'Category already exists', category: categoryExists },
+          HttpStatus.CONFLICT,
+        );
+      }
 
       const createdCategory = await this.prismaService.category.create({
         data: { name, description },

@@ -14,6 +14,7 @@ import { useStockInOfflineSync } from '../../hooks/useStockInOfflineSync';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import { useNavigate } from 'react-router-dom';
 import useScreenBelow from '../../hooks/useScreenBelow';
+import { hasFeaturePermission } from '../../utils/permissions';
 
 const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
@@ -35,6 +36,9 @@ const StockInManagement = ({ role }) => {
   const { isOnline } = useNetworkStatusContext();
   const { user: employeeData } = useEmployeeAuth();
   const { user: adminData } = useAdminAuth();
+  const canCreate = hasFeaturePermission(employeeData, role, 'stockin', 'create');
+  const canUpdate = hasFeaturePermission(employeeData, role, 'stockin', 'update');
+  const canDelete = hasFeaturePermission(employeeData, role, 'stockin', 'delete');
   const { triggerSync, syncError } = useStockInOfflineSync();
   const [itemsPerPage] = useState(8);
   const [currentPage, setCurrentPage] = useState(1);
@@ -840,6 +844,7 @@ const StockInManagement = ({ role }) => {
                     >
                       <Eye size={16} />
                     </button>
+                    {canUpdate && (
                     <button
                       onClick={() => openAddQuantityModal(stockIn)}
                       disabled={isLoading}
@@ -848,6 +853,8 @@ const StockInManagement = ({ role }) => {
                     >
                       <PackagePlus size={16} />
                     </button>
+                    )}
+                    {canUpdate && (
                     <button
                       onClick={() => openEditModal(stockIn)}
                       disabled={isLoading}
@@ -856,6 +863,8 @@ const StockInManagement = ({ role }) => {
                     >
                       <Edit3 size={16} />
                     </button>
+                    )}
+                    {canDelete && (
                     <button
                       onClick={() => openDeleteModal(stockIn)}
                       disabled={isLoading}
@@ -864,6 +873,7 @@ const StockInManagement = ({ role }) => {
                     >
                       <Trash2 size={16} />
                     </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -956,6 +966,7 @@ const StockInManagement = ({ role }) => {
                     <span>{formatDate(stockIn.createdAt || stockIn.lastModified)}</span>
                   </div>
                   <div className="flex gap-1">
+                    {canUpdate && (
                     <button
                       onClick={() => openAddQuantityModal(stockIn)}
                       disabled={isLoading}
@@ -964,6 +975,8 @@ const StockInManagement = ({ role }) => {
                     >
                       <PackagePlus size={14} />
                     </button>
+                    )}
+                    {canUpdate && (
                     <button
                       onClick={() => openEditModal(stockIn)}
                       disabled={isLoading}
@@ -972,6 +985,8 @@ const StockInManagement = ({ role }) => {
                     >
                       <Edit3 size={14} />
                     </button>
+                    )}
+                    {canDelete && (
                     <button
                       onClick={() => openDeleteModal(stockIn)}
                       disabled={isLoading}
@@ -980,6 +995,7 @@ const StockInManagement = ({ role }) => {
                     >
                       <Trash2 size={14} />
                     </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1051,6 +1067,7 @@ const StockInManagement = ({ role }) => {
                     </button>
                   )}
                 </div>
+              {canCreate && (
               <button
                 onClick={openAddModal}
                 disabled={isLoading}
@@ -1059,6 +1076,7 @@ const StockInManagement = ({ role }) => {
                 <Plus size={18} />
                 <span className="text-sm font-semibold">Add New Stock</span>
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -1177,7 +1195,7 @@ const StockInManagement = ({ role }) => {
                   ? 'Try adjusting your search or date filters to find what you\'re looking for.' 
                   : 'Get started by adding your first stock in entry to track incoming inventory.'}
               </p>
-              {!(searchTerm || startDate || endDate) && (
+              {!(searchTerm || startDate || endDate) && canCreate && (
                 <button
                   onClick={openAddModal}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"

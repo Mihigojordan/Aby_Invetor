@@ -73,11 +73,12 @@ const Dashboard = () => {
   const [stockInChartData, setStockInChartData] = useState([]);
   const [stockOutChartData, setStockOutChartData] = useState([]);
 
-  // Permission checks based on user tasks
-  const userTasks = user?.tasks || [];
-  const canViewSales = userTasks.some(task => task.taskname?.toLowerCase().includes('selling') || task.taskname?.toLowerCase().includes('sales') || task.taskname?.toLowerCase().includes('saling') || task.taskname?.toLowerCase().includes('stockout'));
-  const canViewReturns = userTasks.some(task => task.taskname?.toLowerCase().includes('returning') || task.taskname?.toLowerCase().includes('return'));
-  const canViewReceiving = userTasks.some(task => task.taskname?.toLowerCase().includes('receiving') || task.taskname?.toLowerCase().includes('stockin'));
+  // Permission checks based on the employee's permission matrix (replaces the old Task-keyword check)
+  const userPermissions = user?.permissions || [];
+  const hasFeatureAccess = (featureKey) => userPermissions.some(p => p.feature === featureKey && p.access);
+  const canViewSales = hasFeatureAccess('stockout-movement');
+  const canViewReturns = hasFeatureAccess('sales-returns');
+  const canViewReceiving = hasFeatureAccess('stockin');
   const canViewProducts = canViewReturns || canViewReceiving;
   const canViewCategories = canViewReturns || canViewReceiving;
   const hasAnyPermissions = canViewSales || canViewReturns || canViewReceiving;

@@ -60,6 +60,24 @@ model Employee {
 
   stockRequisition StockRequisition[]
    receivingLogs   ReceivingLog[]
+  permissions Permission[]
+}
+
+model Permission {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  feature    String
+  access     Boolean  @default(false)
+  viewOwn    Boolean  @default(false)
+  viewAll    Boolean  @default(false)
+  create     Boolean  @default(false)
+  update     Boolean  @default(false)
+  delete     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, feature])
 }
 
 enum Status {

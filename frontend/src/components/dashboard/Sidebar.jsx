@@ -151,20 +151,20 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       label: "Category Management",
       icon: FolderTree,
       path: "/employee/dashboard/category",
-      taskname: ["receiving", "returning", "return", "stockin"],
+      features: ["category-management"],
     },
     {
       key: "product-list",
       label: "Product Management",
       icon: Package,
       path: "/employee/dashboard/product",
-      taskname: ["receiving", "returning", "return", "stockin"],
+      features: ["product-list"],
     },
- 
+
     {
       key: "stockin_receiving",
       label: "Stock  In Management",
-      taskname: ["receiving", "stockin"],
+      features: ["stockin"],
       icon: ArrowDown,
       path: "/employee/dashboard/stockin",
     },
@@ -173,22 +173,23 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       label: "Partner Management",
       icon: Briefcase,
       path: "/employee/dashboard/partner",
+      features: ["partners"],
     },
-    
+
     {
       key: "stockout-movement",
       label: "Sales  Out Management",
       icon: ArrowUp,
       path: "/employee/dashboard/stockout",
-      taskname: ["saling", "selling", "sales", "stockout"],
+      features: ["stockout-movement"],
     },
     {
       key: "debt-movement",
       label: "Debt Management",
       icon: DollarSign,
       path: "/employee/dashboard/debt-management",
-           taskname: ["saling", "selling", "sales", "stockout"],
-    
+           features: ["debt-movement"],
+
     },
 
     {
@@ -196,7 +197,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       label: "Sales Returns Management",
       icon: RotateCcw,
       path: "/employee/dashboard/sales-return",
-      taskname: ["returning", "return"],
+      features: ["sales-returns"],
     },
 
                 {
@@ -204,29 +205,29 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
       label: "Expense Management",
       icon: ReceiptPoundSterling,
       path: "/employee/dashboard/expense-management",
-        taskname: ["saling", "selling", "sales", "stockout"],
+        features: ["expense-movement"],
             },
             {
       key: "credit-movement",
       label: "Credit Management",
       icon: ReceiptPoundSterling,
       path: "/employee/dashboard/credit-management",
-        taskname: ["saling", "selling", "sales", "stockout"],
+        features: ["credit-movement"],
             },
-    
+
     {
       key: "sales-report",
       label: "Sales Report Management",
       icon: BarChart3,
       path: "/employee/dashboard/sales-report",
-      taskname: ["saling", "selling", "sales", "stockout"],
+      features: ["sales-report"],
     },
 
-  
+
        {
           key: "requisition-management",
           label: "Requisition Management",
-           taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
+           features: ["requisition-management"],
           path: "/employee/dashboard/requisition",
           icon: Clipboard,
         },
@@ -234,7 +235,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
           key: "stock-requisition-management",
           label: "Stock Requisition Management",
           path: "/employee/dashboard/stock-requisition",
-          taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
+          features: ["stock-requisition-management"],
           icon: ClipboardList,
         },
 
@@ -242,7 +243,7 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
     {
       key: "employee_reports",
       label: "Report Management",
-      taskname: ["receiving", "stockin", "returning", "return", "saling", "selling", "sales", "stockout", "returning", "return"],
+      features: ["employee-report"],
       icon: FileText,
       path: "/employee/dashboard/report",
     },
@@ -259,18 +260,20 @@ const Sidebar = ({ isOpen = true, onToggle, role }) => {
   };
 
   const getFilteredEmployeeItems = () => {
-    if (!employeeData || !employeeData.tasks) {
+    if (!employeeData || !employeeData.permissions) {
       return employeeItems.filter((item) => item.alwaysShow);
     }
-    const employeeTaskNames = employeeData.tasks.map((task) => task.taskname);
-    
+    const accessibleFeatures = employeeData.permissions
+      .filter((permission) => permission.access)
+      .map((permission) => permission.feature);
+
     return employeeItems.filter((item) => {
       if (item.alwaysShow) return true;
-      
-      if (item.taskname) {
-        return item.taskname.some((task) => employeeTaskNames.includes(task));
+
+      if (item.features) {
+        return item.features.some((feature) => accessibleFeatures.includes(feature));
       }
-      
+
       return false;
     });
   };

@@ -1,9 +1,13 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PermissionService } from '../permission-management/permission.service';
 
 @Injectable()
 export class ReportService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private permissionService: PermissionService,
+  ) {}
 
   async create(data: any) {
   const { employeeId, expenses, transactions, cashAtHand, moneyOnPhone } = data;
@@ -129,13 +133,10 @@ export class ReportService {
   }
 
   async findReportsForEmployee(employeeId: string) {
-    const employee = await this.prisma.employee.findUnique({
-      where: { id: employeeId },
-      include: { tasks: true },
-    });
-
-    const canViewAllReports = (employee?.tasks || []).some((task) =>
-      task.taskname?.toLowerCase().includes('report'),
+    const canViewAllReports = await this.permissionService.employeeHasPermission(
+      employeeId,
+      'employee-report',
+      'viewAll',
     );
 
     return canViewAllReports

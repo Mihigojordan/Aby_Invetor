@@ -8,46 +8,52 @@ const ProtectPrivateEmployee = ({ children }) => {
   const location = useLocation();
 
 
-// Route to task mapping (matches your ProtectPrivateEmployee logic)
-const routeTaskMapping = {
-  // saling
-  '/employee/dashboard/stockout': ['saling','selling','sales','stockout'],
-  '/employee/dashboard/sales-report': ['saling','selling','sales','stockout'],
-  // returning and receiving (both can access these routes)
-  '/employee/dashboard/sales-return': ['returning','return'],
-  '/employee/dashboard/category':['receiving', 'returning','return','stockin'],
-  '/employee/dashboard/product':['receiving', 'returning','return','stockin'],
-  // receiving
-  '/employee/dashboard/stockin': ['receiving','stockin'],
+// Route to feature mapping (reads from the employee's permission matrix)
+const routeFeatureMapping = {
+  '/employee/dashboard/stockout': ['stockout-movement'],
+  '/employee/dashboard/sales-report': ['sales-report'],
+  '/employee/dashboard/sales-return': ['sales-returns'],
+  '/employee/dashboard/category': ['category-management'],
+  '/employee/dashboard/product': ['product-list'],
+  '/employee/dashboard/stockin': ['stockin'],
+  '/employee/dashboard/debt-management': ['debt-movement'],
+  '/employee/dashboard/expense-management': ['expense-movement'],
+  '/employee/dashboard/credit-management': ['credit-movement'],
+  '/employee/dashboard/requisition': ['requisition-management'],
+  '/employee/dashboard/stock-requisition': ['stock-requisition-management'],
+  '/employee/dashboard/partner': ['partners'],
+  '/employee/dashboard/report': ['employee-report'],
 };
 
 
-// Check if the current route requires a specific task
+// Check if the current route requires a specific permission
 const checkTaskPermission = () => {
   const currentPath = location.pathname;
- 
+
   // Find if current path matches any protected route
-  const matchedRoute = Object.keys(routeTaskMapping).find(route =>
+  const matchedRoute = Object.keys(routeFeatureMapping).find(route =>
     currentPath.includes(route) || currentPath === route
   );
- 
+
   if (!matchedRoute) {
-    // Route doesn't require task permission, allow access
+    // Route doesn't require a specific permission, allow access
     return true;
   }
 
-  const requiredTasks = routeTaskMapping[matchedRoute]; // Now this is an array
- 
-  // Check if user has the required task
-  if (!user || !user.tasks || !Array.isArray(user.tasks)) {
+  const requiredFeatures = routeFeatureMapping[matchedRoute];
+
+  // Check if user has any permissions loaded
+  if (!user || !user.permissions || !Array.isArray(user.permissions)) {
     return false;
   }
 
-  const userTaskNames = user.tasks.map(task => task.taskname);
-  
-  // Check if user has ANY of the required tasks for this route
-  return requiredTasks?.some(requiredTask => 
-    userTaskNames.includes(requiredTask)
+  const accessibleFeatures = user.permissions
+    .filter(permission => permission.access)
+    .map(permission => permission.feature);
+
+  // Check if user has access to ANY of the required features for this route
+  return requiredFeatures?.some(requiredFeature =>
+    accessibleFeatures.includes(requiredFeature)
   );
 };
 
