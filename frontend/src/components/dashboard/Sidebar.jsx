@@ -100,7 +100,7 @@ const Sidebar = ({ isOpen = true, onToggle, role, isExpanded = true, onToggleSid
       title={!isExpanded ? item.label : undefined}
       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative"
       style={{
-        backgroundColor: 'transparent',
+        backgroundColor: isActive ? 'rgba(63, 171, 198, 0.1)' : 'transparent',
         color: '#8A93A6',
       }}
     >

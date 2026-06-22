@@ -76,13 +76,13 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
   }, [])
 
   return (
-    <header style={{ height: "64px", backgroundColor: "#ffffff", borderBottom: "1px solid #E7EBF1", display: "flex", alignItems: "center", gap: "12px", padding: "0 18px", position: "sticky", top: 0, zIndex: 40 }}>
+    <header style={{ height: "clamp(56px, 10vh, 64px)", backgroundColor: "#ffffff", borderBottom: "1px solid #E7EBF1", display: "flex", alignItems: "center", gap: "clamp(6px, 2vw, 12px)", padding: "0 clamp(8px, 3vw, 18px)", position: "sticky", top: 0, zIndex: 40, flexWrap: "nowrap" }}>
       {/* Menu Button */}
       <button
         onClick={onToggle}
         style={{
-          width: "40px",
-          height: "40px",
+          width: "clamp(32px, 6vw, 40px)",
+          height: "clamp(32px, 6vw, 40px)",
           border: "1px solid #E7EBF1",
           backgroundColor: "#ffffff",
           borderRadius: "9px",
@@ -92,24 +92,25 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
           cursor: "pointer",
           color: "#1B2536",
           transition: "all 0.2s",
+          flexShrink: 0,
         }}
         onMouseEnter={(e) => { e.target.style.backgroundColor = "#E4F4F8"; e.target.style.color = "#3FABC6"; }}
         onMouseLeave={(e) => { e.target.style.backgroundColor = "#ffffff"; e.target.style.color = "#1B2536"; }}
         title="Toggle sidebar"
       >
-        <FaBars size={19} />
+        <FaBars size={16} />
       </button>
 
-      {/* Sidebar Toggle Button - All Screens */}
+      {/* Sidebar Toggle Button - Hidden on Mobile */}
       <button
         onClick={onToggleSidebarSize}
         style={{
-          width: "40px",
+          width: "clamp(0px, 0px, 40px)",
           height: "40px",
           border: "1px solid #E7EBF1",
           backgroundColor: "#ffffff",
           borderRadius: "9px",
-          display: "flex",
+          display: window.innerWidth < 1024 ? "none" : "flex",
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
@@ -126,30 +127,30 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
         </svg>
       </button>
 
-      {/* Search Bar */}
+      {/* Search Bar - Responsive */}
       <div
         style={{
-          display: "flex",
+          display: window.innerWidth < 768 ? "none" : "flex",
           alignItems: "center",
-          gap: "9px",
-          height: "40px",
-          padding: "0 12px",
+          gap: "clamp(6px, 1vw, 9px)",
+          height: "clamp(32px, 6vw, 40px)",
+          padding: "0 clamp(8px, 2vw, 12px)",
           border: "1px solid #E7EBF1",
           backgroundColor: "#F5F7FB",
           borderRadius: "9px",
-          width: "320px",
+          width: "clamp(200px, 30vw, 320px)",
           maxWidth: "34vw",
         }}
       >
-        <FaSearch size={16} style={{ color: "#6A788D", flexShrink: 0 }} />
+        <FaSearch size={14} style={{ color: "#6A788D", flexShrink: 0 }} />
         <input
           type="text"
-          placeholder="Search anything…"
+          placeholder={window.innerWidth < 640 ? "Search…" : "Search anything…"}
           style={{
             border: "none",
             backgroundColor: "transparent",
             outline: "none",
-            fontSize: "13px",
+            fontSize: "clamp(11px, 2vw, 13px)",
             color: "#1B2536",
             width: "100%",
           }}
@@ -158,14 +159,15 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
         />
         <kbd
           style={{
-            fontSize: "10.5px",
+            fontSize: "clamp(9px, 1.5vw, 10.5px)",
             fontWeight: "700",
             color: "#6A788D",
             backgroundColor: "#ffffff",
             border: "1px solid #E7EBF1",
             borderRadius: "6px",
-            padding: "2px 6px",
+            padding: "2px 4px",
             flexShrink: 0,
+            display: window.innerWidth < 640 ? "none" : "block",
           }}
         >
           ⌘K
@@ -179,8 +181,8 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: "40px",
-            height: "40px",
+            width: "clamp(32px, 6vw, 40px)",
+            height: "clamp(32px, 6vw, 40px)",
             borderRadius: "9px",
             border: "1px solid #E7EBF1",
             backgroundColor: "#ffffff",
@@ -189,18 +191,18 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
           }}
           title={isOnline ? "Connected to server" : "Working offline"}
         >
-          {isOnline ? <Wifi size={18} /> : <WifiOff size={18} />}
+          {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
         </div>
 
-        {/* POS Button */}
+        {/* POS Button - Hidden on Mobile */}
         <button
           onClick={handlePOS}
           style={{
-            display: "flex",
+            display: window.innerWidth < 768 ? "none" : "flex",
             alignItems: "center",
-            gap: "6px",
-            height: "40px",
-            padding: "0 17px",
+            gap: "clamp(4px, 1vw, 6px)",
+            height: "clamp(32px, 6vw, 40px)",
+            padding: "0 clamp(10px, 2vw, 17px)",
             backgroundColor: "rgb(222, 55, 163)",
             border: "1px solid rgb(222, 55, 163)",
             borderRadius: "9px",
@@ -208,7 +210,8 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
             color: "#ffffff",
             transition: "all 0.2s",
             fontWeight: "600",
-            fontSize: "13px",
+            fontSize: "clamp(11px, 2vw, 13px)",
+            whiteSpace: "nowrap",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = "rgb(202, 35, 143)"
@@ -224,16 +227,16 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
           <span>POS</span>
         </button>
 
-        {/* Fullscreen Button - All Screens */}
+        {/* Fullscreen Button - Hidden on Mobile */}
         <button
           onClick={handleFullscreen}
           style={{
-            width: "40px",
+            width: "clamp(0px, 0px, 40px)",
             height: "40px",
             border: "1px solid #E7EBF1",
             backgroundColor: "#ffffff",
             borderRadius: "9px",
-            display: "flex",
+            display: window.innerWidth < 1024 ? "none" : "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
@@ -247,13 +250,13 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
           <FaExpand size={18} />
         </button>
 
-        {/* Language Button - All Screens */}
+        {/* Language Button - Responsive */}
         <button
           onClick={handleLanguageChange}
           style={{
             width: "auto",
-            minWidth: "40px",
-            height: "40px",
+            minWidth: "clamp(32px, 6vw, 40px)",
+            height: "clamp(32px, 6vw, 40px)",
             border: "1px solid #E7EBF1",
             backgroundColor: "#ffffff",
             borderRadius: "9px",
@@ -263,23 +266,23 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
             cursor: "pointer",
             color: "#6A788D",
             transition: "all 0.2s",
-            gap: "6px",
-            padding: "0 11px",
+            gap: "clamp(4px, 1vw, 6px)",
+            padding: window.innerWidth < 640 ? "0 6px" : "0 11px",
           }}
           onMouseEnter={(e) => { e.target.style.backgroundColor = "#E4F4F8"; e.target.style.color = "#3FABC6"; }}
           onMouseLeave={(e) => { e.target.style.backgroundColor = "#ffffff"; e.target.style.color = "#6A788D"; }}
           title="Change language"
         >
-          <span className={`fi ${language === 'US' ? 'fi-us' : 'fi-fr'}`} style={{ fontSize: "1.2em", lineHeight: "1" }} />
-          <span style={{ fontSize: "12.5px", fontWeight: "700", color: "inherit" }}>{language}</span>
+          <span className={`fi ${language === 'US' ? 'fi-us' : 'fi-fr'}`} style={{ fontSize: "clamp(0.9em, 2vw, 1.2em)", lineHeight: "1" }} />
+          <span style={{ fontSize: "clamp(10px, 2vw, 12.5px)", fontWeight: "700", color: "inherit", display: window.innerWidth < 640 ? "none" : "block" }}>{language}</span>
         </button>
 
         {/* Dark Mode Button */}
         <button
           onClick={() => setIsDark(!isDark)}
           style={{
-            width: "40px",
-            height: "40px",
+            width: "clamp(32px, 6vw, 40px)",
+            height: "clamp(32px, 6vw, 40px)",
             border: "1px solid #E7EBF1",
             backgroundColor: "#ffffff",
             borderRadius: "9px",
@@ -299,9 +302,10 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
 
         {/* Notifications Button */}
         <button
+          onClick={() => navigate(role === 'admin' ? '/admin/dashboard/profile?tab=notifications' : '/employee/dashboard/profile?tab=notifications')}
           style={{
-            width: "40px",
-            height: "40px",
+            width: "clamp(32px, 6vw, 40px)",
+            height: "clamp(32px, 6vw, 40px)",
             border: "1px solid #E7EBF1",
             backgroundColor: "#ffffff",
             borderRadius: "9px",
@@ -317,14 +321,14 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
           onMouseLeave={(e) => { e.target.style.backgroundColor = "#ffffff"; e.target.style.color = "#6A788D"; }}
           title="Notifications"
         >
-          <FaBell size={18} />
+          <FaBell size={16} />
           <span
             style={{
               position: "absolute",
-              top: "8px",
-              right: "9px",
-              width: "8px",
-              height: "8px",
+              top: "clamp(6px, 1vw, 8px)",
+              right: "clamp(6px, 1vw, 9px)",
+              width: "clamp(6px, 1vw, 8px)",
+              height: "clamp(6px, 1vw, 8px)",
               borderRadius: "50%",
               backgroundColor: "#DE37A3",
               border: "1.5px solid #ffffff",
@@ -339,11 +343,11 @@ const Header = ({ onToggle, role, onToggleSidebarSize, isSidebarExpanded }) => {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "9px",
-              padding: "4px 10px 4px 4px",
+              gap: "clamp(4px, 1vw, 9px)",
+              padding: window.innerWidth < 640 ? "4px" : "4px 10px 4px 4px",
               border: "1px solid #E7EBF1",
               borderRadius: "24px",
-              marginLeft: "4px",
+              marginLeft: "clamp(2px, 1vw, 4px)",
               cursor: "pointer",
               backgroundColor: "#ffffff",
               transition: "all 0.2s",
