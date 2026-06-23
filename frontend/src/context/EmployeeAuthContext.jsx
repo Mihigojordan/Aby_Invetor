@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { useSocketEvent } from "./SocketContext";
 import employeeAuthService from "../services/employeeAuthServices";
 import { employeeOfflineAuthService } from "../services/offline-auth/employeeOfflineAuthService";
 import { useNetworkStatusContext } from "./useNetworkContext";
@@ -736,6 +737,21 @@ export const EmployeeAuthContextProvider = ({ children }) => {
         window.addEventListener('storage', handleStorageChange)
         return () => window.removeEventListener('storage', handleStorageChange)
     }, [])
+
+    // When an admin changes an employee's permission, patch it live so sidebar
+    // visibility and button gating update without a page refresh or re-login.
+    useSocketEvent('permission_updated', (data) => {
+        setUser(prev => {
+            if (!prev?.id || data.employeeId !== prev.id) return prev;
+            const existing = (prev.permissions || []).findIndex(p => p.feature === data.feature);
+            const newPermissions = existing >= 0
+                ? prev.permissions.map((p, i) => i === existing ? { ...p, ...data } : p)
+                : [...(prev.permissions || []), data];
+            const updated = { ...prev, permissions: newPermissions };
+            setStoredValue(AUTH_STORAGE_KEYS.USER, updated);
+            return updated;
+        });
+    });
 
     const values = {
         login,

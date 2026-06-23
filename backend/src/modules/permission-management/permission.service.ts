@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { GlobalSocketGateway } from 'src/global/socket/socket.gateway';
 
 export type PermissionAction =
   | 'access'
@@ -11,7 +12,10 @@ export type PermissionAction =
 
 @Injectable()
 export class PermissionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: GlobalSocketGateway,
+  ) {}
 
   async getMatrixForFeature(feature: string) {
     const [employees, permissions] = await Promise.all([
@@ -74,11 +78,21 @@ export class PermissionService {
       delete: boolean;
     }>,
   ) {
-    return this.prisma.permission.upsert({
+    const result = await this.prisma.permission.upsert({
       where: { employeeId_feature: { employeeId, feature } },
       create: { employeeId, feature, ...data },
       update: { ...data },
     });
+
+    // Broadcast to all connected clients so employee UIs and admin panels
+    // update in real-time without a page refresh.
+    this.gateway.server?.emit('permission_updated', {
+      employeeId,
+      feature,
+      ...result,
+    });
+
+    return result;
   }
 
   async employeeHasPermission(

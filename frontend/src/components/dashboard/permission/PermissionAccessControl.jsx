@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, Check, AlertTriangle } from 'lucide-react';
 import permissionService from '../../../services/permissionService';
 import { PERMISSION_FEATURES } from '../../../constants/permissionFeatures';
+import { useSocketEvent } from '../../../context/SocketContext';
 
 const TOGGLE_COLUMNS = [
   { field: 'access', label: 'Access' },
@@ -56,6 +57,20 @@ const PermissionAccessControl = () => {
       console.error('Failed to load permission counts:', error);
     }
   };
+
+  // Keep the matrix and counts in sync when any admin (or this tab) changes a permission.
+  useSocketEvent('permission_updated', (data) => {
+    if (data.feature === selectedFeature) {
+      setMatrix(prev =>
+        prev.map(row =>
+          row.employee.id === data.employeeId ? { ...row, ...data } : row
+        )
+      );
+    }
+    if (data.access !== undefined) {
+      loadCounts();
+    }
+  }, [selectedFeature]);
 
   const loadMatrix = async (feature) => {
     setIsLoading(true);
