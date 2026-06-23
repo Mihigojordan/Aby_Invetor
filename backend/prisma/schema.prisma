@@ -28,6 +28,7 @@ model Admin {
   product    Product[]
   activity   Activity[]
   backorder BackOrder[]
+  passwordResets AdminPasswordReset[]
 }
 
 model Employee {
@@ -96,6 +97,7 @@ model Task {
 model Category {
   id          String    @id @default(uuid())
   name        String?
+  subcategory String?
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -625,4 +627,30 @@ model Credit {
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
 
   createdAt   DateTime @default(now())
+}
+
+model AdminPasswordReset {
+  id        String   @id @default(cuid())
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([token])
+}
+
+model EmployeePasswordReset {
+  id        String   @id @default(cuid())
+  employeeId String
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([token])
 }

@@ -148,6 +148,17 @@ export const AdminAuthContextProvider = ({ children }) => {
                 throw new Error('VAPID public key not configured');
             }
 
+            // 4.5 Check for existing subscription and unsubscribe if it exists
+            const existingSubscription = await registration.pushManager.getSubscription();
+            if (existingSubscription) {
+                try {
+                    await existingSubscription.unsubscribe();
+                    console.log('Unsubscribed from existing push subscription');
+                } catch (unsubError) {
+                    console.warn('Failed to unsubscribe from existing subscription:', unsubError);
+                }
+            }
+
             // 5. Subscribe to push manager
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -156,7 +167,6 @@ export const AdminAuthContextProvider = ({ children }) => {
 
             // 6. Convert subscription to plain object
             const subscriptionObject = subscription.toJSON();
-            console.log('Admin subscription:', subscription);
 
             // 7. Send subscription to backend using push notification service
             await pushNotificationService.subscribe(

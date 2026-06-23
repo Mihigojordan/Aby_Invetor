@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABY Inventory — Admin Profile</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+    --bg:#F3F5F9;--panel:#ffffff;--panel2:#F5F7FB;--ink:#1B2536;--muted:#6A788D;--line:#E7EBF1;
+    --primary:#3FABC6;--primaryd:#2B8EA6;--primarysoft:#E4F4F8;--brand:#DE37A3;--cyan:#2CB8DE;--green:#15A24A;--greensoft:#E6F6EC;
+    --amber:#D88A0C;--ambersoft:#FDF3E0;--orange:#F97316;--orangesoft:#FEEEE2;--red:#E04848;--redsoft:#FDECEC;
+    --shadow:0 1px 2px rgba(16,30,54,.04),0 6px 18px rgba(16,30,54,.06);
+    background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  body.dark{--bg:#0E1521;--panel:#151E2C;--panel2:#1B2533;--ink:#E7ECF4;--muted:#93A1B5;--line:#27313F;
+    --primary:#45B6D0;--primaryd:#64C6DA;--primarysoft:#10333D;--brand:#E94FB4;--cyan:#3FD0EC;--green:#34C26A;--greensoft:#13301F;
+    --amber:#E0A53B;--ambersoft:#2E2613;--orange:#F98B4B;--orangesoft:#2E1E14;--red:#F0686A;--redsoft:#2E1719;
+    --shadow:0 1px 2px rgba(0,0,0,.4)}
+  input,select,button{font-family:inherit}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes slidein{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+  .shell{display:flex;min-height:100vh;width:100%;position:relative}
+
+  /* ---- SIDEBAR ---- */
+  .sidebar{width:264px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;transition:width .22s ease}
+  .sidebar.collapsed{width:80px}
+  .logoRow{display:flex;align-items:center;gap:11px;padding:6px 6px 16px}
+  .sidebar.collapsed .logoRow{justify-content:center;padding:6px 0 16px}
+  .sidebar.collapsed .logoText,.sidebar.collapsed .installText{display:none}
+  .nav{display:flex;flex-direction:column;gap:3px;overflow-y:auto;overflow-x:hidden;flex:1;margin:6px -4px 0;padding:6px 4px}
+  .navItem{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer}
+  .navItem:hover{background:var(--primarysoft);color:var(--primary)}
+  .navItem.active{color:var(--primary);background:var(--primarysoft);font-weight:700;box-shadow:inset 3px 0 0 var(--primary)}
+  .sidebar.collapsed .navItem{justify-content:center;padding:12px;gap:0}
+  .sidebar.collapsed .navItem.active{box-shadow:none}
+  .sidebar.collapsed .navLabel{display:none}
+  .installCard{margin-top:10px;background:var(--primarysoft);border-radius:12px;padding:13px;display:flex;align-items:center;gap:11px}
+  .sidebar.collapsed .installCard{justify-content:center;padding:11px}
+  body.mobile .sidebar{position:fixed;top:0;left:0;height:100vh;width:276px;z-index:56;transform:translateX(-100%);transition:transform .26s cubic-bezier(.32,.72,.3,1)}
+  body.mobile .sidebar.open{transform:translateX(0);box-shadow:0 0 60px rgba(16,30,54,.2)}
+  body.mobile .sidebar.collapsed{width:276px}
+  body.mobile .sidebar.collapsed .navLabel,body.mobile .sidebar.collapsed .logoText,body.mobile .sidebar.collapsed .installText{display:block}
+  body.mobile .sidebar.collapsed .navItem{justify-content:flex-start;padding:11px 13px;gap:12px}
+  #backdrop{display:none;position:fixed;inset:0;background:rgba(12,20,33,.45);z-index:55}
+  body.mobile #backdrop.show{display:block}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{height:64px;flex:none;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 18px;position:sticky;top:0;z-index:40}
+  .iconBtn{width:40px;height:40px;border:1px solid var(--line);background:var(--panel);border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);flex:none}
+  .iconBtn:hover{background:var(--primarysoft);color:var(--primary)}
+  .menuBtn{color:var(--ink)}
+  .menuBtn:hover{border-color:var(--primarysoft)}
+  .headerSearch{display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;border:1px solid var(--line);background:var(--panel2);border-radius:9px;width:320px;max-width:34vw}
+  .headerSearch input{border:none;background:transparent;outline:none;font-size:13px;color:var(--ink);width:100%}
+  .langBtn{width:auto;gap:6px;padding:0 11px}
+  body.narrow .headerSearch{display:none}
+  body.narrow .langWrap{display:none}
+  body.mobile .fsBtn{display:none}
+  body.narrow .profileText{display:none}
+  .profileChip{display:flex;align-items:center;gap:9px;padding:4px 10px 4px 4px;border:1px solid var(--line);border-radius:24px;margin-left:4px;cursor:pointer}
+  .profileChip:hover{border-color:var(--primary)}
+  .menuPop{position:absolute;z-index:45;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(16,30,54,.18);padding:6px}
+  .menuItem{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink)}
+  .menuItem:hover{background:var(--panel2)}
+
+  .content{padding:24px;flex:1;display:flex;flex-direction:column;gap:18px;min-width:0;max-width:1180px;width:100%;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+
+  .tabbar{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+  .tab{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;background:none;border-top:none;border-left:none;border-right:none}
+  .tab:hover{color:var(--ink);background:var(--panel2)}
+  .tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+
+  .hero{border-radius:14px;padding:28px 30px;display:flex;align-items:center;gap:22px;color:#fff;position:relative;overflow:hidden;
+    background:linear-gradient(120deg,var(--primaryd),var(--primary) 70%,var(--cyan))}
+  .hero .glow{position:absolute;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%);top:-120px;right:40px}
+  .heroAvatar{width:92px;height:92px;border-radius:50%;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;flex:none;position:relative;font-size:30px;font-weight:800}
+  .statusBadge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:6px 13px;border-radius:30px;font-size:12.5px;font-weight:700;margin-top:10px}
+
+  .infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .sectionTitle{font-size:15px;font-weight:800;letter-spacing:-.2px}
+  .infoRow{display:flex;align-items:center;gap:14px;padding:14px 0}
+  .infoRow+.infoRow{border-top:1px solid var(--line)}
+  .infoIco{width:42px;height:42px;border-radius:10px;background:var(--primarysoft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex:none}
+  .infoLabel{font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:.2px}
+  .infoVal{font-size:15px;font-weight:700;margin-top:2px}
+  .readonly{background:var(--primarysoft);border:1px solid color-mix(in srgb,var(--primary) 22%,transparent);border-radius:12px;padding:15px;display:flex;align-items:center;justify-content:center;gap:9px;font-size:13.5px;color:var(--primaryd);font-weight:600}
+
+  /* ---- NOTIFICATIONS DRAWER ---- */
+  .drawerBackdrop{position:fixed;inset:0;background:rgba(12,20,33,.45);z-index:60}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:480px;max-width:94vw;background:var(--bg);z-index:61;box-shadow:-10px 0 40px rgba(16,30,54,.18);display:flex;flex-direction:column}
+  .drawerHead{padding:20px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;background:var(--panel)}
+  .drawerBody{padding:20px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:16px}
+  .nBadge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:30px;font-size:12px;font-weight:700;background:var(--greensoft);color:var(--green)}
+  .nBadge.off{background:var(--redsoft);color:var(--red)}
+  .btnDanger{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border:none;border-radius:10px;background:var(--red);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer}
+  .btnSoftGreen{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border:none;border-radius:10px;background:var(--green);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer}
+  .deviceRow{display:flex;align-items:center;gap:13px;padding:13px;border:1px solid var(--line);border-radius:11px;background:var(--panel)}
+  .deviceIco{width:40px;height:40px;border-radius:10px;background:var(--panel2);color:var(--muted);display:flex;align-items:center;justify-content:center;flex:none}
+  .ghostBtn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--muted)}
+  .ghostBtn.red{color:var(--red);border-color:var(--redsoft)}
+
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);z-index:90;display:flex;align-items:center;gap:11px;padding:13px 18px;border-radius:10px;background:#16233a;color:#fff;box-shadow:0 14px 40px rgba(16,30,54,.34);max-width:90vw;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast span{font-size:13.5px;font-weight:600}
+
+  @media (max-width:760px){ .infoGrid{grid-template-columns:1fr} .hero{flex-direction:column;text-align:center;align-items:center} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div id="backdrop"></div>
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logoRow">
+      <svg width="34" height="38" viewBox="0 0 44 50" fill="none" style="flex:none"><polygon points="22,5 9,12.5 9,27.5 22,35 35,27.5 35,12.5" stroke="url(#sbLogo)" stroke-width="3.6" stroke-linejoin="round"/><rect x="17" y="15.5" width="10" height="10" rx="2.6" fill="var(--brand)"/><path d="M11 40 Q22 49 33 40" stroke="var(--brand)" stroke-width="3.6" stroke-linecap="round" fill="none"/><defs><linearGradient id="sbLogo" x1="9" y1="5" x2="35" y2="35"><stop stop-color="var(--cyan)"/><stop offset="1" stop-color="var(--primaryd)"/></linearGradient></defs></svg>
+      <div class="logoText">
+        <div style="font-size:16px;font-weight:800;letter-spacing:.4px;color:var(--ink);line-height:1.1">ABY<span style="color:var(--muted);font-weight:600"> INVENTORY</span></div>
+        <div style="font-size:10.5px;color:var(--muted);font-weight:500">Employee Dashboard</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="installCard">
+      <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primaryd));display:flex;align-items:center;justify-content:center;flex:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="installText"><div style="font-size:12.5px;font-weight:700">Install Aby Inventory</div><div style="font-size:11px;color:var(--muted)">Quick access from home screen</div></div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <header class="topbar">
+      <button class="iconBtn menuBtn" data-action="menu" title="Toggle sidebar"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>
+      <div class="headerSearch">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none"><circle cx="11" cy="11" r="7" stroke="var(--muted)" stroke-width="1.8"/><path d="m20 20-3.2-3.2" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input placeholder="Search anything…"/>
+        <span style="font-size:10.5px;font-weight:700;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 6px;flex:none">⌘K</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+        <button class="iconBtn fsBtn" data-action="fs" title="Enter fullscreen"><svg id="fsIcon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4m11-5v4a1 1 0 0 1-1 1h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="langWrap" style="position:relative">
+          <button class="iconBtn langBtn" data-action="lang" title="Change language"><span id="langFlag" style="font-size:15px">🇺🇸</span><span id="langCode" style="font-size:12.5px;font-weight:700">EN</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div id="langMenu"></div>
+        </div>
+        <button class="iconBtn" data-action="dark" title="Switch to dark mode"><svg id="darkIcon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="iconBtn" data-action="open-notif" title="Notifications" style="position:relative"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span id="notifDot" style="position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--brand);border:1.5px solid var(--panel)"></span></button>
+        <div class="profileChip">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--primaryd));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none">JM</div>
+          <div class="profileText" style="line-height:1.15;min-width:0"><div style="font-size:13px;font-weight:700;white-space:nowrap">Jigga Mugisha</div><div style="font-size:10.5px;color:var(--muted);white-space:nowrap">Administrator</div></div>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none"><path d="m6 9 6 6 6-6" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- title -->
+      <div>
+        <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.5px">Admin Profile</h1>
+        <p style="margin:6px 0 0;font-size:13.5px;color:var(--muted)">Manage your account information and notification preferences</p>
+      </div>
+
+      <!-- tab bar -->
+      <div class="tabbar">
+        <button class="tab active">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          Profile Details
+        </button>
+        <button class="tab" data-action="open-notif">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          Notifications
+        </button>
+      </div>
+
+      <!-- hero -->
+      <div class="hero">
+        <div class="glow"></div>
+        <div class="heroAvatar">JM</div>
+        <div style="position:relative">
+          <div style="font-size:26px;font-weight:800;letter-spacing:-.5px">Jigga Mugisha</div>
+          <div style="font-size:14px;opacity:.9;margin-top:2px"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="42282b25252302252f232b2e6c212d2f">[email&#160;protected]</a></div>
+          <div class="statusBadge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg>Account Active</div>
+        </div>
+      </div>
+
+      <!-- info grid -->
+      <div class="infoGrid">
+        <div class="card" style="padding:22px 24px">
+          <div class="sectionTitle">Personal Information</div>
+          <div style="height:1px;background:var(--line);margin:14px -24px 4px"></div>
+          <div class="infoRow">
+            <div class="infoIco"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+            <div><div class="infoLabel">FULL NAME</div><div class="infoVal">Jigga Mugisha</div></div>
+          </div>
+          <div class="infoRow">
+            <div class="infoIco"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+            <div><div class="infoLabel">EMAIL ADDRESS</div><div class="infoVal"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="80eae9e7e7e1c0e7ede1e9ecaee3efed">[email&#160;protected]</a></div></div>
+          </div>
+          <div class="infoRow">
+            <div class="infoIco"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 4h3l1.5 4-2 1.5a12 12 0 0 0 5 5L14 12l4 1.5V17a2 2 0 0 1-2 2A14 14 0 0 1 3 6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+            <div><div class="infoLabel">PHONE</div><div class="infoVal">+250 788 220 410</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:22px 24px">
+          <div class="sectionTitle">Account Details</div>
+          <div style="height:1px;background:var(--line);margin:14px -24px 4px"></div>
+          <div class="infoRow">
+            <div class="infoIco"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+            <div><div class="infoLabel">ACCOUNT STATUS</div><div class="infoVal" style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:50%;background:var(--green)"></span>Active</div></div>
+          </div>
+          <div class="infoRow">
+            <div class="infoIco"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div><div class="infoLabel">ROLE</div><div class="infoVal">Administrator</div></div>
+          </div>
+          <div class="infoRow">
+            <div class="infoIco"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+            <div><div class="infoLabel">CREATED AT</div><div class="infoVal">June 21, 2026 at 04:05 PM</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="readonly"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>This is a read-only view. Contact the system administrator for any changes.</div>
+    </div>
+  </main>
+</div>
+
+<div id="drawerHost"></div>
+<div id="toast"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="rgba(255,255,255,.2)"/><path d="m8 12 2.5 2.5L16 9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="toastMsg"></span></div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+(function(){
+  "use strict";
+  var $=function(s,r){return (r||document).querySelector(s);};
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+
+  var NAV=[
+    {label:'Dashboard Summary', icon:'M3 3h8v8H3zM13 3h8v5h-8zM13 11h8v10h-8zM3 13h8v8H3z'},
+    {label:'Category Management', icon:'M3 12 12 3h6a3 3 0 0 1 3 3v6l-9 9zM16.5 7.5h.01'},
+    {label:'Product Management', icon:'M21 8 12 3 3 8l9 5 9-5zM3 8v8l9 5 9-5V8'},
+    {label:'Stock In Management', icon:'M12 3v10m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'},
+    {label:'Sales Out Management', icon:'M12 13V3m0 0 4 4m-4-4-4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'},
+    {label:'Debt Management', icon:'M3 6h18v12H3zM3 10h18'},
+    {label:'Sales Returns Management', icon:'M3 7v6h6M3.5 13a9 9 0 1 0 2.2-6'},
+    {label:'Expense Management', icon:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6'},
+    {label:'Credit Management', icon:'M3 7h18v12H3zM16 13h4M3 7l13-4v4'},
+    {label:'Sales Report Management', icon:'M5 21V8M12 21V3M19 21v-7M3 21h18'},
+    {label:'Requisition Management', icon:'M9 4h6v3H9zM7 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1M9 12h6M9 16h4'},
+    {label:'Stock Requisition Management', icon:'M9 4h6v3H9zM7 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1M9 13l2 2 4-4'},
+    {label:'Report Management', icon:'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5'},
+    {label:'Admin Profile', icon:'M4 20a8 8 0 0 1 16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', active:true}
+  ];
+
+  function makeDevices(){
+    var out=[]; var when=['04:23 PM','03:58 PM','11:12 AM','09:40 AM','Yesterday, 06:31 PM','Jun 19, 02:14 PM','Jun 18, 10:05 AM'];
+    var defs=[
+      ['Chrome on Windows Desktop','desktop'],
+      ['Safari on iPhone 14','mobile'],
+      ['Chrome on Windows Desktop','desktop'],
+      ['Edge on Windows Laptop','desktop'],
+      ['Chrome on Android Phone','mobile'],
+      ['Firefox on MacBook Pro','desktop'],
+      ['Safari on iPad Air','mobile']
+    ];
+    defs.forEach(function(d,i){ out.push({id:i+1, name:d[0], kind:d[1], added:'Jun 21, 2026, '+when[i]}); });
+    return out;
+  }
+
+  var state={
+    dark:false, lang:'EN', langOpen:false, fullscreen:false,
+    sidebarOpen:false, collapsed:false, vw:window.innerWidth,
+    notifOpen:false, thisDeviceOn:true,
+    devices:makeDevices()
+  };
+
+  var toastTimer;
+  function toast(msg){ $('#toastMsg').textContent=msg; var t=$('#toast'); t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){t.classList.remove('show');},2600); }
+
+  function applyShell(){
+    var S=state, vw=S.vw, isMobile=vw<880, isNarrow=vw<640;
+    document.body.classList.toggle('mobile',isMobile);
+    document.body.classList.toggle('narrow',isNarrow);
+    document.body.classList.toggle('dark',S.dark);
+    var sb=$('#sidebar');
+    sb.classList.toggle('collapsed', !isMobile && S.collapsed);
+    sb.classList.toggle('open', isMobile && S.sidebarOpen);
+    $('#backdrop').classList.toggle('show', isMobile && S.sidebarOpen);
+    $('#nav').innerHTML=NAV.map(function(n,i){ return '<div class="navItem'+(n.active?' active':'')+'" data-nav="'+i+'" title="'+esc(n.label)+'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex:none"><path d="'+n.icon+'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="navLabel" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(n.label)+'</span></div>'; }).join('');
+    $('#langFlag').textContent={EN:'🇺🇸',RW:'🇷🇼',FR:'🇫🇷'}[S.lang];
+    $('#langCode').textContent=S.lang;
+    $('#fsIcon').innerHTML='<path d="'+(S.fullscreen?'M9 9H5V5m10 0v4h4M9 15H5v4m10 0v-4h4':'M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4m11-5v4a1 1 0 0 1-1 1h-4')+'" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
+    $('[data-action="fs"]').title=S.fullscreen?'Exit fullscreen':'Enter fullscreen';
+    $('#darkIcon').innerHTML='<path d="'+(S.dark?'M12 3v2M12 19v2M5 12H3M21 12h-2M6 6 4.5 4.5M19.5 19.5 18 18M6 18l-1.5 1.5M19.5 4.5 18 6M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8':'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z')+'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>';
+    $('[data-action="dark"]').title=S.dark?'Switch to light mode':'Switch to dark mode';
+    $('#langMenu').innerHTML = S.langOpen ? ('<div style="position:fixed;inset:0;z-index:44" data-action="lang-backdrop"></div><div class="menuPop" style="right:0;top:46px;width:186px">'+[['EN','🇺🇸','English'],['RW','🇷🇼','Kinyarwanda'],['FR','🇫🇷','Français']].map(function(l){ return '<div class="menuItem" data-lang="'+l[0]+'" style="'+(S.lang===l[0]?'color:var(--primary);background:var(--primarysoft)':'')+'"><span style="font-size:16px">'+l[1]+'</span>'+l[2]+'</div>'; }).join('')+'</div>') : '';
+    $('#notifDot').style.display = (S.notifOpen||!S.thisDeviceOn)?'none':'block';
+  }
+
+  var phoneIco='<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="7" y="3" width="10" height="18" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M11 18h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+  var deskIco='<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+
+  function renderDrawer(){
+    var S=state, host=$('#drawerHost');
+    if(!S.notifOpen){ host.innerHTML=''; return; }
+    var devHTML = S.devices.length ? S.devices.map(function(d){
+      return '<div class="deviceRow"><div class="deviceIco">'+(d.kind==='mobile'?phoneIco:deskIco)+'</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(d.name)+'</div><div style="font-size:11.5px;color:var(--muted)">Added: '+esc(d.added)+'</div></div><button class="ghostBtn red" data-remove="'+d.id+'" title="Unsubscribe device"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
+    }).join('') : '<div style="text-align:center;padding:30px 0;color:var(--muted);font-size:13px">No subscribed devices</div>';
+
+    host.innerHTML =
+    '<div class="drawerBackdrop" data-action="close-notif"></div>'+
+    '<div class="drawer">'+
+      '<div class="drawerHead">'+
+        '<div style="width:42px;height:42px;border-radius:11px;background:var(--primarysoft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex:none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>'+
+        '<div style="flex:1"><div style="font-size:16px;font-weight:800">Notification Settings</div><div style="font-size:12.5px;color:var(--muted)">Manage how you receive updates</div></div>'+
+        '<button class="iconBtn" data-action="close-notif" style="width:34px;height:34px;border-radius:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m6 6 12 12M18 6 6 18" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"/></svg></button>'+
+      '</div>'+
+      '<div class="drawerBody">'+
+        '<div class="card" style="padding:18px;display:flex;align-items:center;gap:14px">'+
+          '<div style="width:46px;height:46px;border-radius:50%;background:var(--primarysoft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex:none"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>'+
+          '<div><div style="font-size:16px;font-weight:800">Push Notifications</div><div style="font-size:12.5px;color:var(--muted)">Manage settings for <b>jigga</b> (admin)</div></div>'+
+        '</div>'+
+        '<div class="card" style="padding:18px">'+
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:15px;font-weight:800">This Device</div><span class="nBadge'+(S.thisDeviceOn?'':' off')+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>'+(S.thisDeviceOn?'Active':'Disabled')+'</span></div>'+
+          '<div style="font-size:13px;color:var(--muted);margin:8px 0 16px">'+(S.thisDeviceOn?'This device is receiving important updates and alerts.':'This device will no longer receive push alerts.')+'</div>'+
+          (S.thisDeviceOn
+            ? '<button class="btnDanger" data-action="toggle-device"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 9-5M18 9c0 6 2 7 2 7H8M4 4l16 16" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Disable on This Device</button>'
+            : '<button class="btnSoftGreen" data-action="toggle-device"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>Enable on This Device</button>')+
+        '</div>'+
+        '<div class="card" style="padding:18px">'+
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div style="font-size:15px;font-weight:800">All Subscribed Devices ('+S.devices.length+')</div>'+
+            '<div style="display:flex;align-items:center;gap:8px"><button class="ghostBtn" data-action="refresh"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Refresh</button>'+
+            '<button class="ghostBtn red" data-action="unsub-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Unsubscribe All</button></div>'+
+          '</div>'+
+          '<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">'+devHTML+'</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function render(){ applyShell(); renderDrawer(); }
+
+  function toggleFullscreen(){ try{ if(!document.fullscreenElement){ document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); state.fullscreen=true; } else { document.exitFullscreen&&document.exitFullscreen(); state.fullscreen=false; } applyShell(); }catch(e){ toast('Fullscreen not available here'); } }
+
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('[data-action],[data-nav],[data-lang],[data-remove]');
+    if(!t) return;
+    if(t.hasAttribute('data-nav')){ var i=+t.getAttribute('data-nav'); if(!NAV[i].active) toast(NAV[i].label+' isn’t part of this prototype'); if(state.vw<880){ state.sidebarOpen=false; applyShell(); } return; }
+    if(t.hasAttribute('data-lang')){ var L={EN:'English',RW:'Kinyarwanda',FR:'Français'}; state.lang=t.getAttribute('data-lang'); state.langOpen=false; applyShell(); toast('Language set to '+L[state.lang]); return; }
+    if(t.hasAttribute('data-remove')){ var id=+t.getAttribute('data-remove'); state.devices=state.devices.filter(function(d){return d.id!==id;}); renderDrawer(); toast('Device unsubscribed'); return; }
+    var a=t.getAttribute('data-action');
+    switch(a){
+      case 'menu': if(state.vw<880){ state.sidebarOpen=!state.sidebarOpen; } else { state.collapsed=!state.collapsed; } applyShell(); break;
+      case 'fs': toggleFullscreen(); break;
+      case 'lang': state.langOpen=!state.langOpen; applyShell(); break;
+      case 'lang-backdrop': state.langOpen=false; applyShell(); break;
+      case 'dark': state.dark=!state.dark; applyShell(); break;
+      case 'open-notif': state.notifOpen=true; render(); break;
+      case 'close-notif': state.notifOpen=false; render(); break;
+      case 'toggle-device': state.thisDeviceOn=!state.thisDeviceOn; renderDrawer(); applyShell(); toast(state.thisDeviceOn?'Notifications enabled on this device':'Notifications disabled on this device'); break;
+      case 'refresh': toast('Device list refreshed'); break;
+      case 'unsub-all': state.devices=[]; renderDrawer(); toast('All devices unsubscribed'); break;
+    }
+  });
+
+  $('#backdrop').addEventListener('click',function(){ state.sidebarOpen=false; applyShell(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&state.notifOpen){ state.notifOpen=false; render(); } });
+  document.addEventListener('fullscreenchange',function(){ state.fullscreen=!!document.fullscreenElement; applyShell(); });
+  window.addEventListener('resize',function(){ state.vw=window.innerWidth; render(); });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -30,17 +30,19 @@ const EmployeeManagement = ({ role }) => {
     } else {
       setIsLoading(true);
     }
-    
+
     try {
-      const data = await employeeService.getAllEmployees();
-      setEmployees(data);
-      setFilteredEmployees(data);
+      const employeeList = await employeeService.getAllEmployees();
+      setEmployees(employeeList);
+      setFilteredEmployees(employeeList);
       if (showRefreshLoader) {
         showNotification('Employees refreshed successfully!');
       }
     } catch (error) {
       console.error('Failed to fetch employees:', error);
       showNotification(`Failed to fetch employees: ${error.message}`, 'error');
+      setEmployees([]);
+      setFilteredEmployees([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -49,7 +51,7 @@ const EmployeeManagement = ({ role }) => {
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [role, isOnline]);
 
   useEffect(() => {
     const filtered = employees.filter(employee =>

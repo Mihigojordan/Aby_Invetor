@@ -30,17 +30,19 @@ export class AdminController {
   @Post('login')
   async loginByClient(@Body() req, @Res() res: Response) {
     try {
-      const token = await this.adminServices.adminLogin(req); // Remove res parameter
+      const token = await this.adminServices.adminLogin(req);
 
       if (!token) {
         console.log('error getting token');
       }
 
+      const isProduction = process.env.NODE_ENV === 'production';
+
       res.cookie('AccessAdminToken', token, {
         httpOnly: true,
-        secure: true, // Set to true in production
-        sameSite: 'none', // Required for cross-origin cookies
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       res.status(200).json({
@@ -120,6 +122,26 @@ export class AdminController {
       return await this.adminServices.adminUnlocking(adminId, datas);
     } catch (error) {
       console.log('error editing host', error);
+      throw new HttpException(error.message, error.status);
+    }
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: { adminEmail: string }) {
+    try {
+      return await this.adminServices.forgotPassword(body.adminEmail);
+    } catch (error) {
+      console.log('error with forgot password', error);
+      throw new HttpException(error.message, error.status);
+    }
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() body: { token: string; password: string }) {
+    try {
+      return await this.adminServices.resetPassword(body.token, body.password);
+    } catch (error) {
+      console.log('error resetting password', error);
       throw new HttpException(error.message, error.status);
     }
   }
