@@ -25,6 +25,7 @@ import {
   ClipboardList,
   DollarSign,
   ChevronLeft,
+  Download,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import useAdminAuth from "../../context/AdminAuthContext";
@@ -54,6 +55,7 @@ const Sidebar = ({ isOpen = true, onToggle, role, isExpanded = true, onToggleSid
     { key: "expense-movement", label: "Expense Management", icon: ReceiptPoundSterling, path: "/admin/dashboard/expense-management" },
     { key: "credit-movement", label: "Credit Management", icon: ReceiptPoundSterling, path: "/admin/dashboard/credit-management" },
     { key: "sales-report", label: "Sales Report", icon: BarChart3, path: "/admin/dashboard/sales-report" },
+    { key: "export-data", label: "Export & Import Data", icon: Download, path: "/admin/dashboard/export-data" },
   ];
 
   const employeeItems = [

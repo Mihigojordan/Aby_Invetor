@@ -70,6 +70,7 @@ import NotificationsPage from "../page/dashboard/NotificationPage";
 import DebtManagementPage from "../page/dashboard/DebtManagementPage";
 import ExpenseManagementPage from "../page/dashboard/ExpenseManagement";
 import CreditManagementPage from "../page/dashboard/CreditManagementPage";
+import ExportDataPage from "../page/dashboard/ExportDataPage";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const SuspenseWrapper = ({ children }) => {
@@ -427,6 +428,14 @@ const routes = createBrowserRouter([
                                     </SuspenseWrapper>
                                 )
 
+                            },
+                            {
+                                path: "export-data",
+                                element: (
+                                    <SuspenseWrapper>
+                                        <ExportDataPage />
+                                    </SuspenseWrapper>
+                                )
                             },
                         ]
                     }
