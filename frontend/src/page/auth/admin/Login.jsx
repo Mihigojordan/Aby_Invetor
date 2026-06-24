@@ -37,7 +37,7 @@ const LoginPage = () => {
   };
 
   const handleLogin = async (e) => {
-    e.preventDefault();
+    // e.preventDefault();
     const newErrors = {};
 
     if (!validEmail(email)) {

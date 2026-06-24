@@ -759,6 +759,7 @@ class StockOutSyncService {
       db.backorders_all,
       db.backorders_offline_add,
       db.synced_stockout_ids,
+      db.stockins_all,
       db.sales_return_items_offline_add,
       db.sales_return_items_offline_update,
       db.sales_returns_offline_add,
@@ -801,6 +802,18 @@ const stockOutRecord = {
     updatedAt: serverStockOut.updatedAt || new Date()
 };
           await db.stockouts_all.put(stockOutRecord);
+
+          // Decrement the local stockin quantity to match what the server just did
+          const soldStockinId = serverStockOut.stockinId;
+          const soldQty = serverStockOut.quantity || localStockOut.quantity || 0;
+          if (soldStockinId && soldQty > 0) {
+            const localStockIn = await db.stockins_all.get(soldStockinId);
+            if (localStockIn && localStockIn.quantity != null) {
+              await db.stockins_all.update(soldStockinId, {
+                quantity: Math.max(0, localStockIn.quantity - soldQty)
+              });
+            }
+          }
 
           // Handle backorder
           if (serverStockOut.backorderId && localStockOut.backorderLocalId) {
@@ -904,6 +917,7 @@ const stockOutRecord = {
       db.backorders_all,
       db.backorders_offline_add,
       db.synced_stockout_ids,
+      db.stockins_all,
       db.sales_return_items_offline_add,
       db.sales_return_items_offline_update,
       db.sales_returns_offline_add,
@@ -939,6 +953,18 @@ const stockOutRecord = {
         };
 
         await db.stockouts_all.put(stockOutRecord);
+
+        // Decrement the local stockin quantity to match what the server just did
+        const soldStockinId = serverStockOut.stockinId;
+        const soldQty = serverStockOut.quantity || stockOut.quantity || 0;
+        if (soldStockinId && soldQty > 0) {
+          const localStockIn = await db.stockins_all.get(soldStockinId);
+          if (localStockIn && localStockIn.quantity != null) {
+            await db.stockins_all.update(soldStockinId, {
+              quantity: Math.max(0, localStockIn.quantity - soldQty)
+            });
+          }
+        }
 
         // Handle backorder if present
         if (serverStockOut.backorderId && stockOut.backorderLocalId) {
