@@ -460,6 +460,7 @@ class SalesReturnSyncService {
     let offset = startOffset;
     let totalFetched = 0;
     let isFirstPage = (offset === 0);
+    const fetchStartedAt = new Date().toISOString();
 
     while (true) {
       let result;
@@ -529,9 +530,9 @@ class SalesReturnSyncService {
     // All pages complete — commit final metadata and clear the offset
     await db.sync_metadata.put({
       entity: 'salesReturns',
-      lastSyncedAt: new Date().toISOString(),
+      lastSyncedAt: fetchStartedAt,
       pendingFetchOffset: 0,
-      lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+      lastFullSyncAt: !lastSyncedAt ? fetchStartedAt : (meta?.lastFullSyncAt || null),
     });
   }
 

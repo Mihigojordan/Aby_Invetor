@@ -1178,6 +1178,7 @@ const stockOutRecord = {
     let offset = startOffset;
     let totalFetched = 0;
     let isFirstPage = (offset === 0);
+    const fetchStartedAt = new Date().toISOString();
 
     while (true) {
       let result;
@@ -1245,31 +1246,36 @@ const stockOutRecord = {
     // All pages complete — commit final metadata and clear the offset
     await db.sync_metadata.put({
       entity: 'stockOuts',
-      lastSyncedAt: new Date().toISOString(),
+      lastSyncedAt: fetchStartedAt,
       pendingFetchOffset: 0,
-      lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+      lastFullSyncAt: !lastSyncedAt ? fetchStartedAt : (meta?.lastFullSyncAt || null),
     });
 
-    // --- Full refresh for backorders (no updatedAfter API yet) ---
-    try {
-      const serverBackorders = await backorderService.getAllBackOrders();
-      await db.transaction('rw', db.backorders_all, async () => {
-        await db.backorders_all.clear();
-        const backorderRecords = serverBackorders.map(b => ({
-          id: b.id,
-          quantity: b.quantity,
-          soldPrice: b.soldPrice,
-          productName: b.productName,
-          adminId: b.adminId,
-          employeeId: b.employeeId,
-          lastModified: new Date(),
-          createdAt: b.createdAt,
-          updatedAt: b.updatedAt || new Date()
-        }));
-        await db.backorders_all.bulkPut(backorderRecords);
-      });
-    } catch (error) {
-      console.error('Error fetching backorder data:', error);
+    // --- Backorder refresh — only do a full clear+refetch on first sync or if table is empty.
+    // Subsequent syncs skip this because backorder data arrives embedded in the stockout records
+    // already saved above, so a full re-fetch every 60 s is wasteful.
+    const backorderCount = await db.backorders_all.count().catch(() => 0);
+    if (!lastSyncedAt || backorderCount === 0) {
+      try {
+        const serverBackorders = await backorderService.getAllBackOrders();
+        await db.transaction('rw', db.backorders_all, async () => {
+          await db.backorders_all.clear();
+          const backorderRecords = serverBackorders.map(b => ({
+            id: b.id,
+            quantity: b.quantity,
+            soldPrice: b.soldPrice,
+            productName: b.productName,
+            adminId: b.adminId,
+            employeeId: b.employeeId,
+            lastModified: new Date(),
+            createdAt: b.createdAt,
+            updatedAt: b.updatedAt || new Date()
+          }));
+          await db.backorders_all.bulkPut(backorderRecords);
+        });
+      } catch (error) {
+        console.error('Error fetching backorder data:', error);
+      }
     }
   }
 
