@@ -1,7 +1,7 @@
 // useCategoryOfflineSync.js
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { categorySyncService } from '../services/sync/categorySyncService';
-
+import { runFullSync } from '../services/sync/syncOrchestrator';
 import { useNetworkStatusContext } from '../context/useNetworkContext';
 
 export const useCategoryOfflineSync = (options = {}) => {
@@ -50,7 +50,7 @@ export const useCategoryOfflineSync = (options = {}) => {
 
     setSyncStatus(prev => ({ ...prev, isSyncing: true, syncError: null }));
     try {
-      const result = force ? await categorySyncService.forceSync() : await categorySyncService.syncCategories();
+      const result = await runFullSync({ force });
       setSyncStatus(prev => ({ ...prev, isSyncing: false, lastSync: new Date(), syncError: result?.success === false ? result.error : null }));
       await updateSyncStatus();
       return result;
@@ -59,25 +59,14 @@ export const useCategoryOfflineSync = (options = {}) => {
       setSyncStatus(prev => ({ ...prev, isSyncing: false, syncError: error.message }));
       return { success: false, error: error.message };
     }
-  }, [isOnline, updateSyncStatus]); // ⬅️ only depends on isOnline
+  }, [isOnline, updateSyncStatus]);
 
   useEffect(() => {
     log('useCategoryOfflineSync hook initialized');
-
-    if (autoSync) categorySyncService.setupAutoSync();
     updateSyncStatus();
-
-    if (isOnline && autoSync) triggerSync();
-
-    if (autoSync && syncInterval > 0) {
-      intervalRef.current = setInterval(() => {
-        if (isOnline && !syncStatus.isSyncing) triggerSync();
-      }, syncInterval);
-    }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      categorySyncService.cleanup();
     };
     // ⬇️ only run once + when isOnline changes
   }, [isOnline, autoSync, syncInterval]);

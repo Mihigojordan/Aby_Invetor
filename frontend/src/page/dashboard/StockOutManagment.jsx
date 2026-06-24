@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import useScreenBelow from '../../hooks/useScreenBelow';
 import UpdatePaymentModal from '../../components/dashboard/stockout/UpdatePaymentModal';
 import { hasFeaturePermission } from '../../utils/permissions';
+import { generateStableIdempotencyKey, requestBackgroundSync } from '../../utils/syncUtils';
 
 const StockOutManagement = ({ role }) => {
   const [stockOuts, setStockOuts] = useState([]);
@@ -540,7 +541,8 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
             createdAt: now,
             updatedAt: now
           };
-          const localId = await db.stockouts_offline_add.add(newStockout);
+          const idempotencyKey = generateStableIdempotencyKey('stockout', newStockout);
+          const localId = await db.stockouts_offline_add.add({ ...newStockout, idempotencyKey });
           createdStockouts.push({ ...newStockout, localId, synced: false });
         } else {
           const stockins = await fetchStockIns();
@@ -566,7 +568,8 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
             createdAt: now,
             updatedAt: now
           };
-          const localId = await db.stockouts_offline_add.add(newStockout);
+          const idempotencyKey2 = generateStableIdempotencyKey('stockout', newStockout);
+          const localId = await db.stockouts_offline_add.add({ ...newStockout, idempotencyKey: idempotencyKey2 });
           createdStockouts.push({ ...newStockout, localId, synced: false });
           const newQuantity = (stockin.offlineQuantity ?? stockin.quantity) - sale.quantity;
           const existingStockin = await db.stockins_all.get(sale.stockinId);
@@ -580,6 +583,7 @@ const handlePaymentUpdate = async (updatedStockOutFromServer) => {
           }
         }
       }
+      requestBackgroundSync();
 
       if (isOnline) {
         try {

@@ -15,6 +15,7 @@ import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import { useNavigate } from 'react-router-dom';
 import useScreenBelow from '../../hooks/useScreenBelow';
 import { hasFeaturePermission } from '../../utils/permissions';
+import { generateStableIdempotencyKey, requestBackgroundSync } from '../../utils/syncUtils';
 
 const StockInManagement = ({ role }) => {
   const [stockIns, setStockIns] = useState([]);
@@ -214,9 +215,11 @@ const StockInManagement = ({ role }) => {
         }));
         const localIds = [];
         for (const purchase of purchases) {
-          const localId = await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity });
+          const idempotencyKey = generateStableIdempotencyKey('stockin', purchase);
+          const localId = await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity, idempotencyKey });
           localIds.push(localId);
         }
+        requestBackgroundSync();
         if (isOnline) {
           try {
             const response = await stockInService.createMultipleStockIn(purchases, userData);
@@ -263,7 +266,9 @@ const StockInManagement = ({ role }) => {
         if (!newStockIn.productId || !newStockIn.quantity || !newStockIn.price || !newStockIn.sellingPrice) {
           throw new Error('Missing required fields');
         }
-        const localId = await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity });
+        const idempotencyKey = generateStableIdempotencyKey('stockin', newStockIn);
+        const localId = await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity, idempotencyKey });
+        requestBackgroundSync();
         if (isOnline) {
           try {
             const response = await stockInService.createStockIn(newStockIn);

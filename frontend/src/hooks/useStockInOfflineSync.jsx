@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { stockInSyncService } from '../services/sync/stockInSyncService';
+import { runFullSync } from '../services/sync/syncOrchestrator';
 import { useNetworkStatusContext } from '../context/useNetworkContext';
 
 export const useStockInOfflineSync = (options = {}) => {
@@ -50,7 +51,7 @@ export const useStockInOfflineSync = (options = {}) => {
 
     setSyncStatus(prev => ({ ...prev, isSyncing: true, syncError: null }));
     try {
-      const result = force ? await stockInSyncService.forceSync() : await stockInSyncService.syncStockIns();
+      const result = await runFullSync({ force });
       setSyncStatus(prev => ({ ...prev, isSyncing: false, lastSync: new Date(), syncError: result?.success === false ? result.error : null }));
       await updateSyncStatus();
       return result;
@@ -59,30 +60,16 @@ export const useStockInOfflineSync = (options = {}) => {
       setSyncStatus(prev => ({ ...prev, isSyncing: false, syncError: error.message }));
       return { success: false, error: error.message };
     }
-  }, [isOnline, updateSyncStatus]); // Depends on isOnline and updateSyncStatus
+  }, [isOnline, updateSyncStatus]);
 
   useEffect(() => {
     log('useStockInOfflineSync hook initialized');
-
-    if (autoSync) stockInSyncService.setupAutoSync();
     updateSyncStatus();
-
-    if (isOnline && autoSync) {
-      
-      triggerSync()
-    };
-
-    if (autoSync && syncInterval > 0) {
-      intervalRef.current = setInterval(() => {
-        if (isOnline && !syncStatus.isSyncing) triggerSync();
-      }, syncInterval);
-    }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      stockInSyncService.cleanup();
     };
-  }, [isOnline, autoSync, syncInterval]); // Run on mount and when isOnline, autoSync, or syncInterval changes
+  }, [isOnline, autoSync, syncInterval]);
 
   return {
     triggerSync,

@@ -2,13 +2,16 @@ import { db } from '../../db/database';
 import stockOutService from '../stockoutService';
 import backorderService from '../backOrderService';
 import { isOnline } from '../../utils/networkUtils';
-import { stockInSyncService } from './stockInSyncService';
+import { ProcessingMutex } from '../../utils/syncMutex';
+import { moveToDeadLetter } from './deadLetterService';
+import { registerDependency, resolveWaitingChildren } from './syncDependencyService';
+import { writeRecoveryMarker, clearRecoveryMarker } from './crashRecoveryService';
 
 class StockOutSyncService {
   constructor() {
     this.isSyncing = false;
-    this.processingLocalIds = new Set();
-    this.processingTransactionIds = new Set();
+    this.mutex = new ProcessingMutex();
+    this.txMutex = new ProcessingMutex();
     this.lastSyncTime = null;
     this.syncLock = null;
     this.syncTimeout = 5 * 60 * 1000; // 5 minute timeout
@@ -275,7 +278,7 @@ class StockOutSyncService {
 
     for (const stockOut of stockouts) {
       // Skip if already processing this specific stockout
-      if (this.processingLocalIds.has(stockOut.localId)) {
+      if (this.mutex.isLocked(stockOut.localId)) {
         console.log(`⏭️ Skipping stockout ${stockOut.localId} - already processing`);
         skipped++;
         continue;
@@ -328,16 +331,14 @@ class StockOutSyncService {
 
   async processTransaction(transactionId, stockouts) {
     // Skip if this transaction is already being processed
-    if (this.processingTransactionIds.has(transactionId)) {
+    if (this.txMutex.isLocked(transactionId)) {
       console.log(`⏭️ Skipping transaction ${transactionId} - already processing`);
       return { processed: 0, skipped: stockouts.length, errors: 0 };
     }
 
+    return await this.txMutex.run(transactionId, async () => {
     try {
       console.log(`📦 Processing transaction ${transactionId} with ${stockouts.length} stockouts`);
-
-      // Mark transaction as processing FIRST
-      this.processingTransactionIds.add(transactionId);
 
       // CHECK IF ENTIRE TRANSACTION ALREADY EXISTS ON SERVER
       const existingTransaction = await db.stockouts_all
@@ -358,9 +359,6 @@ class StockOutSyncService {
         await this.cleanupProcessedStockouts(stockouts);
         return { processed: 0, skipped: stockouts.length, errors: 0 };
       }
-
-      // Mark all stockouts in this transaction as processing
-      stockouts.forEach(so => this.processingLocalIds.add(so.localId));
 
       // Validate and resolve stockin IDs for all stockouts in this transaction
       const preparedSalesData = [];
@@ -449,14 +447,12 @@ class StockOutSyncService {
         const successfulServerItems = serverStockOuts.slice(0, processedStockouts);
 
         // Write a crash-safety marker BEFORE the local save.
-        // If the process crashes between the server response and the Dexie transaction,
-        // recoverPendingCleanups() will finalize these on next startup without re-submitting.
-        await db.stockout_pending_cleanup.put({
+        await writeRecoveryMarker(
+          'stockout',
           transactionId,
-          localIds: successfulSales.map(s => s.originalStockOut.localId),
-          serverIds: successfulServerItems.map(s => s.id),
-          confirmedAt: new Date()
-        }).catch(err => console.warn('Could not write pending_cleanup marker:', err));
+          successfulSales.map(s => s.originalStockOut.localId),
+          successfulServerItems.map(s => s.id)
+        );
 
         await this.saveTransactionResults(
           successfulServerItems,
@@ -465,7 +461,12 @@ class StockOutSyncService {
         );
 
         // Remove the crash-safety marker only after the local save succeeded
-        await db.stockout_pending_cleanup.delete(transactionId).catch(() => {});
+        await clearRecoveryMarker('stockout', transactionId);
+
+        // Resolve any sales returns waiting on these stockouts
+        for (const { originalStockOut } of successfulSales.slice(0, processedStockouts)) {
+          await resolveWaitingChildren('stockout', originalStockOut.localId);
+        }
       }
 
       // Handle failed stockouts
@@ -484,25 +485,21 @@ class StockOutSyncService {
     } catch (error) {
       console.error(`❌ Error syncing transaction ${transactionId}:`, error);
 
-      // Handle retry logic for each stockout in the failed transaction
       for (const stockOut of stockouts) {
         await this.handleSyncError(stockOut, error);
       }
       return { processed: 0, skipped: 0, errors: stockouts.length };
-    } finally {
-      // Clean up processing flags
-      stockouts.forEach(so => this.processingLocalIds.delete(so.localId));
-      this.processingTransactionIds.delete(transactionId);
     }
+    }); // end txMutex.run
   }
 
   async processIndividualStockout(stockOut) {
-    if (this.processingLocalIds.has(stockOut.localId)) {
+    if (this.mutex.isLocked(stockOut.localId)) {
       console.log(`⏭️ Skipping stockout ${stockOut.localId} - already processing`);
       return { processed: 0, skipped: 1, errors: 0 };
     }
 
-    // Check for content-based duplicates
+    // Check for content-based duplicates before acquiring mutex
     const isDuplicate = await this.checkForContentDuplicate(stockOut);
     if (isDuplicate) {
       console.log(`🔍 Detected content duplicate for stockout ${stockOut.localId}, removing`);
@@ -510,58 +507,57 @@ class StockOutSyncService {
       return { processed: 0, skipped: 1, errors: 0 };
     }
 
-    this.processingLocalIds.add(stockOut.localId);
-
-    try {
-      const preparedSale = await this.prepareSaleForSync(stockOut);
-      if (!preparedSale) {
-        return { processed: 0, skipped: 1, errors: 0 };
-      }
-
-      const clientInfo = {
-        clientName: stockOut.clientName,
-        clientEmail: stockOut.clientEmail,
-        clientPhone: stockOut.clientPhone,
-        paymentMethod: stockOut.paymentMethod
-      };
-
-      const userInfo = {
-        adminId: stockOut.adminId,
-        employeeId: stockOut.employeeId
-      };
-
-      console.log(`📤 Sending individual stockout ${stockOut.localId}...`);
-
-      const idempotencyKey = this.generateIdempotencyKey(stockOut);
-
-      let response;
+    return await this.mutex.run(stockOut.localId, async () => {
       try {
-        response = await stockOutService.createMultipleStockOut(
-          [preparedSale],
-          clientInfo,
-          userInfo,
-          { idempotencyKey }
-        );
-      } catch (apiError) {
-        if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
-          console.log(`⚠️ Server detected duplicate for stockout ${stockOut.localId}, removing from queue`);
-          await db.stockouts_offline_add.delete(stockOut.localId);
+        const preparedSale = await this.prepareSaleForSync(stockOut);
+        if (!preparedSale) {
           return { processed: 0, skipped: 1, errors: 0 };
         }
-        throw apiError;
+
+        const clientInfo = {
+          clientName: stockOut.clientName,
+          clientEmail: stockOut.clientEmail,
+          clientPhone: stockOut.clientPhone,
+          paymentMethod: stockOut.paymentMethod
+        };
+
+        const userInfo = {
+          adminId: stockOut.adminId,
+          employeeId: stockOut.employeeId
+        };
+
+        console.log(`📤 Sending individual stockout ${stockOut.localId}...`);
+
+        const idempotencyKey = stockOut.idempotencyKey || this.generateIdempotencyKey(stockOut);
+
+        let response;
+        try {
+          response = await stockOutService.createMultipleStockOut(
+            [preparedSale],
+            clientInfo,
+            userInfo,
+            { idempotencyKey }
+          );
+        } catch (apiError) {
+          if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
+            console.log(`⚠️ Server detected duplicate for stockout ${stockOut.localId}, removing from queue`);
+            await db.stockouts_offline_add.delete(stockOut.localId);
+            return { processed: 0, skipped: 1, errors: 0 };
+          }
+          throw apiError;
+        }
+
+        await this.saveIndividualStockoutResult(response, stockOut);
+        await resolveWaitingChildren('stockout', stockOut.localId);
+        console.log(`✅ Synced individual stockout ${stockOut.localId}`);
+        return { processed: 1, skipped: 0, errors: 0 };
+
+      } catch (error) {
+        console.error(`❌ Error syncing stockout ${stockOut.localId}:`, error);
+        await this.handleSyncError(stockOut, error);
+        return { processed: 0, skipped: 0, errors: 1 };
       }
-
-      await this.saveIndividualStockoutResult(response, stockOut);
-      console.log(`✅ Synced individual stockout ${stockOut.localId}`);
-      return { processed: 1, skipped: 0, errors: 0 };
-
-    } catch (error) {
-      console.error(`❌ Error syncing stockout ${stockOut.localId}:`, error);
-      await this.handleSyncError(stockOut, error);
-      return { processed: 0, skipped: 0, errors: 1 };
-    } finally {
-      this.processingLocalIds.delete(stockOut.localId);
-    }
+    }); // end mutex.run
   }
 
   // ==================== DUPLICATE DETECTION ====================
@@ -631,8 +627,10 @@ class StockOutSyncService {
     for (const stockOut of stockouts) {
       const retryCount = (stockOut.syncRetryCount || 0) + 1;
       if (retryCount >= 3) {
-        console.log(`🚫 Max retries reached for stockout ${stockOut.localId}, removing from queue`);
-        await db.stockouts_offline_add.delete(stockOut.localId);
+        await moveToDeadLetter(
+          'stockout', stockOut, `Validation errors: ${errors.join(', ')}`,
+          () => db.stockouts_offline_add.delete(stockOut.localId)
+        );
       } else {
         await db.stockouts_offline_add.update(stockOut.localId, {
           syncError: `Validation errors: ${errors.join(', ')}`,
@@ -658,8 +656,11 @@ class StockOutSyncService {
   async handleSyncError(stockOut, error) {
     const retryCount = (stockOut.syncRetryCount || 0) + 1;
     if (retryCount >= 5) {
-      console.log(`🚫 Max retries reached for stockout ${stockOut.localId}, removing from queue`);
-      await db.stockouts_offline_add.delete(stockOut.localId);
+      console.log(`🚫 Max retries reached for stockout ${stockOut.localId}, moving to dead-letter queue`);
+      await moveToDeadLetter(
+        'stockout', stockOut, error.message,
+        () => db.stockouts_offline_add.delete(stockOut.localId)
+      );
     } else {
       await db.stockouts_offline_add.update(stockOut.localId, {
         syncError: error.message,
@@ -694,7 +695,13 @@ class StockOutSyncService {
         // Check if it's already a server ID in stockins_all
         const serverStockIn = await db.stockins_all.get(stockOut.stockinId);
         if (!serverStockIn) {
-          console.warn(`⚠️ Product ID ${stockOut.stockinId} not found in local database. Skipping stockout ${stockOut.localId}`);
+          console.warn(`⚠️ StockIn ID ${stockOut.stockinId} not found — registering dependency for stockout ${stockOut.localId}`);
+          await registerDependency({
+            entity: 'stockout',
+            localId: stockOut.localId,
+            waitingForEntity: 'stockin',
+            waitingForLocalId: stockOut.stockinId
+          });
           return null;
         }
       }
@@ -1067,27 +1074,11 @@ const stockOutRecord = {
           )
         ]);
       } catch (error) {
-        console.warn('Previous sync timed out — flagging in-flight items for server verification before clearing');
-        // Flag items that were mid-flight so next sync pre-checks server before re-submitting
-        for (const localId of this.processingLocalIds) {
-          await db.stockouts_offline_add.update(localId, {
-            needsServerVerification: true,
-            lastSyncAttempt: new Date()
-          }).catch(() => {});
-        }
-        for (const txId of this.processingTransactionIds) {
-          const items = await db.stockouts_offline_add
-            .where('transactionId').equals(txId).toArray().catch(() => []);
-          for (const item of items) {
-            await db.stockouts_offline_add.update(item.localId, {
-              needsServerVerification: true
-            }).catch(() => {});
-          }
-        }
+        console.warn('Previous sync timed out — clearing mutex locks and flagging in-flight items');
+        this.mutex.clear();
+        this.txMutex.clear();
         this.syncLock = null;
         this.isSyncing = false;
-        this.processingLocalIds.clear();
-        this.processingTransactionIds.clear();
       }
 
       if (this.isSyncing) {
@@ -1116,18 +1107,6 @@ const stockOutRecord = {
     console.log('🔄 Starting stockout sync process...');
 
     try {
-      // Step 1: Sync stockins first and wait for completion
-      console.log('📦 Step 1: Syncing stockins first...');
-      const stockinResults = await stockInSyncService.syncStockIns(true);
-      console.log('✅ Product sync completed:', stockinResults);
-
-      // Step 2: Wait for stockin ID updates to propagate if needed
-      if (this.shouldWaitForStockinUpdates(stockinResults)) {
-        console.log('⏰ Waiting for stockin ID updates to propagate...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-
-      // Step 3: Sync stockouts with enhanced error handling
       const results = {
         adds: await this.syncUnsyncedAdds(),
         updates: await this.syncUnsyncedUpdates(),
@@ -1157,13 +1136,6 @@ const stockOutRecord = {
     }
   }
 
-  shouldWaitForStockinUpdates(stockinResults) {
-    return stockinResults.results?.addProducts?.processed > 0 ||
-      stockinResults.results?.adds?.processed > 0 ||
-      stockinResults.results?.updates?.processed > 0 ||
-      stockinResults.results?.deletes?.processed > 0;
-  }
-
   shouldFetchFreshData(results) {
     return results.adds.processed > 0 ||
       results.updates.processed > 0 ||
@@ -1175,10 +1147,11 @@ const stockOutRecord = {
     // --- Delta sync for stockouts ---
     const meta = await db.sync_metadata.get('stockOuts');
     const lastSyncedAt = meta?.lastSyncedAt || null;
+    const startOffset = meta?.pendingFetchOffset || 0;
     const LIMIT = 200;
-    let offset = 0;
+    let offset = startOffset;
     let totalFetched = 0;
-    let isFirstPage = true;
+    let isFirstPage = (offset === 0);
 
     while (true) {
       let result;
@@ -1229,18 +1202,27 @@ const stockOutRecord = {
 
       totalFetched += updatedRecords.length;
       onProgress?.({ entity: 'stockOuts', fetched: totalFetched });
+
+      // Save progress after each page so a crash only loses the current page
+      await db.sync_metadata.put({
+        entity: 'stockOuts',
+        lastSyncedAt: lastSyncedAt || null,
+        pendingFetchOffset: offset + updatedRecords.length,
+        lastFullSyncAt: meta?.lastFullSyncAt || null,
+      });
+
       if (updatedRecords.length < LIMIT) break;
       offset += LIMIT;
       isFirstPage = false;
     }
 
-    if (totalFetched > 0 || lastSyncedAt) {
-      await db.sync_metadata.put({
-        entity: 'stockOuts',
-        lastSyncedAt: new Date().toISOString(),
-        lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
-      });
-    }
+    // All pages complete — commit final metadata and clear the offset
+    await db.sync_metadata.put({
+      entity: 'stockOuts',
+      lastSyncedAt: new Date().toISOString(),
+      pendingFetchOffset: 0,
+      lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
+    });
 
     // --- Full refresh for backorders (no updatedAfter API yet) ---
     try {
@@ -1314,9 +1296,9 @@ const stockOutRecord = {
         }
       );
 
-      // Clean up processing sets (in case of crashes)
-      this.processingLocalIds.clear();
-      this.processingTransactionIds.clear();
+      // Clear any stuck mutex locks
+      this.mutex.clear();
+      this.txMutex.clear();
 
       console.log('✅ Cleanup completed successfully');
     } catch (error) {
@@ -1340,8 +1322,6 @@ const stockOutRecord = {
       syncedIdsCount,
       isOnline: await isOnline(),
       isSyncing: this.isSyncing,
-      processingCount: this.processingLocalIds.size,
-      processingTransactions: this.processingTransactionIds.size,
       lastSync: this.lastSyncTime ? new Date(this.lastSyncTime) : null
     };
   }
@@ -1357,17 +1337,11 @@ const stockOutRecord = {
           )
         ]);
       } catch (error) {
-        console.warn('Force sync: previous sync timed out — flagging in-flight items for server verification');
-        for (const localId of this.processingLocalIds) {
-          await db.stockouts_offline_add.update(localId, {
-            needsServerVerification: true,
-            lastSyncAttempt: new Date()
-          }).catch(() => {});
-        }
+        console.warn('Force sync: previous sync timed out — clearing mutex locks');
+        this.mutex.clear();
+        this.txMutex.clear();
         this.syncLock = null;
         this.isSyncing = false;
-        this.processingLocalIds.clear();
-        this.processingTransactionIds.clear();
       }
     }
     return this.syncStockOuts();
@@ -1426,10 +1400,10 @@ const stockOutRecord = {
       this.cleanupInterval = null;
     }
     
-    // Clear processing sets
-    this.processingLocalIds.clear();
-    this.processingTransactionIds.clear();
-    
+    // Clear mutex locks
+    this.mutex.clear();
+    this.txMutex.clear();
+
     // Clear sync lock if it exists
     if (this.syncLock) {
       this.syncLock = null;

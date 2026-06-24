@@ -7,6 +7,7 @@ import { useNetworkStatusContext } from "../../../context/useNetworkContext";
 import { db } from "../../../db/database";
 import productService from "../../../services/productService";
 import stockInService from "../../../services/stockinService";
+import { generateStableIdempotencyKey, requestBackgroundSync } from "../../../utils/syncUtils";
 
 // Searchable Product Select Component
 const SearchableProductSelect = ({
@@ -502,9 +503,11 @@ const UpsertStockInPage = ({ role }) => {
                 }));
                 const localIds = [];
                 for (const purchase of purchases) {
-                    const localId = await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity });
+                    const idempotencyKey = generateStableIdempotencyKey('stockin', purchase);
+                    const localId = await db.stockins_offline_add.add({ ...purchase, offlineQuantity: purchase.quantity, idempotencyKey });
                     localIds.push(localId);
                 }
+                requestBackgroundSync();
                 if (isOnline) {
                     try {
                         const response = await stockInService.createMultipleStockIn(purchases, userData);
@@ -549,7 +552,9 @@ const UpsertStockInPage = ({ role }) => {
                 if (!newStockIn.productId || !newStockIn.quantity || !newStockIn.price || !newStockIn.sellingPrice) {
                     throw new Error('Missing required fields');
                 }
-                const localId = await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity });
+                const idempotencyKey2 = generateStableIdempotencyKey('stockin', newStockIn);
+                const localId = await db.stockins_offline_add.add({ ...newStockIn, offlineQuantity: newStockIn.quantity, idempotencyKey: idempotencyKey2 });
+                requestBackgroundSync();
                 if (isOnline) {
                     try {
                         const response = await stockInService.createStockIn(newStockIn);

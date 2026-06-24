@@ -61,7 +61,8 @@ model Employee {
 
   stockRequisition StockRequisition[]
    receivingLogs   ReceivingLog[]
-  permissions Permission[]
+  permissions    Permission[]
+  passwordResets EmployeePasswordReset[]
 }
 
 model Permission {

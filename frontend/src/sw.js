@@ -225,6 +225,23 @@ self.addEventListener('notificationclose', (event) => {
 });
 
 // ==========================================
+// BACKGROUND SYNC
+// ==========================================
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'offline-queue-sync') {
+    event.waitUntil(
+      (async () => {
+        const clients = await self.clients.matchAll({ type: 'window' });
+        if (clients.length > 0) {
+          clients[0].postMessage({ type: 'RUN_SYNC' });
+        }
+      })()
+    );
+  }
+});
+
+// ==========================================
 // LIFECYCLE
 // ==========================================
 

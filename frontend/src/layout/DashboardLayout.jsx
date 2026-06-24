@@ -7,6 +7,8 @@ import { usePartnerAuth } from '../context/PartnerAuthContext'
 import { useSocket } from '../context/SocketContext'
 import useEmployeeAuth from '../context/EmployeeAuthContext'
 import { useNotifications } from '../context/NotificationContext'
+import { useSyncOrchestrator } from '../hooks/useSyncOrchestrator'
+import { DeadLetterBanner } from '../components/sync/DeadLetterBanner'
 
 
 
@@ -14,6 +16,7 @@ import { useNotifications } from '../context/NotificationContext'
 const DashboardLayout = ({role}) => {
   const [isOpen, setIsOpen] = useState(false)
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true)
+  useSyncOrchestrator()
 
   const { user } = useEmployeeAuth()
   const { user:admin } = useAdminAuth()
@@ -83,6 +86,7 @@ const DashboardLayout = ({role}) => {
           isSidebarExpanded={isSidebarExpanded}
           onToggleSidebarSize={() => setIsSidebarExpanded(!isSidebarExpanded)}
         />
+        <DeadLetterBanner />
         <Outlet />
       </div>
     </div>

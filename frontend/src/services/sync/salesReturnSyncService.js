@@ -1,13 +1,15 @@
 import { db } from '../../db/database';
 import { isOnline } from '../../utils/networkUtils';
 import salesReturnService from '../salesReturnService';
-import { stockOutSyncService } from './stockOutSyncService';
+import { ProcessingMutex } from '../../utils/syncMutex';
+import { moveToDeadLetter } from './deadLetterService';
+import { registerDependency } from './syncDependencyService';
 
 class SalesReturnSyncService {
   constructor() {
     this.isSyncing = false;
-    this.processingLocalIds = new Set();
-    this.processingTransactionIds = new Set();
+    this.mutex = new ProcessingMutex();
+    this.txMutex = new ProcessingMutex();
     this.lastSyncTime = null;
     this.syncLock = null;
   }
@@ -38,29 +40,11 @@ class SalesReturnSyncService {
     console.log('🔄 Starting sales return sync process...');
 
     try {
-      // Step 1: Sync stockouts first (sales returns depend on stockouts)
-      console.log('📦 Step 1: Syncing stockouts first...');
-      const stockoutResults = await stockOutSyncService.syncUnsyncedAdds();
-      console.log('✅ Stockout sync completed:', stockoutResults);
-
-      // Step 2: Wait for stockout updates to propagate
-      if (this.shouldWaitForStockoutUpdates(stockoutResults)) {
-        console.log('⏰ Waiting for stockout updates to propagate...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-
-      // Step 3: Sync sales returns
       const results = {
         adds: await this.syncUnsyncedAdds(),
-        // updates: await this.syncUnsyncedUpdates(),
-        // deletes: await this.syncDeletedSalesReturns()
       };
 
-      // Step 4: Fetch fresh data if needed
-    //   const shouldFetchFresh = this.shouldFetchFreshData(results);
-    //   if (shouldFetchFresh) {
-        await this.fetchAndUpdateLocal();
-    //   }
+      await this.fetchAndUpdateLocal();
 
       this.lastSyncTime = Date.now();
       console.log('✅ Sales return sync completed successfully', results);
@@ -92,7 +76,7 @@ class SalesReturnSyncService {
 
     for (const salesReturn of unsyncedAdds) {
       // Skip if already processing
-      if (this.processingLocalIds.has(salesReturn.localId)) {
+      if (this.mutex.isLocked(salesReturn.localId)) {
         console.log(`⏭️ Skipping sales return ${salesReturn.localId} - already processing`);
         skipped++;
         continue;
@@ -124,86 +108,84 @@ class SalesReturnSyncService {
 
     // Process grouped transactions
     for (const [transactionId, returns] of returnsByTransaction) {
-      if (this.processingTransactionIds.has(transactionId)) {
+      if (this.txMutex.isLocked(transactionId)) {
         console.log(`⏭️ Skipping transaction ${transactionId} - already processing`);
         skipped += returns.length;
         continue;
       }
 
-      try {
-        console.log(`📦 Processing transaction ${transactionId} with ${returns.length} returns`);
-        
-        this.processingTransactionIds.add(transactionId);
-        
-        // Check for duplicates
-        const isDuplicate = await this.checkForTransactionDuplicate(transactionId, returns);
-        if (isDuplicate) {
-          console.log(`🔍 Detected duplicate transaction ${transactionId}, removing from queue`);
-          for (const ret of returns) {
-            await db.sales_returns_offline_add.delete(ret.localId);
-          }
-          skipped += returns.length;
-          continue;
-        }
-        
-        returns.forEach(ret => this.processingLocalIds.add(ret.localId));
+      const txResult = await this.txMutex.run(transactionId, async () => {
+        let txProcessed = 0;
+        let txSkipped = 0;
+        let txErrors = 0;
+        try {
+          console.log(`📦 Processing transaction ${transactionId} with ${returns.length} returns`);
 
-        // Process each return in the transaction
-        for (const salesReturn of returns) {
-          try {
-            const preparedReturn = await this.prepareSalesReturnForSync(salesReturn);
-            if (!preparedReturn) {
-              skipped++;
-              continue;
+          const isDuplicate = await this.checkForTransactionDuplicate(transactionId, returns);
+          if (isDuplicate) {
+            console.log(`🔍 Detected duplicate transaction ${transactionId}, removing from queue`);
+            for (const ret of returns) {
+              await db.sales_returns_offline_add.delete(ret.localId);
             }
+            return { txProcessed: 0, txSkipped: returns.length, txErrors: 0 };
+          }
 
-            console.log(`📤 Sending sales return ${salesReturn.localId}...`);
-
-            const idempotencyKey = this.generateIdempotencyKey(salesReturn);
-
-            let response;
+          for (const salesReturn of returns) {
             try {
-              response = await salesReturnService.createSalesReturn({
-                ...preparedReturn,
-                idempotencyKey
-              });
-            } catch (apiError) {
-              if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
-                console.log(`⚠️ Server detected duplicate for sales return ${salesReturn.localId}, removing from queue`);
-                await db.sales_returns_offline_add.delete(salesReturn.localId);
-                skipped++;
+              const preparedReturn = await this.prepareSalesReturnForSync(salesReturn);
+              if (!preparedReturn) {
+                txSkipped++;
                 continue;
               }
-              throw apiError;
+
+              console.log(`📤 Sending sales return ${salesReturn.localId}...`);
+
+              const idempotencyKey = salesReturn.idempotencyKey || this.generateIdempotencyKey(salesReturn);
+
+              let response;
+              try {
+                response = await salesReturnService.createSalesReturn({
+                  ...preparedReturn,
+                  idempotencyKey
+                });
+              } catch (apiError) {
+                if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
+                  console.log(`⚠️ Server detected duplicate for sales return ${salesReturn.localId}, removing from queue`);
+                  await db.sales_returns_offline_add.delete(salesReturn.localId);
+                  txSkipped++;
+                  continue;
+                }
+                throw apiError;
+              }
+
+              await this.saveSalesReturnResult(response, salesReturn);
+              console.log(`✅ Synced sales return ${salesReturn.localId}`);
+              txProcessed++;
+
+            } catch (error) {
+              console.error(`❌ Error syncing sales return ${salesReturn.localId}:`, error);
+              await this.handleSyncError(salesReturn, error);
+              txErrors++;
             }
-
-            await this.saveSalesReturnResult(response, salesReturn);
-            console.log(`✅ Synced sales return ${salesReturn.localId}`);
-            processed++;
-
-          } catch (error) {
-            console.error(`❌ Error syncing sales return ${salesReturn.localId}:`, error);
-            await this.handleSyncError(salesReturn, error);
-            errors++;
           }
+        } catch (error) {
+          console.error(`❌ Error syncing transaction ${transactionId}:`, error);
+          for (const ret of returns) {
+            await this.handleSyncError(ret, error);
+          }
+          txErrors += returns.length;
         }
+        return { txProcessed, txSkipped, txErrors };
+      });
 
-      } catch (error) {
-        console.error(`❌ Error syncing transaction ${transactionId}:`, error);
-        
-        for (const ret of returns) {
-          await this.handleSyncError(ret, error);
-        }
-        errors += returns.length;
-      } finally {
-        returns.forEach(ret => this.processingLocalIds.delete(ret.localId));
-        this.processingTransactionIds.delete(transactionId);
-      }
+      processed += txResult.txProcessed;
+      skipped += txResult.txSkipped;
+      errors += txResult.txErrors;
     }
 
     // Process individual returns
     for (const salesReturn of individualReturns) {
-      if (this.processingLocalIds.has(salesReturn.localId)) {
+      if (this.mutex.isLocked(salesReturn.localId)) {
         skipped++;
         continue;
       }
@@ -216,44 +198,44 @@ class SalesReturnSyncService {
         continue;
       }
 
-      this.processingLocalIds.add(salesReturn.localId);
-
-      try {
-        const preparedReturn = await this.prepareSalesReturnForSync(salesReturn);
-        if (!preparedReturn) {
-          skipped++;
-          continue;
-        }
-
-        const idempotencyKey = this.generateIdempotencyKey(salesReturn);
-        
-        let response;
+      const result = await this.mutex.run(salesReturn.localId, async () => {
         try {
-          response = await salesReturnService.createSalesReturn({
-            ...preparedReturn,
-            idempotencyKey
-          });
-        } catch (apiError) {
-          if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
-            console.log(`⚠️ Server detected duplicate for sales return ${salesReturn.localId}, removing from queue`);
-            await db.sales_returns_offline_add.delete(salesReturn.localId);
-            skipped++;
-            continue;
+          const preparedReturn = await this.prepareSalesReturnForSync(salesReturn);
+          if (!preparedReturn) {
+            return { ok: false, skipped: true };
           }
-          throw apiError;
+
+          const idempotencyKey = salesReturn.idempotencyKey || this.generateIdempotencyKey(salesReturn);
+
+          let response;
+          try {
+            response = await salesReturnService.createSalesReturn({
+              ...preparedReturn,
+              idempotencyKey
+            });
+          } catch (apiError) {
+            if (apiError.status === 409 || apiError.message?.includes('duplicate')) {
+              console.log(`⚠️ Server detected duplicate for sales return ${salesReturn.localId}, removing from queue`);
+              await db.sales_returns_offline_add.delete(salesReturn.localId);
+              return { ok: false, skipped: true };
+            }
+            throw apiError;
+          }
+
+          await this.saveSalesReturnResult(response, salesReturn);
+          console.log(`✅ Synced individual sales return ${salesReturn.localId}`);
+          return { ok: true };
+
+        } catch (error) {
+          console.error(`❌ Error syncing sales return ${salesReturn.localId}:`, error);
+          await this.handleSyncError(salesReturn, error);
+          return { ok: false, error: true };
         }
+      });
 
-        await this.saveSalesReturnResult(response, salesReturn);
-        console.log(`✅ Synced individual sales return ${salesReturn.localId}`);
-        processed++;
-
-      } catch (error) {
-        console.error(`❌ Error syncing sales return ${salesReturn.localId}:`, error);
-        await this.handleSyncError(salesReturn, error);
-        errors++;
-      } finally {
-        this.processingLocalIds.delete(salesReturn.localId);
-      }
+      if (result.skipped) skipped++;
+      else if (result.ok) processed++;
+      else errors++;
     }
 
     return { processed, skipped, errors, total: unsyncedAdds.length };
@@ -293,7 +275,13 @@ class SalesReturnSyncService {
           // Check if it's already a server ID in stockouts_all
           const serverStockout = await db.stockouts_all.get(item.stockoutId);
           if (!serverStockout) {
-            console.warn(`⚠️ Stockout ID ${item.stockoutId} not found. Skipping sales return ${salesReturn.localId}`);
+            console.warn(`⚠️ Stockout ID ${item.stockoutId} not found — registering dependency for sales return ${salesReturn.localId}`);
+            await registerDependency({
+              entity: 'sales_return',
+              localId: salesReturn.localId,
+              waitingForEntity: 'stockout',
+              waitingForLocalId: item.stockoutId
+            });
             return null;
           }
         }
@@ -467,10 +455,11 @@ class SalesReturnSyncService {
   async fetchAndUpdateLocal(onProgress = null) {
     const meta = await db.sync_metadata.get('salesReturns');
     const lastSyncedAt = meta?.lastSyncedAt || null;
+    const startOffset = meta?.pendingFetchOffset || 0;
     const LIMIT = 200;
-    let offset = 0;
+    let offset = startOffset;
     let totalFetched = 0;
-    let isFirstPage = true;
+    let isFirstPage = (offset === 0);
 
     while (true) {
       let result;
@@ -523,25 +512,30 @@ class SalesReturnSyncService {
 
       totalFetched += updatedRecords.length;
       onProgress?.({ entity: 'salesReturns', fetched: totalFetched });
+
+      // Save progress after each page so a crash only loses the current page
+      await db.sync_metadata.put({
+        entity: 'salesReturns',
+        lastSyncedAt: lastSyncedAt || null,
+        pendingFetchOffset: offset + updatedRecords.length,
+        lastFullSyncAt: meta?.lastFullSyncAt || null,
+      });
+
       if (updatedRecords.length < LIMIT) break;
       offset += LIMIT;
       isFirstPage = false;
     }
 
+    // All pages complete — commit final metadata and clear the offset
     await db.sync_metadata.put({
       entity: 'salesReturns',
       lastSyncedAt: new Date().toISOString(),
+      pendingFetchOffset: 0,
       lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
     });
   }
 
   // Helper methods
-  shouldWaitForStockoutUpdates(stockoutResults) {
-    return stockoutResults.results?.adds?.processed > 0 ||
-           stockoutResults.results?.updates?.processed > 0 ||
-           stockoutResults.results?.deletes?.processed > 0;
-  }
-
   shouldFetchFreshData(results) {
     return results.adds.processed > 0 ||
            results.updates.processed > 0 ||
@@ -585,8 +579,11 @@ class SalesReturnSyncService {
   async handleSyncError(salesReturn, error) {
     const retryCount = (salesReturn.syncRetryCount || 0) + 1;
     if (retryCount >= 5) {
-      console.log(`🚫 Max retries reached for sales return ${salesReturn.localId}, removing from queue`);
-      await db.sales_returns_offline_add.delete(salesReturn.localId);
+      console.log(`🚫 Max retries reached for sales return ${salesReturn.localId}, moving to dead-letter queue`);
+      await moveToDeadLetter(
+        'sales_return', salesReturn, error.message,
+        () => db.sales_returns_offline_add.delete(salesReturn.localId)
+      );
     } else {
       await db.sales_returns_offline_add.update(salesReturn.localId, {
         syncError: error.message,
@@ -639,7 +636,6 @@ class SalesReturnSyncService {
       syncedIdsCount,
       isOnline: await isOnline(),
       isSyncing: this.isSyncing,
-      processingCount: this.processingLocalIds.size,
       lastSync: this.lastSyncTime ? new Date(this.lastSyncTime) : null
     };
   }

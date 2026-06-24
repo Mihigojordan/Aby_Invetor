@@ -10,6 +10,7 @@ import { db } from "../../../db/database";
 import stockOutService from "../../../services/stockoutService";
 import useEmployeeAuth from "../../../context/EmployeeAuthContext";
 import useAdminAuth from "../../../context/AdminAuthContext";
+import { generateStableIdempotencyKey, requestBackgroundSync } from "../../../utils/syncUtils";
 
 // Searchable Stock-In Dropdown Component
 const SearchableStockInDropdown = ({
@@ -859,7 +860,8 @@ const UpsertStockOutPage = ({ role }) => {
                         updatedAt: now
                     };
 
-                    const localId = await db.stockouts_offline_add.add(newStockout);
+                    const idempotencyKey = generateStableIdempotencyKey('stockout', newStockout);
+                    const localId = await db.stockouts_offline_add.add({ ...newStockout, idempotencyKey });
                     createdStockouts.push({ ...newStockout, localId, synced: false });
                 } else {
                     const stockins = await fetchStockIns();
@@ -891,7 +893,8 @@ const UpsertStockOutPage = ({ role }) => {
                         updatedAt: now
                     };
 
-                    const localId = await db.stockouts_offline_add.add(newStockout);
+                    const idempotencyKey2 = generateStableIdempotencyKey('stockout', newStockout);
+                    const localId = await db.stockouts_offline_add.add({ ...newStockout, idempotencyKey: idempotencyKey2 });
                     createdStockouts.push({ ...newStockout, localId, synced: false });
 
                     const newQuantity = (stockin.offlineQuantity ?? stockin.quantity) - sale.quantity;
@@ -906,6 +909,7 @@ const UpsertStockOutPage = ({ role }) => {
                     }
                 }
             }
+            requestBackgroundSync();
 
             if (isOnline) {
                 try {

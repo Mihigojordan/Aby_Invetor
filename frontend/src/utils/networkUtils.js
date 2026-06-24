@@ -1,40 +1,42 @@
 
-  export const isOnline = async () => {
-    if (!navigator.onLine) return false;
+// Cache result for 10s to avoid hammering on every sync start
+let _cachedOnline = null;
+let _cacheAt = 0;
+const CACHE_MS = 10_000;
 
-    const testUrls = [
-      "https://www.google.com/favicon.ico",
+const tryFetch = async (url, mode) => {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 3000); // 3s timeout
+    const res = await fetch(url, { method: 'HEAD', cache: 'no-cache', mode, signal: controller.signal });
+    clearTimeout(id);
+    return res.ok || res.type === 'opaque';
+  } catch {
+    return false;
+  }
+};
 
-    ];
+export const isOnline = async () => {
+  if (!navigator.onLine) return false;
 
-    // Test multiple URLs in parallel for faster response
-    const testPromises = testUrls.map(async (url) => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-        
-        const response = await fetch(url, { 
-          method: "HEAD", 
-          cache: "no-cache",
-          mode: "no-cors",
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        return response.ok || response.type === 'opaque';
-      } catch (error) {
-        return false;
-      }
-    });
+  // Return cached result if fresh
+  if (_cachedOnline !== null && Date.now() - _cacheAt < CACHE_MS) return _cachedOnline;
 
-    try {
-      // If any of the tests succeed, we have internet
-      const results = await Promise.allSettled(testPromises);
-      return results.some(result => result.status === 'fulfilled' && result.value === true);
-    } catch (error) {
-      return false;
-    }
-  };
+  const API_BASE = (import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/, '');
+  // Try own API first; fall back to Google only if the API server is unreachable
+  const result = (API_BASE ? await tryFetch(`${API_BASE}/api/health`, 'cors') : false)
+    || await tryFetch('https://www.google.com/favicon.ico', 'no-cors');
+
+  _cachedOnline = result;
+  _cacheAt = Date.now();
+  return result;
+};
+
+// Invalidate cache immediately when the browser reports a connectivity change
+if (typeof window !== 'undefined') {
+  window.addEventListener('online',  () => { _cachedOnline = null; });
+  window.addEventListener('offline', () => { _cachedOnline = false; });
+}
 
   export const waitForNetwork = async (timeout = 10000) => {
     const currentlyOnline = await isOnline();

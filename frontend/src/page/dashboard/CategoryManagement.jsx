@@ -24,9 +24,11 @@ import ExportCategoryModal from "../../components/dashboard/category/ExportCateg
 import categoryService from "../../services/categoryService";
 import useEmployeeAuth from "../../context/EmployeeAuthContext";
 import useAdminAuth from "../../context/AdminAuthContext";
+import { hasFeaturePermission } from "../../utils/permissions";
 import { db } from "../../db/database";
 import { useCategoryOfflineSync } from "../../hooks/useCategoryOffline";
 import { useNetworkStatusContext } from "../../context/useNetworkContext";
+import { generateStableIdempotencyKey, requestBackgroundSync } from "../../utils/syncUtils";
 import useScreenBelow from "../../hooks/useScreenBelow";
 
 // Design System Colors
@@ -230,7 +232,9 @@ const CategoryManagement = ({ role }) => {
         updatedAt: now,
       };
 
-      const localId = await db.categories_offline_add.add(newCategory);
+      const idempotencyKey = generateStableIdempotencyKey('category', newCategory);
+      const localId = await db.categories_offline_add.add({ ...newCategory, idempotencyKey });
+      requestBackgroundSync();
 
       if (isOnline) {
         try {
@@ -415,7 +419,8 @@ const CategoryManagement = ({ role }) => {
             updatedAt: now,
           };
 
-          const localId = await db.categories_offline_add.add(newCategory);
+          const idempotencyKey = generateStableIdempotencyKey('category', newCategory);
+          const localId = await db.categories_offline_add.add({ ...newCategory, idempotencyKey });
 
           if (isOnline) {
             try {

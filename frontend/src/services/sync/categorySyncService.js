@@ -1,33 +1,30 @@
 import { db } from '../../db/database';
 import categoryService from '../categoryService';
 import { isOnline } from '../../utils/networkUtils';
+import { ProcessingMutex } from '../../utils/syncMutex';
+import { moveToDeadLetter } from './deadLetterService';
 
 class CategorySyncService {
   constructor() {
     this.isSyncing = false;
-    this.processingLocalIds = new Set(); // Track items being processed
+    this.mutex = new ProcessingMutex();
     this.lastSyncTime = null;
     this.syncLock = null;
   }
 
   async syncCategories() {
-    // 🔒 Prevent concurrent syncs with a promise-based lock
     if (this.syncLock) {
-      console.log('Sync already in progress, waiting for completion...');
+      console.log('Category sync already in progress, waiting for completion...');
       await this.syncLock;
-      return { success: false,};
+      return { success: false };
     }
 
     if (!(await isOnline())) {
       return { success: false, error: 'Offline' };
     }
 
-    // Create sync lock promise
     let resolveSyncLock;
-    this.syncLock = new Promise(resolve => {
-      resolveSyncLock = resolve;
-    });
-
+    this.syncLock = new Promise(resolve => { resolveSyncLock = resolve; });
     this.isSyncing = true;
     console.log('🔄 Starting category sync process...');
 
@@ -38,12 +35,12 @@ class CategorySyncService {
         deletes: await this.syncDeletedCategories()
       };
 
-      // Only fetch if we made changes or it's been a while
-      const shouldFetchFresh = results.adds.processed > 0 || 
-                              results.updates.processed > 0 || 
-                              results.deletes.processed > 0 ||
-                              !this.lastSyncTime ||
-                              (Date.now() - this.lastSyncTime) > 10000; // 5 minutes
+      const shouldFetchFresh =
+        results.adds.processed > 0 ||
+        results.updates.processed > 0 ||
+        results.deletes.processed > 0 ||
+        !this.lastSyncTime ||
+        (Date.now() - this.lastSyncTime) > 10000;
 
       if (shouldFetchFresh) {
         await this.fetchAndUpdateLocal();
@@ -71,154 +68,135 @@ class CategorySyncService {
     let errors = 0;
 
     for (const category of unsyncedAdds) {
-      // 🔒 Skip if already being processed
-      if (this.processingLocalIds.has(category.localId)) {
-        console.log(`⏭️ Skipping category ${category.localId} - already processing`);
+      if (this.mutex.isLocked(category.localId)) {
         skipped++;
         continue;
       }
 
-      this.processingLocalIds.add(category.localId);
-
-      try {
-        // ✅ Double-check if already synced (race condition protection)
-        const syncedRecord = await db.synced_category_ids
-          .where('localId')
-          .equals(category.localId)
-          .first();
-        
-        if (syncedRecord) {
-          console.log(`✓ Category ${category.localId} already synced to server ID ${syncedRecord.serverId}`);
-          await db.categories_offline_add.delete(category.localId);
-          skipped++;
-          continue;
-        }
-
-        // 🔍 Check for potential content duplicates
-        const isDuplicateContent = await this.checkForContentDuplicate(category);
-        if (isDuplicateContent) {
-          console.log(`🔍 Duplicate content detected for category ${category.localId}, removing from queue`);
-          await db.categories_offline_add.delete(category.localId);
-          skipped++;
-          continue;
-        }
-
-        // 📦 Prepare data with idempotency key
-        const categoryData = {
-          name: category.name,
-          description: category.description,
-          subcategory: category.subcategory,
-          adminId: category.adminId,
-          employeeId: category.employeeId,
-          // 🔑 Idempotency key for backend deduplication
-          idempotencyKey: this.generateIdempotencyKey(category),
-          clientId: category.localId, // For tracking
-          clientTimestamp: category.createdAt || category.lastModified
-        };
-
-        console.log(`📤 Sending category ${category.localId} to server...`);
-        
-        // 🌐 Send to server with error handling
-        let response;
+      await this.mutex.run(category.localId, async () => {
         try {
-          response = await categoryService.createCategory(categoryData);
-        } catch (apiError) {
-          // 409 = category already exists on server — record the mapping so
-          // any dependent records (products) resolve to the correct server ID
-          if (apiError.status === 409 || apiError.response?.status === 409) {
-            const existingCategory = apiError.response?.data?.category || apiError.data?.category;
-            if (existingCategory?.id) {
-              await db.transaction('rw', db.categories_all, db.categories_offline_add, db.synced_category_ids, async () => {
-                await db.categories_all.put({
-                  id: existingCategory.id,
-                  name: existingCategory.name,
-                  description: existingCategory.description,
-                  lastModified: new Date(existingCategory.updatedAt || existingCategory.createdAt || Date.now()),
-                  updatedAt: new Date(existingCategory.updatedAt || Date.now()),
-                });
-                await db.synced_category_ids.put({ localId: category.localId, serverId: existingCategory.id, syncedAt: new Date() });
-                await db.categories_offline_add.delete(category.localId);
-              });
-              console.log(`⚠️ Category already exists on server — mapped ${category.localId} → ${existingCategory.id}`);
-            } else {
-              await db.categories_offline_add.delete(category.localId);
-              console.log(`⚠️ Category already exists but no ID returned — removed from queue`);
-            }
-            skipped++;
-            continue;
-          }
-          if (apiError.status === 400 && apiError.message?.includes('already exists')) {
+          const syncedRecord = await db.synced_category_ids
+            .where('localId').equals(category.localId).first();
+
+          if (syncedRecord) {
             await db.categories_offline_add.delete(category.localId);
             skipped++;
-            continue;
+            return;
           }
-          throw apiError; // Re-throw other errors
-        }
 
-        const serverCategoryId = response.category?.data?.[0]?.id || 
-                                response.category?.id || 
-                                response.id;
+          const isDuplicateContent = await this.checkForContentDuplicate(category);
+          if (isDuplicateContent) {
+            await db.categories_offline_add.delete(category.localId);
+            skipped++;
+            return;
+          }
 
-        if (!serverCategoryId) {
-          throw new Error('Server did not return a valid category ID');
-        }
-
-        // 💾 Update local database atomically
-        await db.transaction('rw', db.categories_all, db.categories_offline_add, db.synced_category_ids, async () => {
-          // Check for existing record in categories_all
-          const existingCategory = await db.categories_all.get(serverCategoryId);
-          
-          const categoryRecord = {
-            id: serverCategoryId,
+          const categoryData = {
             name: category.name,
             description: category.description,
             subcategory: category.subcategory,
-            lastModified: new Date(),
-            updatedAt: response.category?.updatedAt || response.updatedAt || new Date()
+            adminId: category.adminId,
+            employeeId: category.employeeId,
+            // Read stored key first; fall back to generating one for old rows
+            idempotencyKey: category.idempotencyKey || this.generateIdempotencyKey(category),
+            clientId: category.localId,
+            clientTimestamp: category.createdAt || category.lastModified
           };
 
-          if (existingCategory) {
-            console.log(`📝 Updating existing category ${serverCategoryId}`);
-            await db.categories_all.update(serverCategoryId, categoryRecord);
-          } else {
-            console.log(`➕ Adding new category ${serverCategoryId}`);
-            await db.categories_all.add(categoryRecord);
+          console.log(`📤 Sending category ${category.localId} to server...`);
+
+          let response;
+          try {
+            response = await categoryService.createCategory(categoryData);
+          } catch (apiError) {
+            if (apiError.status === 409 || apiError.response?.status === 409) {
+              const existingCategory = apiError.response?.data?.category || apiError.data?.category;
+              if (existingCategory?.id) {
+                await db.transaction('rw', db.categories_all, db.categories_offline_add, db.synced_category_ids, async () => {
+                  await db.categories_all.put({
+                    id: existingCategory.id,
+                    name: existingCategory.name,
+                    description: existingCategory.description,
+                    lastModified: new Date(existingCategory.updatedAt || existingCategory.createdAt || Date.now()),
+                    updatedAt: new Date(existingCategory.updatedAt || Date.now()),
+                  });
+                  await db.synced_category_ids.put({ localId: category.localId, serverId: existingCategory.id, syncedAt: new Date() });
+                  await db.categories_offline_add.delete(category.localId);
+                });
+                console.log(`⚠️ Category duplicate — mapped ${category.localId} → ${existingCategory.id}`);
+              } else {
+                await db.categories_offline_add.delete(category.localId);
+              }
+              skipped++;
+              return;
+            }
+            if (apiError.status === 400 && apiError.message?.includes('already exists')) {
+              await db.categories_offline_add.delete(category.localId);
+              skipped++;
+              return;
+            }
+            throw apiError;
           }
 
-          // Record the sync relationship
-          await db.synced_category_ids.put({
-            localId: category.localId,
-            serverId: serverCategoryId,
-            syncedAt: new Date()
+          const serverCategoryId =
+            response.category?.data?.[0]?.id ||
+            response.category?.id ||
+            response.id;
+
+          if (!serverCategoryId) {
+            throw new Error('Server did not return a valid category ID');
+          }
+
+          await db.transaction('rw', db.categories_all, db.categories_offline_add, db.synced_category_ids, async () => {
+            const existingCategory = await db.categories_all.get(serverCategoryId);
+            const categoryRecord = {
+              id: serverCategoryId,
+              name: category.name,
+              description: category.description,
+              subcategory: category.subcategory,
+              lastModified: new Date(),
+              updatedAt: response.category?.updatedAt || response.updatedAt || new Date()
+            };
+
+            if (existingCategory) {
+              await db.categories_all.update(serverCategoryId, categoryRecord);
+            } else {
+              await db.categories_all.add(categoryRecord);
+            }
+
+            await db.synced_category_ids.put({
+              localId: category.localId,
+              serverId: serverCategoryId,
+              syncedAt: new Date()
+            });
+            await db.categories_offline_add.delete(category.localId);
           });
 
-          // Remove from offline queue
-          await db.categories_offline_add.delete(category.localId);
-        });
+          console.log(`✅ Synced category ${category.localId} → ${serverCategoryId}`);
+          processed++;
 
-        console.log(`✅ Successfully synced category ${category.localId} → ${serverCategoryId}`);
-        processed++;
+        } catch (error) {
+          console.error(`❌ Error syncing category ${category.localId}:`, error);
 
-      } catch (error) {
-        console.error(`❌ Error syncing category ${category.localId}:`, error);
-        
-        const retryCount = (category.syncRetryCount || 0) + 1;
-        const maxRetries = 5;
+          const retryCount = (category.syncRetryCount || 0) + 1;
+          const maxRetries = 5;
 
-        if (retryCount >= maxRetries) {
-          console.log(`🚫 Max retries reached for category ${category.localId}, removing from queue`);
-          await db.categories_offline_add.delete(category.localId);
-        } else {
-          await db.categories_offline_add.update(category.localId, {
-            syncError: error.message,
-            syncRetryCount: retryCount,
-            lastSyncAttempt: new Date()
-          });
+          if (retryCount >= maxRetries) {
+            console.log(`🚫 Moving category ${category.localId} to dead-letter queue`);
+            await moveToDeadLetter(
+              'category', category, error.message,
+              () => db.categories_offline_add.delete(category.localId)
+            );
+          } else {
+            await db.categories_offline_add.update(category.localId, {
+              syncError: error.message,
+              syncRetryCount: retryCount,
+              lastSyncAttempt: new Date()
+            });
+          }
+          errors++;
         }
-        errors++;
-      } finally {
-        this.processingLocalIds.delete(category.localId);
-      }
+      });
     }
 
     return { processed, skipped, errors, total: unsyncedAdds.length };
@@ -239,7 +217,6 @@ class CategorySyncService {
           subcategory: category.subcategory,
           adminId: category.adminId,
           employeeId: category.employeeId,
-          // Add version or timestamp for optimistic locking
           lastModified: category.lastModified
         };
 
@@ -254,14 +231,12 @@ class CategorySyncService {
             lastModified: new Date(),
             updatedAt: response.category?.updatedAt || response.updatedAt || new Date()
           });
-
           await db.categories_offline_update.delete(category.id);
         });
 
         processed++;
       } catch (error) {
         console.error('Error syncing category update:', error);
-        
         const retryCount = (category.syncRetryCount || 0) + 1;
         if (retryCount >= 5) {
           await db.categories_offline_update.delete(category.id);
@@ -296,20 +271,12 @@ class CategorySyncService {
         await db.transaction('rw', db.categories_all, db.categories_offline_delete, db.synced_category_ids, async () => {
           await db.categories_all.delete(deletedCategory.id);
           await db.categories_offline_delete.delete(deletedCategory.id);
-          
-          // Clean up sync tracking
-          const syncRecord = await db.synced_category_ids
-            .where('serverId')
-            .equals(deletedCategory.id)
-            .first();
-          if (syncRecord) {
-            await db.synced_category_ids.delete(syncRecord.localId);
-          }
+          const syncRecord = await db.synced_category_ids.where('serverId').equals(deletedCategory.id).first();
+          if (syncRecord) await db.synced_category_ids.delete(syncRecord.localId);
         });
 
         processed++;
       } catch (error) {
-        // If item doesn't exist on server (404), consider it successfully deleted
         if (error.status === 404) {
           await db.transaction('rw', db.categories_all, db.categories_offline_delete, async () => {
             await db.categories_all.delete(deletedCategory.id);
@@ -320,7 +287,6 @@ class CategorySyncService {
         }
 
         console.error('Error syncing category delete:', error);
-        
         const retryCount = (deletedCategory.syncRetryCount || 0) + 1;
         if (retryCount >= 5) {
           await db.categories_offline_delete.delete(deletedCategory.id);
@@ -341,10 +307,11 @@ class CategorySyncService {
   async fetchAndUpdateLocal(onProgress = null) {
     const meta = await db.sync_metadata.get('categories');
     const lastSyncedAt = meta?.lastSyncedAt || null;
+    const startOffset = meta?.pendingFetchOffset || 0;
     const LIMIT = 200;
-    let offset = 0;
+    let offset = startOffset;
     let totalFetched = 0;
-    let isFirstPage = true;
+    let isFirstPage = (offset === 0);
 
     while (true) {
       let result;
@@ -384,36 +351,42 @@ class CategorySyncService {
 
       totalFetched += updatedRecords.length;
       onProgress?.({ entity: 'categories', fetched: totalFetched });
+
+      // Save progress incrementally so a crash only loses the current page
+      await db.sync_metadata.put({
+        entity: 'categories',
+        lastSyncedAt: lastSyncedAt || null,
+        pendingFetchOffset: offset + updatedRecords.length,
+        lastFullSyncAt: meta?.lastFullSyncAt || null,
+      });
+
       if (updatedRecords.length < LIMIT) break;
       offset += LIMIT;
       isFirstPage = false;
     }
 
+    // All pages complete — commit final metadata
     await db.sync_metadata.put({
       entity: 'categories',
       lastSyncedAt: new Date().toISOString(),
+      pendingFetchOffset: 0,
       lastFullSyncAt: !lastSyncedAt ? new Date().toISOString() : (meta?.lastFullSyncAt || null),
     });
   }
 
-  // 🔍 Check for content-based duplicates
   async checkForContentDuplicate(category) {
-    const timeWindow = 10 * 60 * 1000; // 10 minutes
+    const timeWindow = 10 * 60 * 1000;
     const cutoffTime = new Date(Date.now() - timeWindow);
-
-    // Check for categories with same name and description created recently
-    const potentialDuplicates = await db.categories_all
+    const count = await db.categories_all
       .where('name').equals(category.name)
-      .and(item => 
+      .and(item =>
         item.description === category.description &&
         new Date(item.updatedAt || item.lastModified) > cutoffTime
       )
       .count();
-
-    return potentialDuplicates > 0;
+    return count > 0;
   }
 
-  // 🔑 Generate consistent idempotency key
   generateIdempotencyKey(category) {
     const timestamp = category.createdAt?.getTime() || category.lastModified?.getTime() || Date.now();
     const nameHash = category.name.toLowerCase().replace(/\s+/g, '');
@@ -434,47 +407,26 @@ class CategorySyncService {
       syncedIdsCount,
       isOnline: await isOnline(),
       isSyncing: this.isSyncing,
-      processingCount: this.processingLocalIds.size,
       lastSync: this.lastSyncTime ? new Date(this.lastSyncTime) : null
     };
   }
 
   async forceSync() {
-    // Wait for current sync to complete if in progress
-    if (this.syncLock) {
-      await this.syncLock;
-    }
+    if (this.syncLock) await this.syncLock;
     return this.syncCategories();
   }
 
-  // 🧹 Clean up failed sync attempts
   async cleanupFailedSyncs() {
     const maxRetries = 5;
-    
-    await db.categories_offline_add
-      .where('syncRetryCount')
-      .above(maxRetries)
-      .delete();
-    
-    await db.categories_offline_update
-      .where('syncRetryCount')
-      .above(maxRetries)
-      .delete();
-      
-    await db.categories_offline_delete
-      .where('syncRetryCount')
-      .above(maxRetries)
-      .delete();
+    await db.categories_offline_add.where('syncRetryCount').above(maxRetries).delete();
+    await db.categories_offline_update.where('syncRetryCount').above(maxRetries).delete();
+    await db.categories_offline_delete.where('syncRetryCount').above(maxRetries).delete();
   }
 
   setupAutoSync() {
     window.addEventListener('online', this.handleOnline.bind(this));
     window.addEventListener('focus', this.handleFocus.bind(this));
-    
-    // Periodic cleanup
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupFailedSyncs();
-    }, 30 * 60 * 1000); // Every 30 minutes
+    this.cleanupInterval = setInterval(() => this.cleanupFailedSyncs(), 30 * 60 * 1000);
   }
 
   async handleOnline() {
@@ -491,9 +443,7 @@ class CategorySyncService {
   cleanup() {
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('focus', this.handleFocus);
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
+    if (this.cleanupInterval) clearInterval(this.cleanupInterval);
   }
 }
 

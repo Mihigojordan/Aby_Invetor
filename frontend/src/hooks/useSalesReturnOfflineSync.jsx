@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { salesReturnSyncService } from '../services/sync/salesReturnSyncService';
+import { runFullSync } from '../services/sync/syncOrchestrator';
 import { useNetworkStatusContext } from '../context/useNetworkContext';
 
 export const useSalesReturnOfflineSync = (options = {}) => {
@@ -49,10 +50,7 @@ export const useSalesReturnOfflineSync = (options = {}) => {
 
     setSyncStatus(prev => ({ ...prev, isSyncing: true, syncError: null }));
     try {
-      const result = force
-        ? await salesReturnSyncService.forceSync()
-        : await salesReturnSyncService.syncSalesReturns();
-
+      const result = await runFullSync({ force });
       setSyncStatus(prev => ({
         ...prev,
         isSyncing: false,
@@ -60,7 +58,6 @@ export const useSalesReturnOfflineSync = (options = {}) => {
         syncError: result?.success === false ? result.error : null
       }));
       await updateSyncStatus();
-
       return result;
     } catch (error) {
       log('Sales return sync failed', error);
@@ -71,21 +68,10 @@ export const useSalesReturnOfflineSync = (options = {}) => {
 
   useEffect(() => {
     log('useSalesReturnOfflineSync hook initialized');
-
-    if (autoSync) salesReturnSyncService.setupAutoSync();
     updateSyncStatus();
-
-    if (isOnline && autoSync) triggerSync();
-
-    if (autoSync && syncInterval > 0) {
-      intervalRef.current = setInterval(() => {
-        if (isOnline && !syncStatus.isSyncing) triggerSync();
-      }, syncInterval);
-    }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      salesReturnSyncService.cleanup();
     };
   }, [isOnline, autoSync, syncInterval]);
 

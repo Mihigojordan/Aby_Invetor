@@ -13,6 +13,7 @@ import { useProductOfflineSync } from '../../hooks/useProductOfflineSync';
 import categoryService from '../../services/categoryService';
 import { useNetworkStatusContext } from '../../context/useNetworkContext';
 import useScreenBelow from '../../hooks/useScreenBelow';
+import { generateStableIdempotencyKey, requestBackgroundSync } from '../../utils/syncUtils';
 import { hasFeaturePermission } from '../../utils/permissions';
 
 const ProductManagement = ({ role }) => {
@@ -221,7 +222,9 @@ const ProductManagement = ({ role }) => {
         updatedAt: now
       };
 
-      const localId = await db.products_offline_add.add(newProduct);
+      const idempotencyKey = generateStableIdempotencyKey('product', newProduct);
+      const localId = await db.products_offline_add.add({ ...newProduct, idempotencyKey });
+      requestBackgroundSync();
 
       if (productData.images?.length > 0) {
         for (const file of productData.images) {

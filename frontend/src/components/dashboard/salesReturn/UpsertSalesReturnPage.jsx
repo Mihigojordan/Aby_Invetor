@@ -8,6 +8,7 @@ import useAdminAuth from "../../../context/AdminAuthContext";
 import useEmployeeAuth from "../../../context/EmployeeAuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import salesReturnService from "../../../services/salesReturnService";
+import { generateStableIdempotencyKey, requestBackgroundSync } from "../../../utils/syncUtils";
 
 const UpsertSalesReturnPage = ({ role }) => {
   const [transactionId, setTransactionId] = useState('');
@@ -271,7 +272,9 @@ const UpsertSalesReturnPage = ({ role }) => {
         updatedAt: now
       };
 
-      const localId = await db.sales_returns_offline_add.add(newReturn);
+      const idempotencyKey = generateStableIdempotencyKey('sales_return', newReturn);
+      const localId = await db.sales_returns_offline_add.add({ ...newReturn, idempotencyKey });
+      requestBackgroundSync();
       const savedItems = [];
       for (const item of returnData.items) {
         if (!item.stockoutId || !item.quantity) {

@@ -14,6 +14,7 @@ import stockInService from '../../services/stockinService';
 import backOrderService from '../../services/backOrderService';
 import productService from '../../services/productService';
 import { useNavigate } from 'react-router-dom';
+import { generateStableIdempotencyKey, requestBackgroundSync } from '../../utils/syncUtils';
 
 const SalesReturnManagement = ({ role }) => {
   const [salesReturns, setSalesReturns] = useState([]);
@@ -428,7 +429,9 @@ const SalesReturnManagement = ({ role }) => {
         updatedAt: now
       };
 
-      const localId = await db.sales_returns_offline_add.add(newReturn);
+      const idempotencyKey = generateStableIdempotencyKey('sales_return', newReturn);
+      const localId = await db.sales_returns_offline_add.add({ ...newReturn, idempotencyKey });
+      requestBackgroundSync();
 
       for (const item of returnData.items) {
         if (!item.stockoutId || !item.quantity) {

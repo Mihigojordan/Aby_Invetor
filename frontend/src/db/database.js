@@ -94,6 +94,18 @@ export class AppDatabase extends Dexie {
       device_keys: 'id',
     });
 
+    // Version 18: add three new tables for the improved sync infrastructure.
+    // idempotencyKey is stored as a plain field on existing offline_add tables
+    // (no schema index needed) — Dexie stores non-indexed fields automatically.
+    this.version(18).stores({
+      // Items that failed all retries — visible to the user via DeadLetterBanner
+      dead_letter_queue: '++id, entity, localId, failedAt',
+      // Parent→child dependency tracking (e.g. stockin waiting for product)
+      sync_dependency_queue: '++id, [entity+localId], waitingForEntity, waitingForLocalId, createdAt',
+      // Generalised crash-safety markers (replaces stockout_pending_cleanup for all entities)
+      entity_pending_cleanup: 'compositeKey, entity, confirmedAt',
+    });
+
     // Assign tables
     this.products_all = this.table('products_all');
     this.products_offline_add = this.table('products_offline_add');
@@ -142,6 +154,11 @@ export class AppDatabase extends Dexie {
     this.sync_metadata = this.table('sync_metadata');
     this.offline_auth_profiles = this.table('offline_auth_profiles');
     this.device_keys = this.table('device_keys');
+
+    // v18 tables
+    this.dead_letter_queue = this.table('dead_letter_queue');
+    this.sync_dependency_queue = this.table('sync_dependency_queue');
+    this.entity_pending_cleanup = this.table('entity_pending_cleanup');
   }
 }
 

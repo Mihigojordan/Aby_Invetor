@@ -87,9 +87,9 @@ export class PermissionService {
     // Broadcast to all connected clients so employee UIs and admin panels
     // update in real-time without a page refresh.
     this.gateway.server?.emit('permission_updated', {
+      ...result,
       employeeId,
       feature,
-      ...result,
     });
 
     return result;
