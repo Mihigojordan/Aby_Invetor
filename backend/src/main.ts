@@ -88,6 +88,7 @@ async function bootstrap() {
           res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
         },
       }),
+      
     );
 
     // --------------------
